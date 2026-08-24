@@ -1,5 +1,6 @@
 import { defaultColors, getContrastColor, SeedColor } from '@rific/auto-paper'
 import { TouchableRipple } from '@rific/feedback-press'
+import { clamp } from '@tastic/core'
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { Icon } from 'react-native-paper'
 
@@ -63,7 +64,7 @@ interface Props {
 export function InlineColorPicker({ id, host, value, onChange, swatches = defaultColors, takenValue, allowSwapTaken, dark, align: alignOverride, icon = 'palette', autoDismiss = true, columns }: Props) {
   const menuBg = dark ? '#000000' : '#FFFFFF'
   const { width: windowWidth } = useWindowDimensions()
-  const autoColumns = Math.min(MAX_COLUMNS, Math.max(MIN_COLUMNS, Math.floor((windowWidth - 2 * SCREEN_MARGIN + SWATCHES_GAP) / (SWATCH_SIZE + SWATCHES_GAP))))
+  const autoColumns = clamp(Math.floor((windowWidth - 2 * SCREEN_MARGIN + SWATCHES_GAP) / (SWATCH_SIZE + SWATCHES_GAP)), MIN_COLUMNS, MAX_COLUMNS)
   const resolvedColumns = columns ?? autoColumns
   const swatchesWidth = widthForColumns(resolvedColumns)
   const swatchRows = Math.ceil(swatches.length / resolvedColumns)

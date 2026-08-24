@@ -29,6 +29,7 @@
   "exports": {
     ".": {
       "react-native": "./src/index.ts",
+      "browser": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
@@ -63,6 +64,7 @@
     "@rific/auto-paper": "^0.9.4",
     "@rific/feedback-press": "^0.10.4",
     "@shopify/react-native-skia": "^2.6.2",
+    "@tastic/core": "^0.1.2",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@types/jest": "^30.0.0",
@@ -92,6 +94,7 @@
     "@rific/auto-paper": ">=0.9.0",
     "@rific/feedback-press": ">=0.10.0",
     "@shopify/react-native-skia": ">=1.5.0",
+    "@tastic/core": ">=0.1.0",
     "react": ">=19.0.0",
     "react-native": ">=0.76.0",
     "react-native-paper": ">=5.0.0",

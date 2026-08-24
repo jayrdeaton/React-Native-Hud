@@ -1,4 +1,5 @@
 import { Canvas, Path, Skia } from '@shopify/react-native-skia'
+import { clamp } from '@tastic/core'
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Easing, useDerivedValue, useSharedValue, withTiming } from 'react-native-reanimated'
@@ -207,7 +208,7 @@ export function TriggerGauge({ segments, litIndices, size, accentColor, mutedCol
       if (mountProgress.value < 1) {
         const startFrac = (i * MOUNT_STAGGER_MS) / totalDurationMs
         const endFrac = startFrac + MOUNT_DURATION_MS / totalDurationMs
-        local = Math.min(1, Math.max(0, (mountProgress.value - startFrac) / (endFrac - startFrac)))
+        local = clamp((mountProgress.value - startFrac) / (endFrac - startFrac), 0, 1)
       }
       const sweep = dashAngleDeg * local
       if (sweep <= 0) continue
@@ -245,7 +246,7 @@ export function TriggerGauge({ segments, litIndices, size, accentColor, mutedCol
         if (!isLitNow) continue
         const startFrac = (i * MOUNT_STAGGER_MS) / totalDurationMs
         const endFrac = startFrac + MOUNT_DURATION_MS / totalDurationMs
-        local = Math.min(1, Math.max(0, (mountProgress.value - startFrac) / (endFrac - startFrac)))
+        local = clamp((mountProgress.value - startFrac) / (endFrac - startFrac), 0, 1)
       } else if (isLitNow === wasLit) {
         local = 1 // steady — lit before and after (or the mount-only branch above already handled unlit)
       } else if (isLitNow) {
