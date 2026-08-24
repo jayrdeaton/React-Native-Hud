@@ -177,8 +177,12 @@ export function SectionedDropdown({ id, host, icon, accessibilityLabel, sections
     gaugeOffset += section.options.length
   }
 
+  const anchorStyle = [styles.anchor, open && styles.anchorOpen]
+  const menuStyle = { backgroundColor: menuBg, borderColor: menuBorderColor, maxHeight }
+  const dividerStyle = { backgroundColor: menuBorderColor }
+
   return (
-    <View style={[styles.anchor, open && styles.anchorOpen]}>
+    <View style={anchorStyle}>
       <View ref={triggerRef} collapsable={false} style={styles.triggerBox}>
         <TriggerGaugeHost segments={gaugeSegments} litIndices={gaugeLitIndices} size={TRIGGER_SIZE} accentColor={accentColor} mutedColor={mutedColor} />
         <IconButton icon={triggerIcon} iconColor={triggerIconColor} size={triggerIconSize} accessibilityLabel={accessibilityLabel} onPress={() => host.toggle(id)} />
@@ -194,13 +198,13 @@ export function SectionedDropdown({ id, host, icon, accessibilityLabel, sections
         is always <= maxHeight then, so nothing scrolls); on a short landscape screen where neither
         direction has enough room, this is what keeps the menu from just running off the screen
         edge instead of flipping only made it run off a *smaller* amount. */}
-        <ScrollView style={[styles.menu, { backgroundColor: menuBg, borderColor: menuBorderColor, maxHeight }]} contentContainerStyle={styles.menuContent} showsVerticalScrollIndicator={false}>
+        <ScrollView style={[styles.menu, menuStyle]} contentContainerStyle={styles.menuContent} showsVerticalScrollIndicator={false}>
           {sections.map((section, sectionIndex) => (
             <View key={section.id}>
               {/* Every section after the first gets a rule above it — the divider belongs to the
               boundary between sections, not to either section itself, so it's keyed off position
               rather than each section carrying its own "divider below me" flag. */}
-              {sectionIndex > 0 && <View style={[styles.divider, { backgroundColor: menuBorderColor }]} />}
+              {sectionIndex > 0 && <View style={[styles.divider, dividerStyle]} />}
 
               {section.kind === 'single' ? (
                 <SingleSection
@@ -247,16 +251,19 @@ function SingleSection({
       {section.options.map((option) => {
         const selected = option.value === section.value
         const rowColor = selected ? onAccentColor : mutedColor
+        const itemStyle = [styles.item, selected && { backgroundColor: accentColor }]
+        const labelStyle = { fontFamily: labelFontFamily, color: rowColor, fontWeight: selected ? 'bold' : 'normal' }
+        const descriptionStyle = { fontFamily: labelFontFamily, color: rowColor }
         return (
-          <TouchableRipple key={option.value} onPress={() => onSelect(option.value)} style={[styles.item, selected && { backgroundColor: accentColor }]}>
+          <TouchableRipple key={option.value} onPress={() => onSelect(option.value)} style={itemStyle}>
             <View style={styles.itemRow}>
               {option.icon && <Icon source={option.icon} size={MENU_ITEM_ICON_SIZE} color={rowColor} />}
               <View style={styles.itemLabelColumn}>
-                <Text variant='labelLarge' style={[{ fontFamily: labelFontFamily }, { color: rowColor, fontWeight: selected ? 'bold' : 'normal' }]}>
+                <Text variant='labelLarge' style={labelStyle}>
                   {option.label}
                 </Text>
                 {option.description && (
-                  <Text variant='labelSmall' style={[{ fontFamily: labelFontFamily }, { color: rowColor }]}>
+                  <Text variant='labelSmall' style={descriptionStyle}>
                     {option.description}
                   </Text>
                 )}
@@ -299,11 +306,13 @@ function MultiSection({
         // separately-rounded pills.
         const prevSelected = selected && i > 0 && section.value.includes(section.options[i - 1].value)
         const nextSelected = selected && i < section.options.length - 1 && section.value.includes(section.options[i + 1].value)
+        const itemStyle = [styles.item, selected && { backgroundColor: accentColor }, prevSelected && { borderTopLeftRadius: 0, borderTopRightRadius: 0 }, nextSelected && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]
+        const labelStyle = { fontFamily: labelFontFamily, color: rowColor, fontWeight: selected ? 'bold' : 'normal' }
         return (
-          <TouchableRipple key={option.value} onPress={() => section.onChange(selected ? section.value.filter((v: unknown) => v !== option.value) : [...section.value, option.value])} style={[styles.item, selected && { backgroundColor: accentColor }, prevSelected && { borderTopLeftRadius: 0, borderTopRightRadius: 0 }, nextSelected && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]}>
+          <TouchableRipple key={option.value} onPress={() => section.onChange(selected ? section.value.filter((v: unknown) => v !== option.value) : [...section.value, option.value])} style={itemStyle}>
             <View style={styles.itemRow}>
               {option.icon && <Icon source={option.icon} size={MENU_ITEM_ICON_SIZE} color={rowColor} />}
-              <Text variant='labelLarge' style={[styles.itemLabelFlex, { fontFamily: labelFontFamily }, { color: rowColor, fontWeight: selected ? 'bold' : 'normal' }]}>
+              <Text variant='labelLarge' style={[styles.itemLabelFlex, labelStyle]}>
                 {option.label}
               </Text>
             </View>

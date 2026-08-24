@@ -266,9 +266,18 @@ export function TriggerGauge({ segments, litIndices, size, accentColor, mutedCol
 
   if (segments < 2) return null
 
+  const gaugeSizeStyle = {
+    height: size,
+    width: size
+  }
+  const canvasSizeStyle = {
+    height: canvasSize,
+    width: canvasSize
+  }
+
   return (
-    <View style={[styles.container, { height: size, width: size }]} pointerEvents='none'>
-      <Canvas style={{ height: canvasSize, width: canvasSize }}>
+    <View style={[styles.container, gaugeSizeStyle]} pointerEvents='none'>
+      <Canvas style={canvasSizeStyle}>
         <Path path={unlitPath} style='stroke' strokeWidth={UNLIT_THICKNESS} strokeCap='round' color={mutedColor} opacity={0.35} />
         <Path path={litPath} style='stroke' strokeWidth={LIT_THICKNESS} strokeCap='round' color={accentColor} opacity={1} />
       </Canvas>

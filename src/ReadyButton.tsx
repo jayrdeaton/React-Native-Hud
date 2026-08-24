@@ -21,9 +21,13 @@ interface Props {
 // below a shared row — e.g. a vs-CPU mode with only one human player needs just one Ready toggle,
 // not one tucked under each slot.
 export function ReadyButton({ color, ready, onToggleReady, style, labelFontFamily = MONO_FONT }: Props) {
+  const readyButtonStyle = [styles.readyButton, { borderColor: color }, ready && { backgroundColor: color }, style]
+  const labelTextStyle = { fontFamily: labelFontFamily, fontWeight: 'bold' }
+  const labelColorStyle = { color: ready ? '#000000' : color }
+
   return (
-    <TouchableRipple onPress={onToggleReady} borderless style={[styles.readyButton, { borderColor: color }, ready && { backgroundColor: color }, style]}>
-      <Text variant='labelLarge' style={[{ fontFamily: labelFontFamily, fontWeight: 'bold' }, { color: ready ? '#000000' : color }]}>
+    <TouchableRipple onPress={onToggleReady} borderless style={readyButtonStyle}>
+      <Text variant='labelLarge' style={[labelTextStyle, labelColorStyle]}>
         {ready ? 'READY ✓' : 'READY?'}
       </Text>
     </TouchableRipple>
