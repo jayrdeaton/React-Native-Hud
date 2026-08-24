@@ -1,6 +1,6 @@
 import { getBlendedColor, getColorRoles } from '@rific/auto-paper'
 import { IconButton, TouchableRipple } from '@rific/feedback-press'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { ScrollView, StyleSheet, TextStyle, View } from 'react-native'
 import { Icon, Text } from 'react-native-paper'
 
 import { MONO_FONT } from './fonts'
@@ -252,8 +252,8 @@ function SingleSection({
         const selected = option.value === section.value
         const rowColor = selected ? onAccentColor : mutedColor
         const itemStyle = [styles.item, selected && { backgroundColor: accentColor }]
-        const labelStyle = { fontFamily: labelFontFamily, color: rowColor, fontWeight: selected ? 'bold' : 'normal' }
-        const descriptionStyle = { fontFamily: labelFontFamily, color: rowColor }
+        const labelStyle: TextStyle = { fontFamily: labelFontFamily, color: rowColor, fontWeight: selected ? 'bold' : 'normal' }
+        const descriptionStyle: TextStyle = { fontFamily: labelFontFamily, color: rowColor }
         return (
           <TouchableRipple key={option.value} onPress={() => onSelect(option.value)} style={itemStyle}>
             <View style={styles.itemRow}>
@@ -307,7 +307,7 @@ function MultiSection({
         const prevSelected = selected && i > 0 && section.value.includes(section.options[i - 1].value)
         const nextSelected = selected && i < section.options.length - 1 && section.value.includes(section.options[i + 1].value)
         const itemStyle = [styles.item, selected && { backgroundColor: accentColor }, prevSelected && { borderTopLeftRadius: 0, borderTopRightRadius: 0 }, nextSelected && { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }]
-        const labelStyle = { fontFamily: labelFontFamily, color: rowColor, fontWeight: selected ? 'bold' : 'normal' }
+        const labelStyle: TextStyle = { fontFamily: labelFontFamily, color: rowColor, fontWeight: selected ? 'bold' : 'normal' }
         return (
           <TouchableRipple key={option.value} onPress={() => section.onChange(selected ? section.value.filter((v: unknown) => v !== option.value) : [...section.value, option.value])} style={itemStyle}>
             <View style={styles.itemRow}>

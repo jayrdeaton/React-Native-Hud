@@ -1,5 +1,5 @@
 import { TouchableRipple } from '@rific/feedback-press'
-import { StyleProp, StyleSheet, ViewStyle } from 'react-native'
+import { StyleProp, StyleSheet, TextStyle, ViewStyle } from 'react-native'
 import { Text } from 'react-native-paper'
 
 import { MONO_FONT } from './fonts'
@@ -22,7 +22,7 @@ interface Props {
 // not one tucked under each slot.
 export function ReadyButton({ color, ready, onToggleReady, style, labelFontFamily = MONO_FONT }: Props) {
   const readyButtonStyle = [styles.readyButton, { borderColor: color }, ready && { backgroundColor: color }, style]
-  const labelTextStyle = { fontFamily: labelFontFamily, fontWeight: 'bold' }
+  const labelTextStyle: TextStyle = { fontFamily: labelFontFamily, fontWeight: 'bold' }
   const labelColorStyle = { color: ready ? '#000000' : color }
 
   return (
