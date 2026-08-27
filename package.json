@@ -1,6 +1,6 @@
 {
   "name": "@tastic/hud",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Visual component kit for local-multiplayer React Native games: inline (non-modal) popovers, dropdowns, color pickers, gauges, ready buttons, and dialogs, built to stay scoped to one player's own zone on a shared screen",
   "keywords": [
     "react-native",
