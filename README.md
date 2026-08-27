@@ -28,8 +28,12 @@ corner of the screen.
   `maxHeight` for the caller to cap content and scroll when neither direction has enough room.
 - **`SectionedDropdown`** — a popover holding any mix of single-select ("pick one", radio-style) and
   multi-select ("pick some", checkbox-style, optional all/clear footer) sections, divided by rules.
-- **`InlineColorPicker`** — swatch-grid color popover, auto-sized columns, with an optional "taken"
-  color (shown disabled, or swappable).
+- **`InlineColorPicker`** — swatch-grid color popover, columns auto-clamped to 4 or 5 (the default
+  `swatches` list is exactly 20 colors, so that's the only range that fills every row completely),
+  with an optional "taken" color (shown disabled, or swappable). The trigger itself is a `size`-
+  configurable circle showing either an `icon` or a short `tag` (e.g. a saved player identity's own
+  initial or emoji) — `tag` renders at a larger ratio automatically when it's an emoji, since an
+  emoji glyph reads visually smaller than a bold letter at the same font size.
 - **`TriggerGauge`** — decorative ring of tick marks around a trigger, showing which option(s) are
   active without opening the popover.
 - **`ReadyButton`** — a per-player or standalone ready toggle.
