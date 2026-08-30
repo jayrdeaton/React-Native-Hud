@@ -1,24 +1,12 @@
 {
-  "extends": "@infinitetoken/tsconfig/tsconfig.json",
+  "extends": "@infinitetoken/tsconfig/react-native",
   "compilerOptions": {
-    "target": "ES2020",
-    "lib": ["ES2020", "DOM"],
-    "jsx": "react-jsx",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "sourceMap": true,
-    "outDir": "dist",
-    "rootDir": "src",
-    "allowSyntheticDefaultImports": true,
-    "resolveJsonModule": true,
-    "types": ["jest", "node"],
-    "forceConsistentCasingInFileNames": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noImplicitReturns": false,
-    "noFallthroughCasesInSwitch": false,
-    "preserveConstEnums": false
+    // Not a repo-code issue: loadSkiaWeb.web.ts imports @shopify/react-native-skia/src/web
+    // directly (required so Metro's platform-extension resolution keeps canvaskit-wasm's
+    // `require('fs')` out of the native bundle graph - see the comment in loadSkiaWeb.ts).
+    // That pulls WithSkiaWeb.tsx's raw source into the type-checked program, and its unused
+    // `React` import trips this flag. Confirmed via `tsc --noEmit` with this override removed.
+    "noUnusedLocals": false
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist", "src/__mocks__", ".claude/worktrees"]
+  "include": ["src"]
 }
