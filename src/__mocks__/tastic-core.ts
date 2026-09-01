@@ -6,3 +6,8 @@
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max)
 }
+
+// Real hook does live browser capability detection (touch points, coarse-pointer media query,
+// narrow-width fallback) — none of which jsdom meaningfully reports, so it's stubbed to a plain
+// jest.fn() a test can override per-case instead.
+export const useIsTouchPrimaryDevice = jest.fn(() => true)

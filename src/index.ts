@@ -1,3 +1,4 @@
+export { BaseSettingsDialog, type BaseSettingsDialogProps } from './BaseSettingsDialog'
 export { MONO_FONT } from './fonts'
 export { InlineColorPicker } from './InlineColorPicker'
 export { loadSkiaWeb } from './loadSkiaWeb'

@@ -24,7 +24,10 @@ module.exports = require('@infinitetoken/jest-config/react-native')({
     // customExportConditions matches) to raw .ts source under node_modules, which ts-jest then
     // refuses to transform (transformIgnorePatterns excludes node_modules by default) — mocked
     // instead of loosening that project-wide default just for one two-line function.
-    '^@tastic/core$': '<rootDir>/src/__mocks__/tastic-core.ts'
+    '^@tastic/core$': '<rootDir>/src/__mocks__/tastic-core.ts',
+    // Real @rific/updater talks to expo-updates at module scope, which has no jsdom equivalent —
+    // mocked wholesale, same treatment as every other native-backed peer above.
+    '^@rific/updater$': '<rootDir>/src/__mocks__/rific-updater.ts'
   },
   overrides: {
     // Every mock above is a `jest.fn(...)` — cleared (not restored/reset, since none use
