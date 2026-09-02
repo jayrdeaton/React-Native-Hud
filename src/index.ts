@@ -1,11 +1,14 @@
 export { BaseSettingsDialog, type BaseSettingsDialogProps } from './BaseSettingsDialog'
+export { CornerActionButtons } from './CornerActionButtons'
 export { MONO_FONT } from './fonts'
 export { InlineColorPicker } from './InlineColorPicker'
+export { getLabeledDropdownContentHeight, LABELED_DROPDOWN_POPOVER_WIDTH, LabeledDropdown, type LabeledDropdownOption } from './LabeledDropdown'
 export { loadSkiaWeb } from './loadSkiaWeb'
 export { PopoverBody } from './PopoverBody'
 export { PressAwayOverlay } from './PressAwayOverlay'
 export { ReadyButton } from './ReadyButton'
 export { type MenuOption, type MenuSection, type MultiSelectSection, SectionedDropdown, type SingleSelectSection } from './SectionedDropdown'
+export { SharedActionBand } from './SharedActionBand'
 // TriggerGauge itself (the raw Skia-based component) is deliberately NOT exported here, even
 // though a native-only consumer could safely skip TriggerGaugeHost's Suspense/lazy-load
 // indirection. A value re-export forces the bundler to fold TriggerGauge.tsx's own `Skia` import
