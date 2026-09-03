@@ -1,4 +1,6 @@
+export { AchievementRow, LOCKED_BADGE_COLOR } from './AchievementRow'
 export { BaseSettingsDialog, type BaseSettingsDialogProps } from './BaseSettingsDialog'
+export { BaseStatsScreen } from './BaseStatsScreen'
 export { CornerActionButtons } from './CornerActionButtons'
 export { MONO_FONT } from './fonts'
 export { InlineColorPicker } from './InlineColorPicker'
@@ -9,6 +11,8 @@ export { PressAwayOverlay } from './PressAwayOverlay'
 export { ReadyButton } from './ReadyButton'
 export { type MenuOption, type MenuSection, type MultiSelectSection, SectionedDropdown, type SingleSelectSection } from './SectionedDropdown'
 export { SharedActionBand } from './SharedActionBand'
+export { StatRow } from './StatRow'
+export { StatSection } from './StatSection'
 // TriggerGauge itself (the raw Skia-based component) is deliberately NOT exported here, even
 // though a native-only consumer could safely skip TriggerGaugeHost's Suspense/lazy-load
 // indirection. A value re-export forces the bundler to fold TriggerGauge.tsx's own `Skia` import
