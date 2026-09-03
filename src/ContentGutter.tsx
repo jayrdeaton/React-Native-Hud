@@ -44,12 +44,12 @@ export function ContentGutter({ maxContentWidth, leftGutter, rightGutter, style,
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row'
-  },
   // overflow:'hidden' keeps an oversized leftGutter/rightGutter from bleeding into the content
   // column instead of clipping cleanly at its own real width.
   gutter: {
     overflow: 'hidden'
+  },
+  row: {
+    flexDirection: 'row'
   }
 })

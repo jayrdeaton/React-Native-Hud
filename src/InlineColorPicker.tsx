@@ -210,6 +210,10 @@ const styles = StyleSheet.create({
     gap: SWATCHES_GAP,
     padding: SWATCHES_PADDING
   },
+  tagLabel: {
+    fontWeight: '700',
+    letterSpacing: 0.5
+  },
   // borderRadius/height/width come from the `size` prop instead (see render-site override) — no
   // fixed default here, since this style object is shared by every caller regardless of size.
   trigger: {
@@ -228,9 +232,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 4,
     width: '100%'
-  },
-  tagLabel: {
-    fontWeight: '700',
-    letterSpacing: 0.5
   }
 })
