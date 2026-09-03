@@ -6,7 +6,14 @@
     // `require('fs')` out of the native bundle graph - see the comment in loadSkiaWeb.ts).
     // That pulls WithSkiaWeb.tsx's raw source into the type-checked program, and its unused
     // `React` import trips this flag. Confirmed via `tsc --noEmit` with this override removed.
-    "noUnusedLocals": false
+    "noUnusedLocals": false,
+    // The shared preset's "react-native" customCondition is a Metro-bundling concern: several
+    // deps (@rific/*, @tastic/core) list "react-native" before "types" in their exports map, so
+    // with that condition active tsc resolves their raw src/*.ts instead of dist/*.d.ts - pulling
+    // their own peer deps (react-native-safe-area-context, expo-haptics, expo-updates) into the
+    // type-checked program even though this package never imports them. tsc only needs types, so
+    // disable the condition here and let it fall through to "types".
+    "customConditions": []
   },
   "include": ["src"]
 }
