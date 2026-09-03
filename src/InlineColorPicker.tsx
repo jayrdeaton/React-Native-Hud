@@ -40,6 +40,13 @@ interface Props {
   host: PopoverHost
   value: string
   onChange: (hex: string) => void
+  // Transforms only what's *rendered* — trigger fill, swatch fill, and the contrast/caret/border
+  // colors derived from them — leaving `value`/`swatch.value` themselves untouched for `selected`/
+  // `taken` matching and for what onChange actually commits. For a host whose own theme mutes or
+  // tints a raw seed color before it's actually used elsewhere (e.g. blending it toward a base
+  // palette for a card-back tint), so the picker can preview that real result per-swatch instead of
+  // the too-vibrant seed hue, without changing what gets stored.
+  previewValue?: (hex: string) => string
   swatches?: SeedColor[]
   // The other player's current color, if any — stays visible in the grid (so the full palette
   // reads consistently for both players) but renders disabled with an X, rather than being
@@ -82,7 +89,7 @@ interface Props {
 // Renders inline rather than as a full-screen modal, scoped to its own panel — a modal color
 // picker would block the whole screen for one player while another can't touch their own panel at
 // the same time, which defeats the point of a split-screen lobby.
-export function InlineColorPicker({ id, host, value, onChange, swatches = defaultColors, takenValue, allowSwapTaken, dark, align: alignOverride, icon = 'palette', tag, labelFontFamily = MONO_FONT, autoDismiss = true, columns, size = DEFAULT_SIZE }: Props) {
+export function InlineColorPicker({ id, host, value, onChange, previewValue, swatches = defaultColors, takenValue, allowSwapTaken, dark, align: alignOverride, icon = 'palette', tag, labelFontFamily = MONO_FONT, autoDismiss = true, columns, size = DEFAULT_SIZE }: Props) {
   const menuBg = dark ? '#000000' : '#FFFFFF'
   const { width: windowWidth } = useWindowDimensions()
   const autoColumns = clamp(Math.floor((windowWidth - 2 * SCREEN_MARGIN + SWATCHES_GAP) / (SWATCH_SIZE + SWATCHES_GAP)), MIN_COLUMNS, MAX_COLUMNS)
@@ -94,7 +101,9 @@ export function InlineColorPicker({ id, host, value, onChange, swatches = defaul
   const open = host.openId === id
   const { align: autoAlign, maxHeight, measured, triggerRef, verticalAlign } = useAutoAlign(open, swatchesWidth, swatchesHeight)
   const align = alignOverride ?? autoAlign
-  const contrastColor = getContrastColor(value)
+  const displayFor = previewValue ?? ((hex: string) => hex)
+  const displayValue = displayFor(value)
+  const contrastColor = getContrastColor(displayValue)
   // An emoji glyph reads visually smaller than a bold letter at the same fontSize (the system emoji
   // font leaves more of its own em-box empty), so a plain-text ratio that looks right for an initial
   // still looks small for an emoji tag at the identical size — this bumps emoji up to the icon's own
@@ -103,7 +112,7 @@ export function InlineColorPicker({ id, host, value, onChange, swatches = defaul
 
   return (
     <View style={[styles.anchor, open && styles.anchorOpen]}>
-      <TouchableRipple onPress={() => host.toggle(id)} borderless style={[styles.trigger, { backgroundColor: value, borderRadius: size / 2, height: size, width: size }]}>
+      <TouchableRipple onPress={() => host.toggle(id)} borderless style={[styles.trigger, { backgroundColor: displayValue, borderRadius: size / 2, height: size, width: size }]}>
         <View ref={triggerRef} collapsable={false} style={styles.triggerMeasure}>
           {/* Sized as a fraction of the trigger's own diameter rather than a fixed pixel size, so
           the glyph still reads as a deliberate part of the circle instead of shrinking toward its
@@ -121,18 +130,19 @@ export function InlineColorPicker({ id, host, value, onChange, swatches = defaul
       {/* Gated on `measured`, not just `open` — see useAutoAlign's own comment and
       SectionedDropdown's identical fix: without it, the popover mounts for one frame at a stale or
       guessed alignment and visibly jumps once this open's own measurement lands. */}
-      <PopoverBody visible={open && measured} align={align} verticalAlign={verticalAlign} caretColor={menuBg} caretBorderColor={value} caretBorderWidth={SWATCHES_BORDER_WIDTH} triggerSize={size}>
+      <PopoverBody visible={open && measured} align={align} verticalAlign={verticalAlign} caretColor={menuBg} caretBorderColor={displayValue} caretBorderWidth={SWATCHES_BORDER_WIDTH} triggerSize={size}>
         {/* Border matches this trigger's own current color (not a neutral gray) — two triggers can
         sit close together, so the popover needs a clear visual tie back to which one opened it,
         not just its screen position. maxHeight (see useAutoAlign) only actually clamps on a screen
         short enough that the full grid can't fit above or below the trigger either way — a short
         landscape screen with the trigger row near the top, same case SectionedDropdown's own
         ScrollView exists for. */}
-        <ScrollView style={[styles.swatches, { backgroundColor: menuBg, borderColor: value, width: swatchesWidth, maxHeight }]} contentContainerStyle={styles.swatchesContent} showsVerticalScrollIndicator={false}>
+        <ScrollView style={[styles.swatches, { backgroundColor: menuBg, borderColor: displayValue, width: swatchesWidth, maxHeight }]} contentContainerStyle={styles.swatchesContent} showsVerticalScrollIndicator={false}>
           {swatches.map((swatch) => {
             const selected = swatch.value.toLowerCase() === value.toLowerCase()
             const taken = !selected && !!takenValue && swatch.value.toLowerCase() === takenValue.toLowerCase()
             const swappable = taken && allowSwapTaken
+            const swatchDisplay = displayFor(swatch.value)
             return (
               <TouchableRipple
                 key={swatch.value}
@@ -142,9 +152,9 @@ export function InlineColorPicker({ id, host, value, onChange, swatches = defaul
                   if (autoDismiss) host.close()
                 }}
                 borderless
-                style={[styles.swatch, { backgroundColor: swatch.value }, selected && styles.swatchSelected, taken && !swappable && styles.swatchTaken]}
+                style={[styles.swatch, { backgroundColor: swatchDisplay }, selected && styles.swatchSelected, taken && !swappable && styles.swatchTaken]}
               >
-                {selected ? <Icon source='check' size={16} color={getContrastColor(swatch.value)} /> : swappable ? <Icon source='swap-horizontal' size={16} color={getContrastColor(swatch.value)} /> : taken ? <Icon source='close' size={16} color={getContrastColor(swatch.value)} /> : <View />}
+                {selected ? <Icon source='check' size={16} color={getContrastColor(swatchDisplay)} /> : swappable ? <Icon source='swap-horizontal' size={16} color={getContrastColor(swatchDisplay)} /> : taken ? <Icon source='close' size={16} color={getContrastColor(swatchDisplay)} /> : <View />}
               </TouchableRipple>
             )
           })}

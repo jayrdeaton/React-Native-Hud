@@ -334,25 +334,25 @@ const styles = StyleSheet.create({
   sectionLabel: {
     letterSpacing: 2
   },
-  // Negative margin cancels the padding so the icon still lines up with APPEARANCE/SOUND &
-  // HAPTICS below, while the ripple/hover highlight itself gets room to breathe on both sides
-  // instead of a flush edge-to-edge slab. overflow: 'hidden' makes sure that highlight actually
-  // clips to borderRadius instead of drawing as a plain rectangle.
+  // Used to carry marginHorizontal: -12 + paddingHorizontal: 12 (netting to the same inset as
+  // APPEARANCE/SOUND & HAPTICS below, while giving the ripple/hover highlight room to breathe
+  // into the dialog's own gutter beyond that). Removed: this dialog scrolls (Dialog.ScrollArea +
+  // ScrollView above), and on web a ScrollView's own content wrapper clips to its own bounds
+  // regardless of a child's negative margin - confirmed live, the icon's own rounded-square badge
+  // was getting its left edge sliced off by exactly that overhang. No horizontal inset of its own
+  // now - it relies purely on the same dialog padding APPEARANCE/every other row already does,
+  // which can never overflow because it's never negative.
   toggleButton: {
     borderRadius: 12,
-    marginHorizontal: -12,
     overflow: 'hidden',
-    paddingHorizontal: 12,
     paddingVertical: 10
   },
-  // Same shape as toggleButton but `flex: 1` instead of its own `marginHorizontal: -12` — two of
-  // these side by side in toggleRow would otherwise both pull inward and collide in the middle.
-  // toggleRow carries that edge-alignment margin once, for the row as a whole, instead.
+  // Same shape as toggleButton, `flex: 1` instead of its own width - two of these side by side in
+  // toggleRow share the row's own edge alignment instead of each carrying their own.
   toggleButtonInRow: {
     borderRadius: 12,
     flex: 1,
     overflow: 'hidden',
-    paddingHorizontal: 12,
     paddingVertical: 10
   },
   toggleContent: {
@@ -363,9 +363,9 @@ const styles = StyleSheet.create({
   toggleGroup: {
     gap: 4
   },
+  // No horizontal margin of its own now either - see toggleButton's identical note.
   toggleRow: {
     flexDirection: 'row',
-    gap: 4,
-    marginHorizontal: -12
+    gap: 4
   }
 })

@@ -1,6 +1,7 @@
 export { AchievementRow, LOCKED_BADGE_COLOR } from './AchievementRow'
 export { BaseSettingsDialog, type BaseSettingsDialogProps } from './BaseSettingsDialog'
 export { BaseStatsScreen } from './BaseStatsScreen'
+export { ContentGutter } from './ContentGutter'
 export { CornerActionButtons } from './CornerActionButtons'
 export { MONO_FONT } from './fonts'
 export { InlineColorPicker } from './InlineColorPicker'
