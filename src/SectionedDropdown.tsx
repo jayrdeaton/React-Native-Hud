@@ -53,6 +53,12 @@ export interface SingleSelectSection<T extends string | number> {
   options: MenuOption<T>[]
   value: T
   onChange: (value: T) => void
+  // Another seat's currently-selected value in this section, if any — stays in `options` (so the
+  // trigger gauge below keeps indexing into the one list every seat shares, instead of each seat's
+  // gauge landing wherever its own filtered-down list happens to put the remaining values) but
+  // renders disabled and dimmed, unselectable. Same "shown, not removed" treatment as
+  // InlineColorPicker's own takenValue, for the same reason.
+  takenValue?: T
 }
 
 // Any number of these can be true at once — checkbox-style. Tapping a row toggles just that one and
@@ -250,12 +256,13 @@ function SingleSection({
     <>
       {section.options.map((option) => {
         const selected = option.value === section.value
+        const taken = !selected && option.value === section.takenValue
         const rowColor = selected ? onAccentColor : mutedColor
-        const itemStyle = [styles.item, selected && { backgroundColor: accentColor }]
+        const itemStyle = [styles.item, selected && { backgroundColor: accentColor }, taken && styles.itemTaken]
         const labelStyle: TextStyle = { fontFamily: labelFontFamily, color: rowColor, fontWeight: selected ? 'bold' : 'normal' }
         const descriptionStyle: TextStyle = { fontFamily: labelFontFamily, color: rowColor }
         return (
-          <TouchableRipple key={option.value} onPress={() => onSelect(option.value)} style={itemStyle}>
+          <TouchableRipple key={option.value} disabled={taken} onPress={() => onSelect(option.value)} style={itemStyle}>
             <View style={styles.itemRow}>
               {option.icon && <Icon source={option.icon} size={MENU_ITEM_ICON_SIZE} color={rowColor} />}
               <View style={styles.itemLabelColumn}>
@@ -366,6 +373,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: 8
+  },
+  // Same opacity as ProfilePicker's rowDisabled / InlineColorPicker's swatchTaken — the fleet's
+  // established "shown, not removed" treatment for another seat's own current pick.
+  itemTaken: {
+    opacity: 0.35
   },
   menu: {
     borderRadius: 12,

@@ -218,6 +218,29 @@ describe('SectionedDropdown', () => {
     expect(hostBoxRef.current?.openId).toBe(DROPDOWN_ID)
   })
 
+  describe('takenValue', () => {
+    it('keeps a taken option visible but disabled', async () => {
+      const section = makeSingle({ takenValue: 'b' })
+      await renderDropdown([section])
+
+      await open()
+
+      expect(bodyText()).toContain('Bravo')
+      expect(rowProps('Bravo').disabled).toBe(true)
+    })
+
+    it('leaves every other option enabled and selectable', async () => {
+      const section = makeSingle({ takenValue: 'b' })
+      await renderDropdown([section])
+
+      await open()
+      pick('Charlie')
+
+      expect(rowProps('Alpha').disabled).toBeFalsy()
+      expect(section.onChange).toHaveBeenCalledWith('c')
+    })
+  })
+
   describe('allClear', () => {
     it('shows the "all" label when not everything is selected, and selecting all calls onChange with every value', async () => {
       const section = makeMulti({ value: ['x'], allClear: true })
