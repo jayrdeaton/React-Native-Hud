@@ -5,20 +5,25 @@ import { Text } from 'react-native-paper'
 interface Props {
   label: string
   value: string
+  // Independently optional overrides for this row's own text colors — default to the same
+  // useAutoPaperTheme()-derived formula as BaseStatsScreen (see that component's own doc for why)
+  // when omitted, so every existing caller renders identically to before.
+  fg?: string
+  fgMuted?: string
 }
 
 // A single labeled stat — label on the left (muted), value on the right (bold, full-contrast).
 // Extracted from LightCycles' own achievements.tsx, where this exact row shape backed every
-// section (Overall/Vs CPU/Two Player/Activity). Derives its own colors from useAutoPaperTheme(),
-// same as BaseStatsScreen — see that component's own doc for why a stats-screen row doesn't take
-// fg/fgMuted as props. Deliberately just label+value text, not a color swatch or profile chip —
-// an app needing a row with a leading visual builds its own on top of this same dark-mode formula
-// (see LightCycles' own ColorStatRow/ProfileRankingRow for an example), since what that visual
-// even is varies per game.
-export function StatRow({ label, value }: Props) {
+// section (Overall/Vs CPU/Two Player/Activity). fg/fgMuted default to the same
+// useAutoPaperTheme()-derived formula as BaseStatsScreen (see that component's own doc for why),
+// each independently overridable via the matching prop for a caller with its own chrome palette.
+// Deliberately just label+value text, not a color swatch or profile chip — an app needing a row
+// with a leading visual builds its own on top of this same dark-mode formula (see LightCycles' own
+// ColorStatRow/ProfileRankingRow for an example), since what that visual even is varies per game.
+export function StatRow({ label, value, fg: fgOverride, fgMuted: fgMutedOverride }: Props) {
   const { dark } = useAutoPaperTheme()
-  const fg = dark ? '#FFFFFF' : '#000000'
-  const fgMuted = dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'
+  const fg = fgOverride ?? (dark ? '#FFFFFF' : '#000000')
+  const fgMuted = fgMutedOverride ?? (dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)')
 
   return (
     <View style={styles.row}>
