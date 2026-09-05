@@ -14,12 +14,14 @@ export const getContrastColor = jest.fn((_hex: string) => '#000000')
 export const getBlendedColor = jest.fn((a: string, _b: string, _t: number) => a)
 export const getColorRoles = jest.fn((_accent: string, _bg: string) => ({ onColor: '#ffffff' }))
 
-// Only the color keys BaseSettingsDialog.tsx actually reads — real MD3Theme['colors'] carries many
-// more, but a test double only needs to cover what's exercised, same reasoning as every other stub
-// in this file.
+// Only the color keys BaseSettingsDialog.tsx/ConfirmDialog.tsx actually read — real
+// MD3Theme['colors'] carries many more, but a test double only needs to cover what's exercised,
+// same reasoning as every other stub in this file.
 export const useAutoPaperTheme = jest.fn(() => ({
   dark: false,
   colors: {
+    danger: '#00000b',
+    onDanger: '#00000c',
     onPrimary: '#000001',
     onSurface: '#000002',
     onSurfaceVariant: '#000003',

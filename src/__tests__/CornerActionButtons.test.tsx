@@ -58,4 +58,14 @@ describe('CornerActionButtons', () => {
     expect(back.accessibilityLabel).toBe('Back')
     expect(settings.accessibilityLabel).toBe('Settings')
   })
+
+  it('overrides the back button icon and label when provided, leaving settings untouched', () => {
+    render(<CornerActionButtons onBack={jest.fn()} onSettings={jest.fn()} fg='#ffffff' insets={{ top: 0, left: 0, right: 0 }} backIcon='home' backLabel='Home' />)
+
+    const [back, settings] = (IconButton as jest.Mock).mock.calls.map((c) => c[0])
+    expect(back.icon).toBe('home')
+    expect(back.accessibilityLabel).toBe('Home')
+    expect(settings.icon).toBe('cog')
+    expect(settings.accessibilityLabel).toBe('Settings')
+  })
 })

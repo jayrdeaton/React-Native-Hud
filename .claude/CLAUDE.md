@@ -71,6 +71,7 @@ Re-run `npm run build && yalc push` after any change to propagate it to every li
 | `PopoverBody.tsx` | Low-level popover shell: position (`align`/`verticalAlign`), the connecting caret triangle. Rendered inline as an absolutely-positioned sibling of its trigger — never via Portal — so it inherits any rotation transform the trigger's zone applies. |
 | `useAutoAlign.ts` | Measures a trigger's actual on-screen position via `measureInWindow` (resolves post-transform — rotation-safe) and picks whichever `align`/`verticalAlign` keeps a popover of a given size from overflowing a screen edge. Also returns `maxHeight`, the room available in whichever direction it picked, for the caller to cap content and scroll instead of overflowing when neither direction has enough room. |
 | `SectionedDropdown.tsx` | Popover holding any mix of single-select ("pick one", radio-style) and multi-select ("pick some", checkbox-style, optional all/clear footer) sections, divided by rules. Covers a plain single-value picker, a multi-select toggle list, or a combined menu (e.g. frequency + which types) — all the same component. Its trigger renders a `TriggerGaugeHost` ring showing every section's current state at a glance, without opening the menu. |
+| `ControlSchemePicker.tsx` | A `SectionedDropdown` opinionated for one job: picking which physical input (a keyboard layout — the raw layouts themselves live in `@tastic/input`, this repo has no opinion on which exist — or something else entirely, e.g. "keep using pointer input") drives a local seat in a couch-multiplayer game. Fixes the trigger icon/accessibility label and, the actual reason it's its own component rather than a usage snippet, bakes in the `Platform.OS === 'web' && !useIsTouchPrimaryDevice()` gate every consumer was independently re-deriving — renders `null` outside that (a physical-key scheme has no meaning on native or a touch-primary device), so it's safe to mount unconditionally inside a caller's own per-seat layout. Generic over `T`, same as `SectionedDropdown`'s own `MenuOption<T>` — a caller always supplies its own `options`. |
 | `InlineColorPicker.tsx` | Swatch-grid color popover. Auto-computes column count from screen width (4–5 columns — clamped to whichever fills a complete row of `defaultColors`' 20 swatches). Supports a "taken" color shown disabled or swappable. |
 | `TriggerGauge.tsx` | Skia-drawn (`Canvas`/`Path`/`Skia`) decorative ring of animated (`react-native-reanimated`) tick marks around a trigger, showing which option(s) are active without opening the popover. Pure presentational, no popover/host coupling. Not exported directly — see `TriggerGaugeHost` and Public API below. |
 | `TriggerGaugeHost.tsx` | The only supported way to render a trigger gauge. `lazy()`-loads `TriggerGauge.tsx` behind `loadSkiaWeb()` so its `Skia`-binding import is never evaluated before Skia is actually ready (real on native, WASM-loaded on web) and never eagerly bundled into this package's own top-level import graph. Default export, re-exported as a named export from `index.ts`. |
@@ -98,6 +99,7 @@ only `"."`):
 
 ```ts
 export { MONO_FONT } from './fonts'
+export { ControlSchemePicker, type ControlSchemePickerProps } from './ControlSchemePicker'
 export { InlineColorPicker } from './InlineColorPicker'
 export { loadSkiaWeb } from './loadSkiaWeb'
 export { PopoverBody } from './PopoverBody'
@@ -109,6 +111,12 @@ export { default as TriggerGaugeHost } from './TriggerGaugeHost'
 export { type PopoverAlign, type PopoverVerticalAlign, useAutoAlign } from './useAutoAlign'
 export { type PopoverHost, usePopoverHost } from './usePopoverHost'
 ```
+
+(This list — and the rest of this doc's Architecture/Testing sections below — was already missing
+several real exports, e.g. `AchievementRow`, `BaseSettingsDialog`, `BaseStatsScreen`, `ContentGutter`,
+`CornerActionButtons`, `LabeledDropdown`, `SharedActionBand`, `StatRow`, `StatSection`, before this
+edit; only `ControlSchemePicker` was added here, so it's still not a complete/accurate barrel — cross-
+check `src/index.ts` directly rather than trusting this list exhaustively.)
 
 `TriggerGauge` itself (the raw Skia component) is deliberately **not** exported — only its type
 (`TriggerGaugeProps`) is. A value re-export would force the bundler to fold `TriggerGauge.tsx`'s own
@@ -130,7 +138,7 @@ Real `peerDependencies` from `package.json`, with their actual version floors:
 **Internal fleet:**
 - `@rific/auto-paper` — `>=0.9.0` (`defaultColors`, `getContrastColor`, `getBlendedColor`, `getColorRoles`, `SeedColor`)
 - `@rific/feedback-press` — `>=0.10.0` (`IconButton`, `TouchableRipple`)
-- `@tastic/core` — `>=0.1.0` (`clamp`)
+- `@tastic/core` — `>=0.1.0` (`clamp`, `useIsTouchPrimaryDevice`)
 
 None of these are bundled — consumers use whatever versions their app already has. This repo also
 declares each of the eight peers above as a `devDependency` (own dev/test/build, at or above the
