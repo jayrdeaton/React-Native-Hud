@@ -1,11 +1,22 @@
 import { getColorRoles } from '@rific/auto-paper'
 import { IconButton, TouchableRipple } from '@rific/feedback-press'
+import { useRotation } from '@tastic/core'
 import { act, render } from '@testing-library/react'
 import { ReactNode, useEffect } from 'react'
 
 import { mockMeasureInWindow } from '../__mocks__/react-native'
 import { MenuSection, MultiSelectSection, SectionedDropdown, SingleSelectSection } from '../SectionedDropdown'
+import { useAutoAlign } from '../useAutoAlign'
 import { PopoverHost, usePopoverHost } from '../usePopoverHost'
+
+// Only this file's own "rotation" describe block below actually asserts against useAutoAlign's call
+// args — every other test here either uses an explicit align override or never opens the popover at
+// all, so replacing it with a jest.fn() (real implementation preserved for anything not overridden
+// per-test) doesn't change any existing test's behavior.
+jest.mock('../useAutoAlign', () => ({
+  ...jest.requireActual('../useAutoAlign'),
+  useAutoAlign: jest.fn(jest.requireActual('../useAutoAlign').useAutoAlign)
+}))
 
 // ---- fixtures -------------------------------------------------------------
 
@@ -345,5 +356,27 @@ describe('SectionedDropdown', () => {
     await open()
 
     expect(bodyText()).toContain('Alpha')
+  })
+
+  describe('rotation', () => {
+    afterEach(() => {
+      ;(useRotation as jest.Mock).mockReturnValue(0)
+    })
+
+    it('passes a live useRotation() read to useAutoAlign when rotation is omitted', async () => {
+      ;(useRotation as jest.Mock).mockReturnValue(180)
+      await renderDropdown([makeSingle()])
+
+      const calls = (useAutoAlign as jest.Mock).mock.calls
+      expect(calls[calls.length - 1][3]).toBe(180)
+    })
+
+    it('passes an explicit rotation prop to useAutoAlign, overriding the ambient useRotation() value', async () => {
+      ;(useRotation as jest.Mock).mockReturnValue(180)
+      await renderDropdown([makeSingle()], { rotation: -90 })
+
+      const calls = (useAutoAlign as jest.Mock).mock.calls
+      expect(calls[calls.length - 1][3]).toBe(-90)
+    })
   })
 })

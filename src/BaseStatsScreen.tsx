@@ -1,5 +1,6 @@
 import { useAutoPaperTheme } from '@rific/auto-paper'
 import { Button, IconButton } from '@rific/feedback-press'
+import { useRotation } from '@tastic/core'
 import { ReactNode, useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { Icon, Portal, Text } from 'react-native-paper'
@@ -10,12 +11,12 @@ import { Icon, Portal, Text } from 'react-native-paper'
 type MD3TextVariant = 'displayLarge' | 'displayMedium' | 'displaySmall' | 'headlineLarge' | 'headlineMedium' | 'headlineSmall' | 'titleLarge' | 'titleMedium' | 'titleSmall' | 'labelLarge' | 'labelMedium' | 'labelSmall' | 'bodyLarge' | 'bodyMedium' | 'bodySmall'
 
 interface Props {
-  // Live physical-hold rotation (see @tastic/split-screen's getViewRotation) — this dialog renders
-  // as a centered Portal modal, unaffected by whichever screen's own FakeLandscapeView wraps its
-  // trigger, so it has to rotate its own card content to read right-side-up for whichever way the
-  // phone is actually being held. Defaults to 0 for a caller that doesn't track one — matches
-  // BaseSettingsDialog's own identical prop, though the first apps consuming this screen shell
-  // don't wrap it in a FakeLandscapeView at all and so never have a nonzero one to give.
+  // Explicit override for the live physical-hold rotation (see @tastic/core's useRotation) — only
+  // affects this component's own Portal-rendered reset-confirm overlay, which (like any Portal
+  // content) is unaffected by whichever screen's own FakeLandscapeView wraps the trigger and so has
+  // to rotate itself. Defaults to a live ambient read via useRotation() when omitted — note this
+  // does NOT make the header/scrollable content below rotate; the caller's own screen still needs
+  // its own FakeLandscapeView wrap for that (this component has no transform on its own main body).
   rotation?: number
   title?: string
   // 'headlineSmall' (this screen's own default, below) — was originally 'displaySmall' (the full
@@ -67,8 +68,10 @@ interface Props {
 // black/white convention. `children` is the seam for whatever isn't shared: this component has no
 // opinion on what a "stat" is or how achievements are catalogued — see StatRow/StatSection/
 // AchievementRow for the smaller presentational pieces built to go inside it.
-export function BaseStatsScreen({ rotation = 0, title = 'Achievements', titleVariant = 'headlineSmall', onBack, insets, onReset, resetLabel = 'Reset All Stats', resetConfirmTitle = 'Reset Everything?', resetConfirmBody = 'This permanently erases all stats and achievements. This cannot be undone.', fg: fgOverride, bg: bgOverride, cardBg: cardBgOverride, accentColor: accentColorOverride, children }: Props) {
+export function BaseStatsScreen({ rotation: rotationOverride, title = 'Achievements', titleVariant = 'headlineSmall', onBack, insets, onReset, resetLabel = 'Reset All Stats', resetConfirmTitle = 'Reset Everything?', resetConfirmBody = 'This permanently erases all stats and achievements. This cannot be undone.', fg: fgOverride, bg: bgOverride, cardBg: cardBgOverride, accentColor: accentColorOverride, children }: Props) {
   const { dark, colors } = useAutoPaperTheme()
+  const ambientRotation = useRotation()
+  const rotation = rotationOverride ?? ambientRotation
   const [confirmResetVisible, setConfirmResetVisible] = useState(false)
   const showReset = !!onReset
 

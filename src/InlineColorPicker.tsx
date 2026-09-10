@@ -1,12 +1,12 @@
 import { defaultColors, getContrastColor, SeedColor } from '@rific/auto-paper'
 import { TouchableRipple } from '@rific/feedback-press'
-import { clamp } from '@tastic/core'
+import { clamp, useRotation } from '@tastic/core'
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { Icon, Text } from 'react-native-paper'
 
 import { MONO_FONT } from './fonts'
 import { PopoverBody } from './PopoverBody'
-import { useAutoAlign } from './useAutoAlign'
+import { PopoverRotation, useAutoAlign } from './useAutoAlign'
 import { PopoverHost } from './usePopoverHost'
 
 // Presence check, not a full-string "is this exactly one emoji" validation — this only decides a
@@ -62,6 +62,10 @@ interface Props {
   // Manual override — omit to let the popover measure its own trigger and pick whichever alignment
   // keeps it from overflowing the screen edge (see useAutoAlign).
   align?: 'left' | 'right' | 'center'
+  // Explicit override for the rotation a @tastic/split-screen-style FakeLandscapeView (or
+  // equivalent) ancestor is currently applying — see SectionedDropdown's identical prop for the
+  // full reasoning. Defaults to a live ambient read via @tastic/core's useRotation() when omitted.
+  rotation?: PopoverRotation
   // Trigger glyph — defaults to a plain palette. Pass a distinct icon per slot (e.g. a face for a
   // human, a robot for CPU) to convey identity through the icon itself. Overridden by `tag` below
   // when present.
@@ -89,7 +93,9 @@ interface Props {
 // Renders inline rather than as a full-screen modal, scoped to its own panel — a modal color
 // picker would block the whole screen for one player while another can't touch their own panel at
 // the same time, which defeats the point of a split-screen lobby.
-export function InlineColorPicker({ id, host, value, onChange, previewValue, swatches = defaultColors, takenValue, allowSwapTaken, dark, align: alignOverride, icon = 'palette', tag, labelFontFamily = MONO_FONT, autoDismiss = true, columns, size = DEFAULT_SIZE }: Props) {
+export function InlineColorPicker({ id, host, value, onChange, previewValue, swatches = defaultColors, takenValue, allowSwapTaken, dark, align: alignOverride, rotation: rotationOverride, icon = 'palette', tag, labelFontFamily = MONO_FONT, autoDismiss = true, columns, size = DEFAULT_SIZE }: Props) {
+  const ambientRotation = useRotation()
+  const rotation = rotationOverride ?? ambientRotation
   const menuBg = dark ? '#000000' : '#FFFFFF'
   const { width: windowWidth } = useWindowDimensions()
   const autoColumns = clamp(Math.floor((windowWidth - 2 * SCREEN_MARGIN + SWATCHES_GAP) / (SWATCH_SIZE + SWATCHES_GAP)), MIN_COLUMNS, MAX_COLUMNS)
@@ -99,7 +105,7 @@ export function InlineColorPicker({ id, host, value, onChange, previewValue, swa
   const swatchesHeight = SWATCHES_BORDER_WIDTH * 2 + SWATCHES_PADDING * 2 + SWATCH_SIZE * swatchRows + SWATCHES_GAP * (swatchRows - 1)
 
   const open = host.openId === id
-  const { align: autoAlign, maxHeight, measured, triggerRef, verticalAlign } = useAutoAlign(open, swatchesWidth, swatchesHeight)
+  const { align: autoAlign, maxHeight, measured, triggerRef, verticalAlign } = useAutoAlign(open, swatchesWidth, swatchesHeight, rotation)
   const align = alignOverride ?? autoAlign
   const displayFor = previewValue ?? ((hex: string) => hex)
   const displayValue = displayFor(value)

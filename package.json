@@ -33,6 +33,13 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./skia-gate": {
+      "react-native": "./src/SkiaGate.tsx",
+      "browser": "./src/SkiaGate.web.tsx",
+      "types": "./dist/SkiaGate.d.ts",
+      "import": "./dist/SkiaGate.mjs",
+      "require": "./dist/SkiaGate.js"
     }
   },
   "main": "dist/index.js",
@@ -63,14 +70,14 @@
   },
   "prettier": "@infinitetoken/eslint-config/prettier",
   "devDependencies": {
-    "@infinitetoken/eslint-config": "0.2.0",
-    "@infinitetoken/jest-config": "^0.2.0",
+    "@infinitetoken/eslint-config": "^0.2.0",
+    "@infinitetoken/jest-config": "^0.3.0",
     "@infinitetoken/tsconfig": "^0.4.1",
     "@rific/auto-paper": "^0.10.3",
     "@rific/feedback-press": "^0.10.8",
-    "@rific/updater": "^0.4.2",
+    "@rific/updater": "^0.6.0",
     "@shopify/react-native-skia": "^2.6.2",
-    "@tastic/core": "^0.2.0",
+    "@tastic/core": "file:.yalc/@tastic/core",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@types/jest": "^30.0.0",
@@ -94,7 +101,7 @@
     "@rific/feedback-press": ">=0.10.0",
     "@rific/updater": ">=0.4.0",
     "@shopify/react-native-skia": ">=1.5.0",
-    "@tastic/core": ">=0.1.0",
+    "@tastic/core": "file:.yalc/@tastic/core",
     "react": ">=19.0.0",
     "react-native": ">=0.76.0",
     "react-native-paper": ">=5.0.0",

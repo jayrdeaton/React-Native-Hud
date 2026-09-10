@@ -1,7 +1,7 @@
 import { AutoAppearancePicker, Dialog, useAutoPaperTheme } from '@rific/auto-paper'
 import { Button, SoundContext, TouchableRipple, useHapticSettings, useSoundSettings, useVibration } from '@rific/feedback-press'
 import { useUpdater } from '@rific/updater'
-import { useIsTouchPrimaryDevice } from '@tastic/core'
+import { useIsTouchPrimaryDevice, useRotation } from '@tastic/core'
 import { ReactNode, useContext, useState } from 'react'
 import { Platform, ScrollView, StyleSheet, View } from 'react-native'
 import { Icon, Portal, Text } from 'react-native-paper'
@@ -26,10 +26,11 @@ function SettingIcon({ source, color, containerColor }: SettingIconProps) {
 export interface BaseSettingsDialogProps {
   visible: boolean
   onDismiss: () => void
-  // Live physical-hold rotation (see @tastic/split-screen's getViewRotation) — this is a centered,
-  // app-wide modal with no per-player zone to match (unlike an in-game round-over dialog), so it
-  // just rotates its own content in place; defaults to 0 for a caller that doesn't track one (a
-  // game with no face-to-face two-player mode has nothing to stay consistent with anyway).
+  // Explicit override for the live physical-hold rotation (see @tastic/core's useRotation) — this is
+  // a centered, app-wide modal with no per-player zone to match (unlike an in-game round-over
+  // dialog), so it just rotates its own content in place. Defaults to a live ambient read via
+  // useRotation() when omitted; pass this only when a caller's own reading needs to differ from the
+  // ambient one (rare — most callers should simply omit it).
   rotation?: number
   // Each app's own OTA version (e.g. release.otaVersion) — not something this package can read
   // itself, since every consuming app tracks its own release.ts independently. Accepts a number too
@@ -76,8 +77,10 @@ export interface BaseSettingsDialogProps {
 // is the seam for whatever isn't shared: a game with its own board/difficulty settings (or a stats
 // backup flow, or anything else genuinely specific to it) renders those below Appearance, not by
 // forking this component.
-export function BaseSettingsDialog({ visible, onDismiss, rotation = 0, version, lockOrientation, onLockOrientationChange, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, children }: BaseSettingsDialogProps) {
+export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverride, version, lockOrientation, onLockOrientationChange, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, children }: BaseSettingsDialogProps) {
   const { dark, colors } = useAutoPaperTheme()
+  const ambientRotation = useRotation()
+  const rotation = rotationOverride ?? ambientRotation
   // Also gates the Lock Orientation row below (alongside showLockOrientation itself) — true
   // unconditionally on native (see the hook's own doc), so this only actually excludes a
   // desktop/laptop browser, where a mouse-driven window has no physical orientation to lock

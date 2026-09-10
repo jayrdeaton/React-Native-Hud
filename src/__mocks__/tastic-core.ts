@@ -19,3 +19,9 @@ export function computeContentBounds(windowWidth: number, maxContentWidth: numbe
 // narrow-width fallback) — none of which jsdom meaningfully reports, so it's stubbed to a plain
 // jest.fn() a test can override per-case instead.
 export const useIsTouchPrimaryDevice = jest.fn(() => true)
+
+// Real hook reads a live Context (device-tilt sensor state, resolved through getViewRotation) —
+// stubbed to a plain jest.fn() defaulting to "no rotation" so every existing test (none of which
+// care about rotation) is unaffected; a test asserting the ambient-default path overrides this per
+// case with mockReturnValueOnce/mockReturnValue.
+export const useRotation = jest.fn(() => 0)

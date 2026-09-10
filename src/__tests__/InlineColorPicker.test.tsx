@@ -1,10 +1,21 @@
 import { defaultColors, SeedColor } from '@rific/auto-paper'
 import { TouchableRipple } from '@rific/feedback-press'
+import { useRotation } from '@tastic/core'
 import { act, render, screen } from '@testing-library/react'
 import { Icon, Text } from 'react-native-paper'
 
 import { InlineColorPicker } from '../InlineColorPicker'
+import { useAutoAlign } from '../useAutoAlign'
 import { PopoverHost, usePopoverHost } from '../usePopoverHost'
+
+// Only this file's own "rotation" describe block below actually asserts against useAutoAlign's call
+// args — every other test here never depends on its real alignment output, so replacing it with a
+// jest.fn() (real implementation preserved for anything not overridden per-test) doesn't change any
+// existing test's behavior.
+jest.mock('../useAutoAlign', () => ({
+  ...jest.requireActual('../useAutoAlign'),
+  useAutoAlign: jest.fn(jest.requireActual('../useAutoAlign').useAutoAlign)
+}))
 
 // A real usePopoverHost, wired into the SAME render tree as the component under test (rather than
 // a separately-rendered renderHook() instance) — this is what lets clicking the trigger inside this
@@ -28,6 +39,7 @@ interface HarnessProps {
   tag?: string
   autoDismiss?: boolean
   columns?: number
+  rotation?: 0 | 90 | -90 | 180
 }
 
 function Harness({ onHost, id = 'picker', ...rest }: HarnessProps) {
@@ -376,5 +388,46 @@ describe('InlineColorPicker', () => {
     expect(iconSources).toContain('check')
     expect(iconSources).toContain('swap-horizontal')
     expect(iconSources).not.toContain('close')
+  })
+
+  describe('rotation', () => {
+    afterEach(() => {
+      ;(useRotation as jest.Mock).mockReturnValue(0)
+    })
+
+    it('passes a live useRotation() read to useAutoAlign when rotation is omitted', () => {
+      ;(useRotation as jest.Mock).mockReturnValue(180)
+      const hostBox = newHostBox()
+      render(
+        <Harness
+          onHost={(h) => {
+            hostBox.host = h
+          }}
+          value={defaultColors[0].value}
+          onChange={jest.fn()}
+        />
+      )
+
+      const calls = (useAutoAlign as jest.Mock).mock.calls
+      expect(calls[calls.length - 1][3]).toBe(180)
+    })
+
+    it('passes an explicit rotation prop to useAutoAlign, overriding the ambient useRotation() value', () => {
+      ;(useRotation as jest.Mock).mockReturnValue(180)
+      const hostBox = newHostBox()
+      render(
+        <Harness
+          onHost={(h) => {
+            hostBox.host = h
+          }}
+          value={defaultColors[0].value}
+          onChange={jest.fn()}
+          rotation={-90}
+        />
+      )
+
+      const calls = (useAutoAlign as jest.Mock).mock.calls
+      expect(calls[calls.length - 1][3]).toBe(-90)
+    })
   })
 })

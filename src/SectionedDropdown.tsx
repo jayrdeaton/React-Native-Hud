@@ -1,12 +1,13 @@
 import { getBlendedColor, getColorRoles } from '@rific/auto-paper'
 import { IconButton, TouchableRipple } from '@rific/feedback-press'
+import { useRotation } from '@tastic/core'
 import { ScrollView, StyleSheet, TextStyle, View } from 'react-native'
 import { Icon, Text } from 'react-native-paper'
 
 import { MONO_FONT } from './fonts'
 import { PopoverBody } from './PopoverBody'
 import TriggerGaugeHost from './TriggerGaugeHost'
-import { useAutoAlign } from './useAutoAlign'
+import { PopoverRotation, useAutoAlign } from './useAutoAlign'
 import { PopoverHost } from './usePopoverHost'
 
 const MENU_BORDER_WIDTH = 1
@@ -99,6 +100,17 @@ interface Props {
   // keeps it from overflowing the screen edge (see useAutoAlign). Only pass this to force a specific
   // side regardless of where the trigger actually sits.
   align?: 'left' | 'right' | 'center'
+  // Explicit override for the rotation a @tastic/split-screen-style FakeLandscapeView (or any other
+  // ancestor rotated the same way — a bare CSS `transform: rotate()`, not an actual OS-level
+  // orientation change) is currently applying. Defaults to a live ambient read via @tastic/core's
+  // useRotation() when omitted, so most callers never need to pass this at all. Pass it explicitly
+  // only when a caller's own reading needs to differ from the ambient one (e.g. a fading dual-zone
+  // layout whose panel content deliberately lags the live reading behind a transition). Correctness
+  // matters here regardless of source: measureInWindow reports the trigger's PRE-rotation layout
+  // position (see useAutoAlign's own doc comment for why, and why it can't recover this any other
+  // way), so a wrong rotation value picks an alignment for where the trigger *used to be* before
+  // rotating, clipping off the edge it's actually now near instead of the one it was near.
+  rotation?: PopoverRotation
   // Whether picking a value in a *single-select* section closes the popover. Defaults to true
   // (the old, pre-press-away default: pick one thing, you're done). Multi-select rows never
   // auto-close regardless of this — see MultiSelectSection's own comment. Worth setting false for a
@@ -116,7 +128,9 @@ interface Props {
 // powerups are enabled, say) is just this with one 'multi' section (optionally with allClear); a
 // combined menu (e.g. spawn frequency + which types, in one menu) is just two sections in the same
 // array.
-export function SectionedDropdown({ id, host, icon, accessibilityLabel, sections, accentColor, mutedColor, onAccentColor, dark, align: alignOverride, autoDismiss = true, labelFontFamily = MONO_FONT, allClearLabels = { all: 'All', clear: 'Clear' } }: Props) {
+export function SectionedDropdown({ id, host, icon, accessibilityLabel, sections, accentColor, mutedColor, onAccentColor, dark, align: alignOverride, rotation: rotationOverride, autoDismiss = true, labelFontFamily = MONO_FONT, allClearLabels = { all: 'All', clear: 'Clear' } }: Props) {
+  const ambientRotation = useRotation()
+  const rotation = rotationOverride ?? ambientRotation
   const menuBg = dark ? '#000000' : '#FFFFFF'
   // mutedColor is translucent (fine for the icon/text tints below, each a single paint), but the
   // caret is deliberately drawn overlapping the box's own top border (PopoverBody's CARET_DIP,
@@ -142,7 +156,7 @@ export function SectionedDropdown({ id, host, icon, accessibilityLabel, sections
       const divider = sectionIndex > 0 ? MENU_DIVIDER_HEIGHT : 0
       return sum + rows + footer + divider
     }, 0)
-  const { align: autoAlign, maxHeight, measured, triggerRef, verticalAlign } = useAutoAlign(open, MENU_MAX_WIDTH, estimatedHeight)
+  const { align: autoAlign, maxHeight, measured, triggerRef, verticalAlign } = useAutoAlign(open, MENU_MAX_WIDTH, estimatedHeight, rotation)
   const align = alignOverride ?? autoAlign
 
   // Trigger reflects the selected option's own icon only when there's exactly one section and it's

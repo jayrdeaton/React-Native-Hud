@@ -1,4 +1,5 @@
 import { Button, IconButton } from '@rific/feedback-press'
+import { useRotation } from '@tastic/core'
 import { act, render } from '@testing-library/react'
 import { Icon, Text } from 'react-native-paper'
 
@@ -182,5 +183,40 @@ describe('BaseStatsScreen', () => {
     expect(confirmButton.buttonColor).not.toBe('#00CC00')
     expect(resetTrigger.buttonColor).toBe(confirmButton.buttonColor)
     expect(resetTrigger.textColor).toBe(confirmButton.textColor)
+  })
+
+  describe('rotation', () => {
+    afterEach(() => {
+      ;(useRotation as jest.Mock).mockReturnValue(0)
+    })
+
+    it('falls back to a live useRotation() read for the reset-confirm overlay when rotation is omitted', () => {
+      ;(useRotation as jest.Mock).mockReturnValue(180)
+      render(
+        <BaseStatsScreen onBack={jest.fn()} onReset={jest.fn()} insets={INSETS}>
+          <Text>content</Text>
+        </BaseStatsScreen>
+      )
+
+      const resetTrigger = (Button as jest.Mock).mock.calls.find((c) => c[0].children === 'Reset All Stats')![0]
+      act(() => resetTrigger.onPress())
+
+      expect(viewStyles().some((entries) => entries.some((e) => Array.isArray(e.transform) && e.transform[0]?.rotate === '180deg'))).toBe(true)
+    })
+
+    it('honors an explicit rotation prop over the ambient useRotation() value', () => {
+      ;(useRotation as jest.Mock).mockReturnValue(180)
+      render(
+        <BaseStatsScreen onBack={jest.fn()} onReset={jest.fn()} insets={INSETS} rotation={90}>
+          <Text>content</Text>
+        </BaseStatsScreen>
+      )
+
+      const resetTrigger = (Button as jest.Mock).mock.calls.find((c) => c[0].children === 'Reset All Stats')![0]
+      act(() => resetTrigger.onPress())
+
+      expect(viewStyles().some((entries) => entries.some((e) => Array.isArray(e.transform) && e.transform[0]?.rotate === '90deg'))).toBe(true)
+      expect(viewStyles().some((entries) => entries.some((e) => Array.isArray(e.transform) && e.transform[0]?.rotate === '180deg'))).toBe(false)
+    })
   })
 })

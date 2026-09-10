@@ -1,6 +1,7 @@
+import { Dialog } from '@rific/auto-paper'
 import { SoundContext, TouchableRipple, useHapticSettings, useSoundSettings } from '@rific/feedback-press'
 import { useUpdater } from '@rific/updater'
-import { useIsTouchPrimaryDevice } from '@tastic/core'
+import { useIsTouchPrimaryDevice, useRotation } from '@tastic/core'
 import { act, render } from '@testing-library/react'
 import { Platform } from 'react-native'
 
@@ -30,6 +31,7 @@ describe('BaseSettingsDialog', () => {
   afterEach(() => {
     Platform.OS = originalOS
     ;(useIsTouchPrimaryDevice as jest.Mock).mockReturnValue(true)
+    ;(useRotation as jest.Mock).mockReturnValue(0)
   })
 
   it('renders nothing while not visible', () => {
@@ -221,5 +223,25 @@ describe('BaseSettingsDialog', () => {
     expect(container.textContent).not.toContain('Check for Updates')
     expect(container.textContent).not.toContain('VERSION')
     unmount()
+  })
+
+  describe('rotation', () => {
+    it('falls back to a live useRotation() read when the rotation prop is omitted', () => {
+      ;(useRotation as jest.Mock).mockReturnValue(180)
+      const { unmount } = render(<BaseSettingsDialog {...baseProps} />)
+
+      const calls = (Dialog as unknown as jest.Mock).mock.calls
+      expect(calls[calls.length - 1][0].style).toEqual([{ maxHeight: '90%' }, { transform: [{ rotate: '180deg' }] }])
+      unmount()
+    })
+
+    it('honors an explicit rotation prop over the ambient useRotation() value', () => {
+      ;(useRotation as jest.Mock).mockReturnValue(180)
+      const { unmount } = render(<BaseSettingsDialog {...baseProps} rotation={90} />)
+
+      const calls = (Dialog as unknown as jest.Mock).mock.calls
+      expect(calls[calls.length - 1][0].style).toEqual([{ maxHeight: '90%' }, { transform: [{ rotate: '90deg' }] }])
+      unmount()
+    })
   })
 })

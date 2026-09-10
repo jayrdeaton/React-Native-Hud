@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import type { View } from 'react-native'
 
-import { useAutoAlign } from '../useAutoAlign'
+import { rotateRect, useAutoAlign } from '../useAutoAlign'
 
 // The mocked useWindowDimensions is fixed at width 402 / height 874 (see
 // src/__mocks__/react-native.ts), and useAutoAlign keeps a 12px EDGE_MARGIN off every screen edge.
@@ -166,5 +166,100 @@ describe('useAutoAlign', () => {
     expect(result.current.align).toBe('right')
     expect(result.current.verticalAlign).toBe('above')
     expect(result.current.maxHeight).toBe(788)
+  })
+})
+
+describe('rotateRect', () => {
+  // Window fixed at 402x874 throughout, matching every other test in this file — center (201, 437).
+
+  it('passes a rect through unchanged at rotation 0', () => {
+    expect(rotateRect(10, 20, 30, 40, 0, 402, 874)).toEqual({ x: 10, y: 20, width: 30, height: 40 })
+  })
+
+  it('reflects a rect through the window center at rotation 180, size unchanged', () => {
+    // The exact trigger from the 'overflows right' useAutoAlign test above: rect center (360, 110).
+    // Offset from window center (201, 437): (159, -327). 180° negates both -> new offset (-159, 327)
+    // -> new rect center (42, 764) -> new x/y = center - width/2 = (42 - 10, 764 - 10) = (32, 754).
+    // Notice this rect was near the window's RIGHT edge (x=350 of 402) before reflecting, and is now
+    // near its LEFT edge (x=32) — the exact inversion that made the real bug possible: code that
+    // aligned against the raw (350, ...) would pick 'right' for content that's actually near the
+    // left edge once the 180° rotation this rect's real ancestor applies is accounted for.
+    expect(rotateRect(350, 100, 20, 20, 180, 402, 874)).toEqual({ x: 32, y: 754, width: 20, height: 20 })
+  })
+
+  it('rotates a rect 90° clockwise about the window center, swapping width/height', () => {
+    // Rect center (20, 447), offset from window center (201, 437): (-181, 10). Clockwise 90°:
+    // (newDx, newDy) = (-dy, dx) = (-10, -181) -> new center (191, 256) -> width/height swap to
+    // (20, 20) here (both already equal, so the swap isn't visible in the numbers — the next test
+    // uses an asymmetric rect specifically to make the swap itself observable) -> x/y = center -
+    // newWidth/2, newHeight/2 = (191 - 10, 256 - 10) = (181, 246).
+    expect(rotateRect(10, 437, 20, 20, 90, 402, 874)).toEqual({ x: 181, y: 246, width: 20, height: 20 })
+  })
+
+  it('swaps width and height at +90°/-90° but not at 180°, for a rect that is not itself square', () => {
+    const at0 = rotateRect(100, 200, 30, 60, 0, 402, 874)
+    const at90 = rotateRect(100, 200, 30, 60, 90, 402, 874)
+    const atNeg90 = rotateRect(100, 200, 30, 60, -90, 402, 874)
+    const at180 = rotateRect(100, 200, 30, 60, 180, 402, 874)
+
+    expect(at0).toMatchObject({ width: 30, height: 60 })
+    expect(at90).toMatchObject({ width: 60, height: 30 })
+    expect(atNeg90).toMatchObject({ width: 60, height: 30 })
+    expect(at180).toMatchObject({ width: 30, height: 60 })
+  })
+
+  it('rotates a rect -90° (counterclockwise) about the window center, the mirror of the +90° case', () => {
+    // Same rect as the +90° test above. Counterclockwise: (newDx, newDy) = (dy, -dx) = (10, 181) ->
+    // new center (211, 618) -> x/y = (211 - 10, 618 - 10) = (201, 608). A different result from +90°
+    // (181, 246) — the two directions are genuinely distinct, not accidentally symmetric here.
+    expect(rotateRect(10, 437, 20, 20, -90, 402, 874)).toEqual({ x: 201, y: 608, width: 20, height: 20 })
+  })
+})
+
+describe('useAutoAlign with rotation', () => {
+  it('defaults rotation to 0 — identical align to the plain (no-rotation) overload for the same raw measurement', () => {
+    // Same fixture as the plain 'overflows right' test above, just calling the 4-arg overload
+    // explicitly with 0 to confirm it is truly a no-op default, not merely unspecified behavior.
+    const { result, rerender } = renderHook(({ open }) => useAutoAlign(open, 100, 100, 0), {
+      initialProps: { open: false }
+    })
+
+    result.current.triggerRef.current = fakeTrigger(350, 100, 20, 20)
+    act(() => rerender({ open: true }))
+
+    expect(result.current.align).toBe('right')
+  })
+
+  it('picks the alignment the trigger is ACTUALLY near once rotation is accounted for, not the raw pre-rotation measurement', () => {
+    // The same raw (350, 100, 20, 20) that resolves to 'right' at rotation 0 (see the plain test
+    // above) sits near the LEFT edge once reflected through a 180° ancestor (see rotateRect's own
+    // 180° test for the arithmetic) — this is the exact shape of the real bug: a trigger sitting
+    // inside a FakeLandscapeView rotated 180° that the old, rotation-blind measurement got backwards.
+    const { result, rerender } = renderHook(({ open }) => useAutoAlign(open, 100, 100, 180), {
+      initialProps: { open: false }
+    })
+
+    result.current.triggerRef.current = fakeTrigger(350, 100, 20, 20)
+    act(() => rerender({ open: true }))
+
+    expect(result.current.measured).toBe(true)
+    expect(result.current.align).toBe('left')
+  })
+
+  it('re-measures when rotation itself changes while the popover stays open, the same as a live window resize already does', () => {
+    const { result, rerender } = renderHook(({ open, rotation }: { open: boolean; rotation: 0 | 90 | -90 | 180 }) => useAutoAlign(open, 100, 100, rotation), {
+      initialProps: { open: false, rotation: 0 as 0 | 90 | -90 | 180 }
+    })
+
+    result.current.triggerRef.current = fakeTrigger(350, 100, 20, 20)
+    act(() => rerender({ open: true, rotation: 0 }))
+    expect(result.current.align).toBe('right')
+
+    // Device gets physically turned 180° while this popover is still open — same trigger, same
+    // fixture, only `rotation` changes. The memoized `measure` callback's identity changes because
+    // rotation is one of its own dependencies, so the effect re-runs and re-measures even though
+    // `open` itself never flipped.
+    act(() => rerender({ open: true, rotation: 180 }))
+    expect(result.current.align).toBe('left')
   })
 })

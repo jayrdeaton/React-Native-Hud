@@ -5,10 +5,11 @@ dropdowns, color pickers, gauges, ready buttons, and dialogs. Every interactive 
 to one player's own zone on a shared screen, so it never blocks the rest of the screen the way a
 full-screen modal would.
 
-Sibling to [`@tastic/split-screen`](https://github.com/jayrdeaton/react-native-split-screen), the
-two-player layout/orientation engine this kit's components are built to render correctly inside —
-in particular, `PopoverBody`'s positioning survives an ancestor's 180° rotation. Neither package
-depends on the other; they compose at your own screen.
+Depends on [`@tastic/core`](https://github.com/jayrdeaton/react-native-game-core) for live device-
+rotation tracking (see Rotation below) — every popover/dialog here reads it directly, so it stays
+legible even rotated 180° inside a [`@tastic/split-screen`](https://github.com/jayrdeaton/react-native-split-screen)
+zone (that package's own two-player layout engine is what actually owns the rotated zone; this kit
+and split-screen don't depend on each other, they just both sit on `@tastic/core`).
 
 ## Why not a modal?
 
@@ -39,6 +40,34 @@ corner of the screen.
 - **`ReadyButton`** — a per-player or standalone ready toggle.
 - **`PressAwayOverlay`** — an invisible full-bleed tap-catcher for press-away-to-close. This is the
   one piece that needs care in a split-screen layout — see below.
+- **`BaseSettingsDialog`** / **`BaseStatsScreen`** / **`ConfirmDialog`** — shared shells for the
+  settings sheet, an achievements/stats screen, and a plain confirm-or-cancel dialog, each factored
+  out after being independently copied into several games. See Rotation below for how each of these
+  (plus `SectionedDropdown`/`InlineColorPicker`) handles rotating inside a `@tastic/split-screen`
+  zone.
+
+## Rotation
+
+`SectionedDropdown`, `InlineColorPicker`, `BaseSettingsDialog`, and `BaseStatsScreen` all read the
+device's live rotation themselves, via [`@tastic/core`](https://github.com/jayrdeaton/react-native-game-core)'s
+`useRotation()` — you don't need to pass anything for a popover/dialog to read correctly no matter
+which way the phone is held, as long as your app mounts `@tastic/core`'s `OrientationProvider`
+(or `@tastic/split-screen`'s `AccelerometerOrientationProvider`, a compat alias for the same thing)
+somewhere above it.
+
+Each of the four also still accepts an explicit `rotation` prop, which overrides the ambient read
+when present — reach for it only when a specific instance genuinely needs to differ from the live
+app-wide rotation (e.g. a fading, lagged `panelLayout` value mid-transition, rather than the raw
+live reading — see `@tastic/split-screen`'s own `DualZoneLayout` docs for why that lag exists).
+
+This matters more than it might look: `useAutoAlign` (what `SectionedDropdown`/`InlineColorPicker`
+use to pick left/right/above/below) measures a trigger via `measureInWindow`, which reports the
+trigger's **pre-transform** layout position — confirmed against a real rotated screen, not just
+reasoned about. Inside a `FakeLandscapeView`-rotated zone (or any other ancestor rotated the same
+way — a bare CSS `transform: rotate()`, not a real OS-level orientation change), that pre-transform
+position can be nowhere near where the trigger actually is on screen, which is exactly the bug this
+rotation-awareness fixes: without it, a popover can pick an alignment for where its trigger *used to
+be* before rotating, clipping off the edge it's actually now near instead of the one it was near.
 
 ## The press-away pattern (read this before wiring it up)
 
@@ -89,9 +118,19 @@ your shared/global settings) gets the whole-screen overlay; every other player's
 must stay mounted (shielding, if not actually closing anything) whenever *any* host with broader
 reach is open — not just their own.
 
-## Install (local dev via yalc)
+## Install
 
-Not published to the public npm registry yet.
+Published to the public npm registry as `@tastic/hud`. The self-reading rotation behavior described
+above is newer than the latest published version, though — for now it only exists in local,
+`yalc`-linked builds (see below) until it's published for real; the published version's `rotation`
+prop on these four components defaults to a plain `0` rather than reading `@tastic/core`'s
+`useRotation()`.
+
+```bash
+npm install @tastic/hud
+```
+
+### Local dev via yalc (for unpublished changes)
 
 ```bash
 cd react-native-hud
@@ -110,5 +149,6 @@ linked consumer at once.
 
 `react`, `react-native`, `react-native-paper` (`Icon`, `IconButton`, `Text`), `@rific/auto-paper`
 (`defaultColors`, `getContrastColor`, `getBlendedColor`, `SeedColor`), `@rific/feedback-press`
-(`IconButton`, `TouchableRipple`) — none of these are bundled, so use whatever versions your app
-already has.
+(`IconButton`, `TouchableRipple`), [`@tastic/core`](https://github.com/jayrdeaton/react-native-game-core)
+(>=0.1.0 — `useRotation()`, see Rotation above) — none of these are bundled, so use whatever
+versions your app already has.
