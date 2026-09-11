@@ -3,7 +3,9 @@ import { Button, IconButton } from '@rific/feedback-press'
 import { useRotation } from '@tastic/core'
 import { ReactNode, useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
-import { Icon, Portal, Text } from 'react-native-paper'
+import { Text } from 'react-native-paper'
+
+import { ConfirmDialog } from './ConfirmDialog'
 
 // react-native-paper's own MD3 Text variant names — mirrored locally rather than importing its
 // internal VariantProp/MD3TypescaleKey (not exported from the package's public entry point) just
@@ -12,11 +14,12 @@ type MD3TextVariant = 'displayLarge' | 'displayMedium' | 'displaySmall' | 'headl
 
 interface Props {
   // Explicit override for the live physical-hold rotation (see @tastic/core's useRotation) — only
-  // affects this component's own Portal-rendered reset-confirm overlay, which (like any Portal
-  // content) is unaffected by whichever screen's own FakeLandscapeView wraps the trigger and so has
-  // to rotate itself. Defaults to a live ambient read via useRotation() when omitted — note this
-  // does NOT make the header/scrollable content below rotate; the caller's own screen still needs
-  // its own FakeLandscapeView wrap for that (this component has no transform on its own main body).
+  // affects this component's own Portal-rendered reset-confirm dialog (via ConfirmDialog's own
+  // rotation prop), which (like any Portal content) is unaffected by whichever screen's own
+  // FakeLandscapeView wraps the trigger and so has to rotate itself. Defaults to a live ambient
+  // read via useRotation() when omitted — note this does NOT make the header/scrollable content
+  // below rotate; the caller's own screen still needs its own FakeLandscapeView wrap for that
+  // (this component has no transform on its own main body).
   rotation?: number
   title?: string
   // 'headlineSmall' (this screen's own default, below) — was originally 'displaySmall' (the full
@@ -36,39 +39,38 @@ interface Props {
   resetLabel?: string
   resetConfirmTitle?: string
   resetConfirmBody?: string
-  // Independently optional overrides for this screen's own background/text colors — each defaults
-  // to the literal-black/white-by-appearance formula described below when omitted, so every
-  // existing caller (none of which pass these) renders identically to before. A caller with its own
-  // app-wide chrome palette (e.g. a tinted background rather than neutral black/white) passes
-  // whichever of the three it needs; cardBorder on the reset-confirm overlay stays fixed regardless,
-  // since its low alpha already reads fine against any cardBg.
+  // Independently optional overrides for this screen's own header/background colors — each
+  // defaults to the literal-black/white-by-appearance formula described below when omitted, so
+  // every existing caller (none of which pass these) renders identically to before. A caller with
+  // its own app-wide chrome palette (e.g. a tinted background rather than neutral black/white)
+  // passes whichever of the two it needs.
+  //
+  // There used to be a third override here, cardBg, plus a separate accentColor override for the
+  // reset-confirm dialog's own icon/title/card. Both are gone: the reset-confirm step used to be a
+  // hand-rolled lookalike of ConfirmDialog with its own copy of the overlay/card/button styling,
+  // which is exactly how it drifted from ConfirmDialog's real look in the first place (different
+  // button layout, different Cancel styling, and — via cardBg — a different, caller-tintable card
+  // background no other ConfirmDialog in the fleet has). It now renders a real ConfirmDialog
+  // instance below instead of its own copy, which by construction can never drift from every other
+  // confirm prompt in the app again — at the cost of losing that per-caller tinting, which is the
+  // right trade: a "you're about to erase everything" prompt should look and read identically
+  // everywhere, not take on whichever screen happened to trigger it.
   fg?: string
   bg?: string
-  cardBg?: string
-  // Overrides the confirm-overlay's alert icon/title, which otherwise default to auto-paper's
-  // colors.secondary. That default is tuned to read against auto-paper's OWN background role, not
-  // necessarily against a cardBg override above — a caller passing cardBg should generally pass a
-  // matching accentColor too, rather than risk colors.secondary landing close in hue/lightness to
-  // its own custom card background (this is what actually happened with a tinted felt cardBg in the
-  // app this was first overridden for). Every button on this screen (the reset trigger included)
-  // fills with colors.secondary/onSecondary as a self-contained, always-legible pair instead of
-  // relying on a text-only color read against the surrounding chrome, so none of them need this —
-  // only the bare icon/title do.
-  accentColor?: string
   children: ReactNode
 }
 
 // The stats/achievements screen shell every @tastic game shares — back button + title header,
 // scrollable content area, and an optional reset-everything action with its own confirm-before-
-// destroying overlay — extracted after the same header/scroll/reset-confirm shape was independently
+// destroying dialog — extracted after the same header/scroll/reset-confirm shape was independently
 // built into LightCycles' own achievements.tsx. Colors default to the same literal-black/white-by-
 // appearance formula BaseSettingsDialog hardcodes internally (same as this package's own
-// BaseSettingsDialog) — zero-config for every existing caller — but fg/bg/cardBg are each
-// independently overridable for a caller whose own app-wide chrome palette isn't that literal
-// black/white convention. `children` is the seam for whatever isn't shared: this component has no
-// opinion on what a "stat" is or how achievements are catalogued — see StatRow/StatSection/
-// AchievementRow for the smaller presentational pieces built to go inside it.
-export function BaseStatsScreen({ rotation: rotationOverride, title = 'Achievements', titleVariant = 'headlineSmall', onBack, insets, onReset, resetLabel = 'Reset All Stats', resetConfirmTitle = 'Reset Everything?', resetConfirmBody = 'This permanently erases all stats and achievements. This cannot be undone.', fg: fgOverride, bg: bgOverride, cardBg: cardBgOverride, accentColor: accentColorOverride, children }: Props) {
+// BaseSettingsDialog) — zero-config for every existing caller — but fg/bg are each independently
+// overridable for a caller whose own app-wide chrome palette isn't that literal black/white
+// convention. `children` is the seam for whatever isn't shared: this component has no opinion on
+// what a "stat" is or how achievements are catalogued — see StatRow/StatSection/AchievementRow for
+// the smaller presentational pieces built to go inside it.
+export function BaseStatsScreen({ rotation: rotationOverride, title = 'Achievements', titleVariant = 'headlineSmall', onBack, insets, onReset, resetLabel = 'Reset All Stats', resetConfirmTitle = 'Reset Everything?', resetConfirmBody = 'This permanently erases all stats and achievements. This cannot be undone.', fg: fgOverride, bg: bgOverride, children }: Props) {
   const { dark, colors } = useAutoPaperTheme()
   const ambientRotation = useRotation()
   const rotation = rotationOverride ?? ambientRotation
@@ -77,15 +79,10 @@ export function BaseStatsScreen({ rotation: rotationOverride, title = 'Achieveme
 
   // High-contrast retro look by default: literal black/white by appearance, matching every other
   // screen in this ecosystem (title/loadout/settings all use this identical formula) rather than
-  // auto-paper's own (slightly tinted) background role — same convention BaseSettingsDialog's own
-  // fg/cardBg/cardBorder use internally. Overridable per-instance via the props above for a caller
-  // whose own chrome isn't that literal black/white convention; cardBorder has no override (see the
-  // Props doc above for why).
+  // auto-paper's own (slightly tinted) background role. Overridable per-instance via the props
+  // above for a caller whose own chrome isn't that literal black/white convention.
   const fg = fgOverride ?? (dark ? '#FFFFFF' : '#000000')
   const bg = bgOverride ?? (dark ? '#000000' : '#FFFFFF')
-  const cardBg = cardBgOverride ?? (dark ? '#111111' : '#F2F2F2')
-  const cardBorder = dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'
-  const accentColor = accentColorOverride ?? colors.secondary
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
@@ -100,42 +97,27 @@ export function BaseStatsScreen({ rotation: rotationOverride, title = 'Achieveme
         {children}
 
         {showReset && (
-          <Button mode='contained' onPress={() => setConfirmResetVisible(true)} buttonColor={colors.secondary} textColor={colors.onSecondary} style={styles.resetButton}>
+          <Button mode='contained' onPress={() => setConfirmResetVisible(true)} buttonColor={colors.danger} textColor={colors.onDanger} style={styles.resetButton}>
             {resetLabel}
           </Button>
         )}
       </ScrollView>
 
-      {confirmResetVisible && (
-        <Portal>
-          <View style={[styles.overlay, rotation % 360 !== 0 && { transform: [{ rotate: `${rotation}deg` }] }]}>
-            <View style={[styles.overlayCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-              <Icon source='alert-outline' size={64} color={accentColor} />
-              <Text variant='headlineLarge' style={[styles.overlayTitle, { color: accentColor }]}>
-                {resetConfirmTitle}
-              </Text>
-              <Text variant='bodyLarge' style={[styles.overlayBody, { color: fg }]}>
-                {resetConfirmBody}
-              </Text>
-              <Button mode='contained' onPress={() => setConfirmResetVisible(false)} style={styles.overlayButton}>
-                Cancel
-              </Button>
-              <Button
-                mode='contained'
-                onPress={() => {
-                  onReset?.()
-                  setConfirmResetVisible(false)
-                }}
-                style={styles.overlayButton}
-                buttonColor={colors.secondary}
-                textColor={colors.onSecondary}
-              >
-                Reset
-              </Button>
-            </View>
-          </View>
-        </Portal>
-      )}
+      <ConfirmDialog
+        visible={confirmResetVisible}
+        title={resetConfirmTitle}
+        message={resetConfirmBody}
+        confirmLabel='Reset'
+        cancelLabel='Cancel'
+        icon='alert-outline'
+        destructive
+        rotation={rotation}
+        onCancel={() => setConfirmResetVisible(false)}
+        onConfirm={() => {
+          onReset?.()
+          setConfirmResetVisible(false)
+        }}
+      />
     </View>
   )
 }
@@ -154,30 +136,6 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingBottom: 8
   },
-  // Same overlay shape BaseSettingsDialog's own info overlay uses (backdrop + centered card),
-  // rotated in place the same way rather than via Portal-root transform for the same reason — see
-  // that component's own identical styles for the full rationale.
-  overlay: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.72)',
-    bottom: 0,
-    justifyContent: 'center',
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0
-  },
-  overlayBody: { textAlign: 'center' },
-  overlayButton: { width: 160 },
-  overlayCard: {
-    alignItems: 'center',
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 16,
-    maxWidth: 360,
-    padding: 32
-  },
-  overlayTitle: { fontWeight: 'bold', marginBottom: -8 },
   resetButton: {
     marginTop: 16
   },

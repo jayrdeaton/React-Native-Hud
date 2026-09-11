@@ -1,7 +1,7 @@
 import { Button, IconButton } from '@rific/feedback-press'
 import { useRotation } from '@tastic/core'
 import { act, render } from '@testing-library/react'
-import { Icon, Text } from 'react-native-paper'
+import { Text } from 'react-native-paper'
 
 import { mockViewRender } from '../__mocks__/react-native'
 import { BaseStatsScreen } from '../BaseStatsScreen'
@@ -131,10 +131,9 @@ describe('BaseStatsScreen', () => {
     expect(renderedTexts()).toContain('Cannot be undone.')
   })
 
-  it('accepts fg/bg/cardBg overrides in place of the dark-mode-derived defaults', () => {
-    const onReset = jest.fn()
+  it('accepts fg/bg overrides in place of the dark-mode-derived defaults', () => {
     render(
-      <BaseStatsScreen onBack={jest.fn()} onReset={onReset} insets={INSETS} fg='#123456' bg='#ABCDEF' cardBg='#334455'>
+      <BaseStatsScreen onBack={jest.fn()} onReset={jest.fn()} insets={INSETS} fg='#123456' bg='#ABCDEF'>
         <Text>content</Text>
       </BaseStatsScreen>
     )
@@ -143,15 +142,18 @@ describe('BaseStatsScreen', () => {
     const titleProps = (Text as jest.Mock).mock.calls.find((c) => c[0].children === 'Achievements')![0]
     expect([titleProps.style].flat().some((s: Record<string, unknown>) => s?.color === '#123456')).toBe(true)
     expect(viewStyles().some((entries) => entries.some((e) => e.backgroundColor === '#ABCDEF'))).toBe(true)
-
-    const resetTrigger = (Button as jest.Mock).mock.calls.find((c) => c[0].children === 'Reset All Stats')![0]
-    act(() => resetTrigger.onPress())
-    expect(viewStyles().some((entries) => entries.some((e) => e.backgroundColor === '#334455'))).toBe(true)
   })
 
-  it('accepts an accentColor override for the confirm-overlay alert icon/title, in place of colors.secondary', () => {
+  // No more accentColor/cardBg override tests: the reset-confirm step used to be a hand-rolled
+  // lookalike of ConfirmDialog with its own copy of the overlay/card/button styling (independently
+  // tintable via these two props) - which is exactly how it drifted from ConfirmDialog's real look
+  // in the first place. It now renders a real ConfirmDialog instance (see the render() call below),
+  // so its icon/title/card/button styling is entirely ConfirmDialog's own concern and already
+  // covered by ConfirmDialog.test.tsx - re-asserting it here would just be a second, redundant copy
+  // of those same tests.
+  it("renders the reset trigger and the confirm dialog's Reset button with matching colors.danger/onDanger fills", () => {
     render(
-      <BaseStatsScreen onBack={jest.fn()} onReset={jest.fn()} insets={INSETS} accentColor='#00CC00'>
+      <BaseStatsScreen onBack={jest.fn()} onReset={jest.fn()} insets={INSETS}>
         <Text>content</Text>
       </BaseStatsScreen>
     )
@@ -159,28 +161,7 @@ describe('BaseStatsScreen', () => {
     const resetTrigger = (Button as jest.Mock).mock.calls.find((c) => c[0].children === 'Reset All Stats')![0]
     act(() => resetTrigger.onPress())
 
-    expect((Icon as jest.Mock).mock.calls[0][0].color).toBe('#00CC00')
-    const titleProps = (Text as jest.Mock).mock.calls.find((c) => c[0].children === 'Reset Everything?')![0]
-    expect([titleProps.style].flat().some((s: Record<string, unknown>) => s?.color === '#00CC00')).toBe(true)
-  })
-
-  it('renders the reset trigger and confirm Reset button as matching, self-contained colors.secondary/onSecondary fills, unaffected by accentColor', () => {
-    render(
-      <BaseStatsScreen onBack={jest.fn()} onReset={jest.fn()} insets={INSETS} accentColor='#00CC00'>
-        <Text>content</Text>
-      </BaseStatsScreen>
-    )
-
-    // Both are contained buttons with their own opaque fill, so neither depends on being legible
-    // against the surrounding bg/cardBg the way a text-only color would — accentColor never reaches
-    // either. Also asserted equal to each other: the trigger and the confirm action now render as
-    // the same solid-fill button, not the old outlined-vs-contained mismatch.
-    const resetTrigger = (Button as jest.Mock).mock.calls.find((c) => c[0].children === 'Reset All Stats')![0]
-    expect(resetTrigger.buttonColor).not.toBe('#00CC00')
-
-    act(() => resetTrigger.onPress())
     const confirmButton = (Button as jest.Mock).mock.calls.find((c) => c[0].children === 'Reset')![0]
-    expect(confirmButton.buttonColor).not.toBe('#00CC00')
     expect(resetTrigger.buttonColor).toBe(confirmButton.buttonColor)
     expect(resetTrigger.textColor).toBe(confirmButton.textColor)
   })

@@ -69,11 +69,24 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLab
 }
 
 const styles = StyleSheet.create({
+  // flexBasis (not flex: 1's own 0%) is each button's real floor: whenever both fit side by side,
+  // flexGrow still splits any leftover width evenly beyond that floor, same visual result as the
+  // old flex: 1 on a roomy screen - but a button can never be squeezed narrower than 128, only
+  // wrap to its own row instead (see actions' flexWrap below). react-native-paper's Button
+  // hardcodes numberOfLines={1} on its label with no override, so a button squeezed under its
+  // label's natural width silently ellipsizes ("Cancel" -> "Can...") instead of wrapping - assumed
+  // fixable by just giving the row more width, until confirmed live that these two-word labels
+  // (Cancel/Reset/New Game) can still lose the truncation fight even with the extra room card's own
+  // width fix below provides, on a narrow enough screen. flexBasis is the real fix: past a certain
+  // width there's no side-by-side arrangement that fits both buttons at their natural label size,
+  // so the layout has to give (stack) rather than the label (truncate).
   actionButton: {
-    flex: 1
+    flexBasis: 128,
+    flexGrow: 1
   },
   actions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
     width: '100%'
   },
@@ -86,7 +99,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 16,
     maxWidth: 360,
-    padding: 32
+    padding: 32,
+    // Claims its full allowance instead of just maxWidth alone, which only caps how wide the card
+    // is allowed to get - without an explicit width, a flex-centered child sizes to its own content
+    // instead of stretching, so the card (and therefore actions below) can end up narrower than the
+    // screen actually has room for, needlessly forcing the action row to wrap sooner than it has to.
+    width: '100%'
   },
   overlay: {
     alignItems: 'center',
@@ -94,11 +112,19 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     left: 0,
+    // Gives the card room to breathe from the screen edges now that it reliably stretches to fill
+    // its full width allowance (see card's own width comment) - without this, width: '100%' would
+    // run the card edge-to-edge on a screen narrower than maxWidth's own 360.
+    paddingHorizontal: 24,
     position: 'absolute',
     right: 0,
     top: 0
   },
+  // textAlign is load-bearing, not decorative, once `title` wraps to more than one line - centered
+  // within card's own alignItems: 'center' only centers the Text's block as a whole; each wrapped
+  // line inside that block still defaults to left-aligned without this.
   title: {
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    textAlign: 'center'
   }
 })
