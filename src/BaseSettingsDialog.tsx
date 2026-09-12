@@ -1,10 +1,12 @@
 import { AutoAppearancePicker, Dialog, useAutoPaperTheme } from '@rific/auto-paper'
 import { Button, SoundContext, TouchableRipple, useHapticSettings, useSoundSettings, useVibration } from '@rific/feedback-press'
 import { useUpdater } from '@rific/updater'
-import { useIsTouchPrimaryDevice, useRotation } from '@tastic/core'
+import { toRotationStyle, useIsTouchPrimaryDevice, useRotation, type ViewRotation } from '@tastic/core'
 import { ReactNode, useContext, useState } from 'react'
 import { Platform, ScrollView, StyleSheet, View } from 'react-native'
 import { Icon, Portal, Text } from 'react-native-paper'
+
+import { getOverlayCardColors, overlayStyles } from './overlayCard'
 
 interface SettingIconProps {
   source: string
@@ -31,7 +33,7 @@ export interface BaseSettingsDialogProps {
   // dialog), so it just rotates its own content in place. Defaults to a live ambient read via
   // useRotation() when omitted; pass this only when a caller's own reading needs to differ from the
   // ambient one (rare — most callers should simply omit it).
-  rotation?: number
+  rotation?: ViewRotation
   // Each app's own OTA version (e.g. release.otaVersion) — not something this package can read
   // itself, since every consuming app tracks its own release.ts independently. Accepts a number too
   // since that's what release.otaVersion actually is in most apps (a bare incrementing counter, not
@@ -118,15 +120,11 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   const showAppearance = !hideAppearance
   const showUpdateCheck = Platform.OS !== 'web' && !hideUpdateCheck
 
-  // High-contrast retro look: literal black/white by appearance, not auto-paper's own (slightly
-  // tinted) background role.
-  const fg = dark ? '#FFFFFF' : '#000000'
-  const cardBg = dark ? '#111111' : '#F2F2F2'
-  const cardBorder = dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'
+  const { fg, cardBg, cardBorder } = getOverlayCardColors(dark)
 
   return (
     <>
-      <Dialog visible={visible} onDismiss={onDismiss} style={[styles.dialog, rotation % 360 !== 0 && { transform: [{ rotate: `${rotation}deg` }] }]}>
+      <Dialog visible={visible} onDismiss={onDismiss} style={[styles.dialog, toRotationStyle(rotation)]}>
         <Dialog.Title>Settings</Dialog.Title>
         {/* react-native-paper's Dialog.ScrollArea has a fixed 24px marginBottom baked in (meant to
           reserve room for a Dialog.Actions row below it) — overridden to 0 since this dialog has
@@ -265,8 +263,8 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
       </Dialog>
       {infoMessage && (
         <Portal>
-          <View style={styles.overlay}>
-            <View style={[styles.overlayCard, { backgroundColor: cardBg, borderColor: cardBorder }, rotation % 360 !== 0 && { transform: [{ rotate: `${rotation}deg` }] }]}>
+          <View style={overlayStyles.overlay}>
+            <View style={[overlayStyles.card, { backgroundColor: cardBg, borderColor: cardBorder }, toRotationStyle(rotation)]}>
               <Icon source='information-outline' size={64} color={colors.secondary} />
               <Text variant='headlineLarge' style={[styles.overlayTitle, { color: colors.secondary }]}>
                 {infoMessage.title}
@@ -307,26 +305,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 36
   },
-  overlay: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.72)',
-    bottom: 0,
-    justifyContent: 'center',
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0
-  },
   overlayBody: { textAlign: 'center' },
   overlayButton: { width: 160 },
-  overlayCard: {
-    alignItems: 'center',
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 16,
-    maxWidth: 360,
-    padding: 32
-  },
   overlayTitle: { fontWeight: 'bold' },
   scrollArea: {
     marginBottom: 0

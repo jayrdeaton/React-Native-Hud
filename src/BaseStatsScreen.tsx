@@ -1,6 +1,6 @@
 import { useAutoPaperTheme } from '@rific/auto-paper'
 import { Button, IconButton } from '@rific/feedback-press'
-import { useRotation } from '@tastic/core'
+import { useRotation, type ViewRotation } from '@tastic/core'
 import { ReactNode, useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
@@ -20,7 +20,7 @@ interface Props {
   // read via useRotation() when omitted — note this does NOT make the header/scrollable content
   // below rotate; the caller's own screen still needs its own FakeLandscapeView wrap for that
   // (this component has no transform on its own main body).
-  rotation?: number
+  rotation?: ViewRotation
   title?: string
   // 'headlineSmall' (this screen's own default, below) — was originally 'displaySmall' (the full
   // display tier's own smallest step), then 'headlineLarge', both still read as oversized for a

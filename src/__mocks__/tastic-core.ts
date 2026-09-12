@@ -25,3 +25,9 @@ export const useIsTouchPrimaryDevice = jest.fn(() => true)
 // care about rotation) is unaffected; a test asserting the ambient-default path overrides this per
 // case with mockReturnValueOnce/mockReturnValue.
 export const useRotation = jest.fn(() => 0)
+
+// Same treatment as clamp/computeContentBounds above — a pure, dependency-free one-liner, trivial
+// enough to just reimplement rather than fight the export-condition/transform mismatch.
+export function toRotationStyle(rotation: number): { transform: [{ rotate: string }] } | undefined {
+  return rotation % 360 !== 0 ? { transform: [{ rotate: `${rotation}deg` }] } : undefined
+}

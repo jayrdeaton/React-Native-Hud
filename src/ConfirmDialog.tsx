@@ -1,7 +1,10 @@
 import { useAutoPaperTheme } from '@rific/auto-paper'
 import { Button } from '@rific/feedback-press'
+import { toRotationStyle, type ViewRotation } from '@tastic/core'
 import { StyleSheet, View } from 'react-native'
 import { Icon, Portal, Text } from 'react-native-paper'
+
+import { getOverlayCardColors, overlayStyles } from './overlayCard'
 
 export interface ConfirmDialogProps {
   visible: boolean
@@ -11,10 +14,10 @@ export interface ConfirmDialogProps {
   cancelLabel: string
   onConfirm: () => void
   onCancel: () => void
-  // Live physical-hold rotation (see @tastic/split-screen's getViewRotation) - same convention as
+  // Live physical-hold rotation (see @tastic/core's getViewRotation) - same convention as
   // BaseSettingsDialog's own rotation prop; defaults to 0 for a caller with no per-player zone to
   // match (a portrait-only or single-player game has nothing to stay consistent with).
-  rotation?: number
+  rotation?: ViewRotation
   // Any react-native-paper Icon `source` name, shown above the title - defaults to a plain
   // question mark, since this component has no way to know why a caller is asking.
   icon?: string
@@ -35,18 +38,14 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLab
   const { dark, colors } = useAutoPaperTheme()
   if (!visible) return null
 
-  // High-contrast retro look: literal black/white by appearance, not auto-paper's own (slightly
-  // tinted) background role - same convention BaseSettingsDialog's own overlay card uses.
-  const fg = dark ? '#FFFFFF' : '#000000'
-  const cardBg = dark ? '#111111' : '#F2F2F2'
-  const cardBorder = dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'
+  const { fg, cardBg, cardBorder } = getOverlayCardColors(dark)
   const accent = destructive ? colors.danger : colors.primary
   const onAccent = destructive ? colors.onDanger : colors.onPrimary
 
   return (
     <Portal>
-      <View style={styles.overlay}>
-        <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorder }, rotation % 360 !== 0 && { transform: [{ rotate: `${rotation}deg` }] }]}>
+      <View style={[overlayStyles.overlay, styles.overlay]}>
+        <View style={[overlayStyles.card, styles.card, { backgroundColor: cardBg, borderColor: cardBorder }, toRotationStyle(rotation)]}>
           <Icon source={icon} size={64} color={accent} />
           <Text variant='headlineLarge' style={[styles.title, { color: accent }]}>
             {title}
@@ -93,32 +92,20 @@ const styles = StyleSheet.create({
   body: {
     textAlign: 'center'
   },
+  // Additive on top of overlayCard's own shared `card` shape (borderRadius/borderWidth/gap/maxWidth/
+  // padding) — claims its full allowance instead of just maxWidth alone, which only caps how wide the
+  // card is allowed to get - without an explicit width, a flex-centered child sizes to its own content
+  // instead of stretching, so the card (and therefore actions below) can end up narrower than the
+  // screen actually has room for, needlessly forcing the action row to wrap sooner than it has to.
   card: {
-    alignItems: 'center',
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 16,
-    maxWidth: 360,
-    padding: 32,
-    // Claims its full allowance instead of just maxWidth alone, which only caps how wide the card
-    // is allowed to get - without an explicit width, a flex-centered child sizes to its own content
-    // instead of stretching, so the card (and therefore actions below) can end up narrower than the
-    // screen actually has room for, needlessly forcing the action row to wrap sooner than it has to.
     width: '100%'
   },
+  // Additive on top of overlayCard's own shared `overlay` backdrop — gives the card room to breathe
+  // from the screen edges now that it reliably stretches to fill its full width allowance (see
+  // card's own width comment) - without this, width: '100%' would run the card edge-to-edge on a
+  // screen narrower than maxWidth's own 360.
   overlay: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.72)',
-    bottom: 0,
-    justifyContent: 'center',
-    left: 0,
-    // Gives the card room to breathe from the screen edges now that it reliably stretches to fill
-    // its full width allowance (see card's own width comment) - without this, width: '100%' would
-    // run the card edge-to-edge on a screen narrower than maxWidth's own 360.
-    paddingHorizontal: 24,
-    position: 'absolute',
-    right: 0,
-    top: 0
+    paddingHorizontal: 24
   },
   // textAlign is load-bearing, not decorative, once `title` wraps to more than one line - centered
   // within card's own alignItems: 'center' only centers the Text's block as a whole; each wrapped
