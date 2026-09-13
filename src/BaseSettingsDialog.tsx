@@ -4,9 +4,10 @@ import { useUpdater } from '@rific/updater'
 import { toRotationStyle, useIsTouchPrimaryDevice, useRotation, type ViewRotation } from '@tastic/core'
 import { ReactNode, useContext, useState } from 'react'
 import { Platform, ScrollView, StyleSheet, View } from 'react-native'
-import { Icon, Portal, Text } from 'react-native-paper'
+import { Icon, Text } from 'react-native-paper'
 
-import { getOverlayCardColors, overlayStyles } from './overlayCard'
+import { ConfirmDialog } from './ConfirmDialog'
+import { useUpdateConfirmBridge } from './useUpdateConfirmBridge'
 
 interface SettingIconProps {
   source: string
@@ -80,7 +81,7 @@ export interface BaseSettingsDialogProps {
 // backup flow, or anything else genuinely specific to it) renders those below Appearance, not by
 // forking this component.
 export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverride, version, lockOrientation, onLockOrientationChange, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, children }: BaseSettingsDialogProps) {
-  const { dark, colors } = useAutoPaperTheme()
+  const { colors } = useAutoPaperTheme()
   const ambientRotation = useRotation()
   const rotation = rotationOverride ?? ambientRotation
   // Also gates the Lock Orientation row below (alongside showLockOrientation itself) — true
@@ -105,13 +106,18 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   // autoCheck: false — every consuming app's own root layout already runs the background check via
   // its own useUpdater() instance; a second instance with autoCheck's default (true) would set up a
   // second AppState listener and double every foreground-resume update check. This instance only
-  // ever checks on an explicit tap of the button below.
+  // ever checks on an explicit tap of the button below. Deliberately its own useUpdater() instance
+  // rather than rendering UpdateDialog directly here, for the same reason — UpdateDialog owns a
+  // second AppState listener of its own.
+  const { manifest: updateManifest, onConfirm: onUpdateConfirm, respond: respondToUpdateConfirm } = useUpdateConfirmBridge()
   const { check, checking, updateReady } = useUpdater({
     autoCheck: false,
     autoPrompt: false,
+    onConfirm: onUpdateConfirm,
     onError: onUpdateError,
     onInfo: (title, message) => setInfoMessage({ title, message })
   })
+  const updateManifestDate = updateManifest ? new Date(updateManifest.createdAt) : null
 
   const showLockOrientation = isTouchPrimary && lockOrientation !== undefined && onLockOrientationChange !== undefined
   const showEdgeGuard = Platform.OS === 'ios' && deferBottomEdgeGestures !== undefined && onDeferBottomEdgeGestures !== undefined
@@ -119,8 +125,6 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   const showSound = !hideSound
   const showAppearance = !hideAppearance
   const showUpdateCheck = Platform.OS !== 'web' && !hideUpdateCheck
-
-  const { fg, cardBg, cardBorder } = getOverlayCardColors(dark)
 
   return (
     <>
@@ -261,24 +265,8 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
           </ScrollView>
         </Dialog.ScrollArea>
       </Dialog>
-      {infoMessage && (
-        <Portal>
-          <View style={overlayStyles.overlay}>
-            <View style={[overlayStyles.card, { backgroundColor: cardBg, borderColor: cardBorder }, toRotationStyle(rotation)]}>
-              <Icon source='information-outline' size={64} color={colors.secondary} />
-              <Text variant='headlineLarge' style={[styles.overlayTitle, { color: colors.secondary }]}>
-                {infoMessage.title}
-              </Text>
-              <Text variant='bodyLarge' style={[styles.overlayBody, { color: fg }]}>
-                {infoMessage.message}
-              </Text>
-              <Button mode='contained' onPress={() => setInfoMessage(null)} style={styles.overlayButton} buttonColor={colors.primary} textColor={colors.onPrimary}>
-                OK
-              </Button>
-            </View>
-          </View>
-        </Portal>
-      )}
+      <ConfirmDialog visible={!!updateManifest} title='Update Available' message={updateManifestDate ? `Released ${updateManifestDate.toLocaleDateString()} at ${updateManifestDate.toLocaleTimeString()}` : ''} confirmLabel='Restart' cancelLabel='Later' icon='update' rotation={rotation} onConfirm={() => respondToUpdateConfirm(true)} onCancel={() => respondToUpdateConfirm(false)} />
+      <ConfirmDialog visible={!!infoMessage} title={infoMessage?.title ?? ''} message={infoMessage?.message ?? ''} confirmLabel='OK' icon='information-outline' rotation={rotation} onConfirm={() => setInfoMessage(null)} />
     </>
   )
 }
@@ -305,9 +293,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 36
   },
-  overlayBody: { textAlign: 'center' },
-  overlayButton: { width: 160 },
-  overlayTitle: { fontWeight: 'bold' },
   scrollArea: {
     marginBottom: 0
   },

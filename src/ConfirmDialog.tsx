@@ -1,6 +1,7 @@
 import { useAutoPaperTheme } from '@rific/auto-paper'
 import { Button } from '@rific/feedback-press'
 import { toRotationStyle, type ViewRotation } from '@tastic/core'
+import { type ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Icon, Portal, Text } from 'react-native-paper'
 
@@ -9,11 +10,11 @@ import { getOverlayCardColors, overlayStyles } from './overlayCard'
 export interface ConfirmDialogProps {
   visible: boolean
   title: string
-  message: string
+  message: ReactNode
   confirmLabel: string
-  cancelLabel: string
+  cancelLabel?: string
   onConfirm: () => void
-  onCancel: () => void
+  onCancel?: () => void
   // Live physical-hold rotation (see @tastic/core's getViewRotation) - same convention as
   // BaseSettingsDialog's own rotation prop; defaults to 0 for a caller with no per-player zone to
   // match (a portrait-only or single-player game has nothing to stay consistent with).
@@ -54,9 +55,11 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLab
             {message}
           </Text>
           <View style={styles.actions}>
-            <Button mode='outlined' onPress={onCancel} style={styles.actionButton}>
-              {cancelLabel}
-            </Button>
+            {cancelLabel !== undefined && onCancel !== undefined && (
+              <Button mode='outlined' onPress={onCancel} style={styles.actionButton}>
+                {cancelLabel}
+              </Button>
+            )}
             <Button mode='contained' onPress={onConfirm} style={styles.actionButton} buttonColor={accent} textColor={onAccent}>
               {confirmLabel}
             </Button>

@@ -28,5 +28,6 @@ export { StatSection } from './StatSection'
 // TriggerGaugeHost is the only supported way to render this.
 export type { TriggerGaugeProps } from './TriggerGauge'
 export { default as TriggerGaugeHost } from './TriggerGaugeHost'
+export { UpdateDialog, type UpdateDialogProps } from './UpdateDialog'
 export { type PopoverAlign, type PopoverRotation, type PopoverVerticalAlign, useAutoAlign } from './useAutoAlign'
 export { type PopoverHost, usePopoverHost } from './usePopoverHost'

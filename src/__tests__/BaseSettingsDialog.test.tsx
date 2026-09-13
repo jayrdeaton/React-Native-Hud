@@ -1,5 +1,5 @@
 import { Dialog } from '@rific/auto-paper'
-import { SoundContext, TouchableRipple, useHapticSettings, useSoundSettings } from '@rific/feedback-press'
+import { Button, SoundContext, TouchableRipple, useHapticSettings, useSoundSettings } from '@rific/feedback-press'
 import { useUpdater } from '@rific/updater'
 import { useIsTouchPrimaryDevice, useRotation } from '@tastic/core'
 import { act, render } from '@testing-library/react'
@@ -22,6 +22,14 @@ const baseProps = {
 function findRippleByLabel(label: string) {
   const call = (TouchableRipple as jest.Mock).mock.calls.find(([props]) => props.accessibilityLabel === label)
   if (!call) throw new Error(`No TouchableRipple rendered with accessibilityLabel "${label}"`)
+  return call[0]
+}
+
+// Same technique, for the ConfirmDialog-rendered Button rows (update-confirm's Restart/Later, and
+// the info-overlay's OK) — see ConfirmDialog.test.tsx's own findButtonByLabel for the original.
+function findButtonByLabel(label: string) {
+  const call = (Button as jest.Mock).mock.calls.find(([props]) => props.children === label)
+  if (!call) throw new Error(`No Button rendered with label "${label}"`)
   return call[0]
 }
 
@@ -169,15 +177,71 @@ describe('BaseSettingsDialog', () => {
     const { container, unmount } = render(<BaseSettingsDialog {...baseProps} onUpdateError={onUpdateError} />)
 
     // useUpdater is a jest.fn() — the options object BaseSettingsDialog constructed is right there
-    // in its last call, including the onError/onInfo callbacks it wired up internally.
+    // in its last call, including the onError/onInfo/onConfirm callbacks it wired up internally.
     const calls = (useUpdater as jest.Mock).mock.calls
     const updaterOptions = calls[calls.length - 1][0]
     expect(updaterOptions.onError).toBe(onUpdateError)
+    expect(typeof updaterOptions.onConfirm).toBe('function')
 
     expect(container.textContent).not.toContain('No update available')
     act(() => updaterOptions.onInfo('No update', 'No update available yet.'))
     expect(container.textContent).toContain('No update')
     expect(container.textContent).toContain('No update available yet.')
+
+    act(() => {
+      findButtonByLabel('OK').onPress()
+    })
+    expect(container.textContent).not.toContain('No update')
+
+    unmount()
+  })
+
+  it('renders the Restart/Later ConfirmDialog when the manual-check onConfirm resolves with a manifest, instead of the native Alert fallback', async () => {
+    Platform.OS = 'ios'
+    const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
+
+    // Same lookup as the test above — the onConfirm callback passed through to useUpdater() is
+    // what a real (unmocked) useUpdater would call instead of falling back to its own Alert-based
+    // getUpdateConfirmation default, since onConfirm is no longer left undefined here.
+    const calls = (useUpdater as jest.Mock).mock.calls
+    const updaterOptions = calls[calls.length - 1][0]
+
+    expect(container.textContent).not.toContain('Update Available')
+    let pending!: Promise<boolean>
+    act(() => {
+      pending = updaterOptions.onConfirm({ createdAt: '2026-01-01T12:00:00.000Z' })
+    })
+
+    expect(container.textContent).toContain('Update Available')
+    expect(container.textContent).toContain('Restart')
+    expect(container.textContent).toContain('Later')
+
+    act(() => {
+      findButtonByLabel('Later').onPress()
+    })
+    expect(container.textContent).not.toContain('Update Available')
+    await expect(pending).resolves.toBe(false)
+
+    unmount()
+  })
+
+  it("resolves the manual-check onConfirm true when the update dialog's Restart is pressed", async () => {
+    Platform.OS = 'ios'
+    const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
+
+    const calls = (useUpdater as jest.Mock).mock.calls
+    const updaterOptions = calls[calls.length - 1][0]
+
+    let pending!: Promise<boolean>
+    act(() => {
+      pending = updaterOptions.onConfirm({ createdAt: '2026-01-01T12:00:00.000Z' })
+    })
+
+    act(() => {
+      findButtonByLabel('Restart').onPress()
+    })
+    expect(container.textContent).not.toContain('Update Available')
+    await expect(pending).resolves.toBe(true)
 
     unmount()
   })
