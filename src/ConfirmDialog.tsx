@@ -42,6 +42,7 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLab
   const { fg, cardBg, cardBorder } = getOverlayCardColors(dark)
   const accent = destructive ? colors.danger : colors.primary
   const onAccent = destructive ? colors.onDanger : colors.onPrimary
+  const showCancel = cancelLabel !== undefined && onCancel !== undefined
 
   return (
     <Portal>
@@ -55,12 +56,12 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLab
             {message}
           </Text>
           <View style={styles.actions}>
-            {cancelLabel !== undefined && onCancel !== undefined && (
+            {showCancel && (
               <Button mode='outlined' onPress={onCancel} style={styles.actionButton}>
                 {cancelLabel}
               </Button>
             )}
-            <Button mode='contained' onPress={onConfirm} style={styles.actionButton} buttonColor={accent} textColor={onAccent}>
+            <Button mode='contained' onPress={onConfirm} style={showCancel ? styles.actionButton : styles.actionButtonSingle} buttonColor={accent} textColor={onAccent}>
               {confirmLabel}
             </Button>
           </View>
@@ -71,25 +72,43 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLab
 }
 
 const styles = StyleSheet.create({
-  // flexBasis (not flex: 1's own 0%) is each button's real floor: whenever both fit side by side,
-  // flexGrow still splits any leftover width evenly beyond that floor, same visual result as the
-  // old flex: 1 on a roomy screen - but a button can never be squeezed narrower than 128, only
-  // wrap to its own row instead (see actions' flexWrap below). react-native-paper's Button
+  // minWidth (not flexBasis) is each button's real floor - whenever both fit side by side, flexGrow
+  // still splits any leftover width evenly beyond that floor, same visual result as a plain flex: 1
+  // on a roomy screen, but a button can never be squeezed narrower than 128, only wrap to its own
+  // row instead (see actions' flexWrap below). This used to be flexBasis: 128, which measured
+  // correctly on web but rendered every button roughly SQUARE on iOS - confirmed live (see the
+  // "Quit Match?" Cancel/Quit buttons and the single-button "OK" dialogs both coming out ~128pt
+  // tall instead of wide). Root cause: react-native-paper's Button renders its Surface as two
+  // nested views on iOS only (Surface.tsx's SurfaceIOS, for shadow rendering) - only a curated
+  // allowlist of style keys (flex/flexGrow/flexShrink/width/height/position/... - notably NOT
+  // flexBasis) reaches the outer view, which is the real flex item inside this row; every other
+  // key, flexBasis included, falls through to an inner view whose own unspecified flexDirection
+  // defaults to column. flexGrow: 1 landed on the (row-context) outer view and grew width
+  // correctly; flexBasis: 128 landed on the (column-context) inner view instead, where a flexBasis
+  // sets HEIGHT, not width. minWidth isn't axis-relative like flexBasis, so it constrains width
+  // correctly regardless of which of the two views it ends up on. react-native-paper's Button also
   // hardcodes numberOfLines={1} on its label with no override, so a button squeezed under its
   // label's natural width silently ellipsizes ("Cancel" -> "Can...") instead of wrapping - assumed
   // fixable by just giving the row more width, until confirmed live that these two-word labels
   // (Cancel/Reset/New Game) can still lose the truncation fight even with the extra room card's own
-  // width fix below provides, on a narrow enough screen. flexBasis is the real fix: past a certain
-  // width there's no side-by-side arrangement that fits both buttons at their natural label size,
-  // so the layout has to give (stack) rather than the label (truncate).
+  // width fix below provides, on a narrow enough screen.
   actionButton: {
-    flexBasis: 128,
-    flexGrow: 1
+    flexGrow: 1,
+    minWidth: 128
+  },
+  // A lone confirm button (no cancel - BaseSettingsDialog's info-only "OK" dialogs, e.g. the
+  // update-check "no update found" message) has nothing left to share actions' width with, so
+  // actionButton's own flexGrow: 1 would stretch it across the entire row instead of reading as a
+  // normal button. Same 128 floor, no flexGrow, so it stays at that natural size instead of filling
+  // the card - centered by actions' own justifyContent below.
+  actionButtonSingle: {
+    minWidth: 128
   },
   actions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+    justifyContent: 'center',
     width: '100%'
   },
   body: {
