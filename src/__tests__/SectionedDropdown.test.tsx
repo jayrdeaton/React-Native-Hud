@@ -358,6 +358,25 @@ describe('SectionedDropdown', () => {
     expect(bodyText()).toContain('Alpha')
   })
 
+  it('renders successfully with a full alignOverride, ignoring its own useAutoAlign result entirely', async () => {
+    // A deliberately "wrong" measured rect (would naturally overflow every edge) — if alignOverride
+    // weren't actually substituted wholesale, this would still be exercised and could throw/mis-render.
+    mockMeasureInWindow.mockImplementationOnce((cb) => cb(-500, -500, 44, 44))
+    await renderDropdown([makeSingle()], { alignOverride: { align: 'right', verticalAlign: 'above', maxHeight: 123, measured: true, triggerRef: { current: null } } })
+
+    await open()
+
+    expect(bodyText()).toContain('Alpha')
+  })
+
+  it('the align prop forces horizontal alignment even when alignOverride supplies its own — same precedence as LabeledDropdown', async () => {
+    await renderDropdown([makeSingle()], { align: 'left', alignOverride: { align: 'right', verticalAlign: 'above', maxHeight: 123, measured: true, triggerRef: { current: null } } })
+
+    await open()
+
+    expect(bodyText()).toContain('Alpha')
+  })
+
   describe('rotation', () => {
     afterEach(() => {
       ;(useRotation as jest.Mock).mockReturnValue(0)

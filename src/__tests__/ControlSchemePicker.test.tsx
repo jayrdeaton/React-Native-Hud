@@ -6,7 +6,20 @@ import { Platform } from 'react-native'
 
 import { ControlSchemePicker, ControlSchemePickerProps } from '../ControlSchemePicker'
 import { MenuOption } from '../SectionedDropdown'
+import { useAutoAlign } from '../useAutoAlign'
 import { PopoverHost, usePopoverHost } from '../usePopoverHost'
+
+// Only this file's own "alignment passthrough" describe block below asserts against useAutoAlign's
+// call args — every other test here never depends on its real alignment output, so replacing it
+// with a jest.fn() (real implementation preserved for anything not overridden per-test) doesn't
+// change any existing test's behavior. Mocking this module (rather than SectionedDropdown itself)
+// is what lets this file verify ControlSchemePicker actually forwards rotation/alignOverride
+// through to SectionedDropdown, without having to also re-mock everything else SectionedDropdown
+// itself renders (TriggerGaugeHost, PopoverBody, ...).
+jest.mock('../useAutoAlign', () => ({
+  ...jest.requireActual('../useAutoAlign'),
+  useAutoAlign: jest.fn(jest.requireActual('../useAutoAlign').useAutoAlign)
+}))
 
 type Scheme = 'mouse' | 'wasd' | 'arrows'
 
@@ -178,6 +191,29 @@ describe('ControlSchemePicker', () => {
 
       expect(rowProps('Arrows').disabled).toBeFalsy()
       expect(onChange).toHaveBeenCalledWith('arrows')
+    })
+  })
+
+  describe('alignment passthrough (web, non-touch-primary)', () => {
+    beforeEach(() => {
+      Platform.OS = 'web'
+      ;(useIsTouchPrimaryDevice as jest.Mock).mockReturnValue(false)
+    })
+
+    it('forwards an explicit rotation prop to the underlying SectionedDropdown/useAutoAlign call', async () => {
+      await renderPicker({ rotation: -90 })
+
+      const calls = (useAutoAlign as jest.Mock).mock.calls
+      expect(calls[calls.length - 1][3]).toBe(-90)
+    })
+
+    it('renders successfully with a full alignOverride, forwarded straight to SectionedDropdown', async () => {
+      const { hostBoxRef } = await renderPicker({ alignOverride: { align: 'right', verticalAlign: 'above', maxHeight: 123, measured: true, triggerRef: { current: null } } })
+
+      await open()
+
+      expect(bodyText()).toContain('Mouse')
+      expect(hostBoxRef.current?.openId).toBe(PICKER_ID)
     })
   })
 })

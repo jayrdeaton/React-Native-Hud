@@ -1,11 +1,10 @@
 import { getContrastColor } from '@rific/auto-paper'
 import { TouchableRipple } from '@rific/feedback-press'
-import { RefObject } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { Icon, Text } from 'react-native-paper'
 
 import { PopoverBody } from './PopoverBody'
-import { PopoverAlign, PopoverVerticalAlign, useAutoAlign } from './useAutoAlign'
+import { AlignResult, useAutoAlign } from './useAutoAlign'
 import { PopoverHost } from './usePopoverHost'
 
 const TRIGGER_HEIGHT = 28
@@ -27,17 +26,6 @@ export interface LabeledDropdownOption<T extends string> {
   value: T
   label: string
   icon?: string
-}
-
-// Same shape useAutoAlign itself returns — lets a caller inside a @tastic/split-screen zone (or
-// any other layout this package doesn't know about) substitute its own alignment decision via
-// `alignOverride` below, without this package taking a dependency on that caller's own hook.
-interface AlignResult {
-  align: PopoverAlign
-  verticalAlign: PopoverVerticalAlign
-  maxHeight: number
-  measured: boolean
-  triggerRef: RefObject<View | null>
 }
 
 interface Props<T extends string> {
@@ -74,10 +62,10 @@ export function LabeledDropdown<T extends string>({ id, host, options, value, on
   const selected = options.find((o) => o.value === value) ?? null
   const contentHeight = LIST_PADDING * 2 + options.length * ROW_HEIGHT
   // Always called, even when alignOverride is supplied and this result goes unused — hooks can't be
-  // called conditionally. A caller passing alignOverride (e.g. LightCycles' own useZoneClampedAlign,
-  // which already wraps this same hook) does end up measuring the trigger twice; an acceptable
-  // tradeoff for keeping this component's own hook usage unconditional and override-shaped rather
-  // than needing a second, hook-free code path.
+  // called conditionally. A caller passing alignOverride (e.g. this package's own
+  // useZoneClampedAlign, which already wraps this same hook) does end up measuring the trigger
+  // twice; an acceptable tradeoff for keeping this component's own hook usage unconditional and
+  // override-shaped rather than needing a second, hook-free code path.
   const auto = useAutoAlign(open, POPOVER_WIDTH, contentHeight)
   const placement = alignOverride ?? auto
   const { maxHeight, measured, triggerRef, verticalAlign } = placement

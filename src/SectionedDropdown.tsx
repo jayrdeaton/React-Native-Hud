@@ -7,7 +7,7 @@ import { Icon, Text } from 'react-native-paper'
 import { MONO_FONT } from './fonts'
 import { PopoverBody } from './PopoverBody'
 import TriggerGaugeHost from './TriggerGaugeHost'
-import { PopoverRotation, useAutoAlign } from './useAutoAlign'
+import { AlignResult, PopoverRotation, useAutoAlign } from './useAutoAlign'
 import { PopoverHost } from './usePopoverHost'
 
 const MENU_BORDER_WIDTH = 1
@@ -96,10 +96,17 @@ interface Props {
   // background — pass a real design-system "on" color explicitly instead when you have one.
   onAccentColor?: string
   dark: boolean
-  // Manual override — omit to let the popover measure its own trigger and pick whichever alignment
-  // keeps it from overflowing the screen edge (see useAutoAlign). Only pass this to force a specific
-  // side regardless of where the trigger actually sits.
+  // Forces a specific horizontal alignment instead of letting whichever placement result applies
+  // (see alignOverride below) decide. Only pass this to force a specific side regardless of where
+  // the trigger actually sits.
   align?: 'left' | 'right' | 'center'
+  // Substitutes this package's own plain useAutoAlign-based placement wholesale (align,
+  // verticalAlign, maxHeight, measured, triggerRef) with a caller-supplied one — e.g.
+  // useZoneClampedAlign's result, for a dropdown living inside a @tastic/split-screen zone, where
+  // the plain window-relative decision can pick a direction that overflows into the shared row
+  // instead of the zone's own boundary. Same shape LabeledDropdown's own alignOverride takes; omit
+  // for the ordinary case (a popover with nothing but the screen edge to avoid).
+  alignOverride?: AlignResult
   // Explicit override for the rotation a @tastic/split-screen-style FakeLandscapeView (or any other
   // ancestor rotated the same way — a bare CSS `transform: rotate()`, not an actual OS-level
   // orientation change) is currently applying. Defaults to a live ambient read via @tastic/core's
@@ -128,7 +135,7 @@ interface Props {
 // powerups are enabled, say) is just this with one 'multi' section (optionally with allClear); a
 // combined menu (e.g. spawn frequency + which types, in one menu) is just two sections in the same
 // array.
-export function SectionedDropdown({ id, host, icon, accessibilityLabel, sections, accentColor, mutedColor, onAccentColor, dark, align: alignOverride, rotation: rotationOverride, autoDismiss = true, labelFontFamily = MONO_FONT, allClearLabels = { all: 'All', clear: 'Clear' } }: Props) {
+export function SectionedDropdown({ id, host, icon, accessibilityLabel, sections, accentColor, mutedColor, onAccentColor, dark, align: forcedAlign, alignOverride, rotation: rotationOverride, autoDismiss = true, labelFontFamily = MONO_FONT, allClearLabels = { all: 'All', clear: 'Clear' } }: Props) {
   const ambientRotation = useRotation()
   const rotation = rotationOverride ?? ambientRotation
   const menuBg = dark ? '#000000' : '#FFFFFF'
@@ -156,8 +163,12 @@ export function SectionedDropdown({ id, host, icon, accessibilityLabel, sections
       const divider = sectionIndex > 0 ? MENU_DIVIDER_HEIGHT : 0
       return sum + rows + footer + divider
     }, 0)
-  const { align: autoAlign, maxHeight, measured, triggerRef, verticalAlign } = useAutoAlign(open, MENU_MAX_WIDTH, estimatedHeight, rotation)
-  const align = alignOverride ?? autoAlign
+  // Always called, even when alignOverride is supplied and this result goes unused — hooks can't be
+  // called conditionally. See LabeledDropdown's identical comment for the same tradeoff.
+  const auto = useAutoAlign(open, MENU_MAX_WIDTH, estimatedHeight, rotation)
+  const placement = alignOverride ?? auto
+  const { maxHeight, measured, triggerRef, verticalAlign } = placement
+  const align = forcedAlign ?? placement.align
 
   // Trigger reflects the selected option's own icon only when there's exactly one section and it's
   // single-select — any other shape (multi-select present, or more than one section) has no single

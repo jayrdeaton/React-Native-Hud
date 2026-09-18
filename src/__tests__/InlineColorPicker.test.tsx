@@ -2,9 +2,10 @@ import { defaultColors, SeedColor } from '@rific/auto-paper'
 import { TouchableRipple } from '@rific/feedback-press'
 import { useRotation } from '@tastic/core'
 import { act, render, screen } from '@testing-library/react'
+import { ScrollView, useWindowDimensions } from 'react-native'
 import { Icon, Text } from 'react-native-paper'
 
-import { InlineColorPicker } from '../InlineColorPicker'
+import { getInlineColorPickerContentSize, InlineColorPicker } from '../InlineColorPicker'
 import { useAutoAlign } from '../useAutoAlign'
 import { PopoverHost, usePopoverHost } from '../usePopoverHost'
 
@@ -40,6 +41,7 @@ interface HarnessProps {
   autoDismiss?: boolean
   columns?: number
   rotation?: 0 | 90 | -90 | 180
+  alignOverride?: Parameters<typeof InlineColorPicker>[0]['alignOverride']
 }
 
 function Harness({ onHost, id = 'picker', ...rest }: HarnessProps) {
@@ -77,6 +79,17 @@ function styleBackgroundColor(props: { style?: unknown }): string | undefined {
 function lastRippleWithColor(color: string) {
   const matches = (TouchableRipple as jest.Mock).mock.calls.map((c) => c[0]).filter((p) => styleBackgroundColor(p)?.toLowerCase() === color.toLowerCase())
   return matches[matches.length - 1]
+}
+
+// The swatch grid's own ScrollView carries { width, maxHeight } inline (see InlineColorPicker's
+// own render) — the only element of its style array with a `width` key, same "find the one style
+// object with this particular key" approach as styleBackgroundColor above.
+function lastScrollViewSize(): { width?: number; maxHeight?: number } {
+  const calls = (ScrollView as jest.Mock).mock.calls
+  const props = calls[calls.length - 1][0] as { style?: unknown }
+  const flat = [props.style].flat()
+  const match = flat.find((s) => s && typeof s === 'object' && 'width' in (s as object))
+  return (match as { width?: number; maxHeight?: number } | undefined) ?? {}
 }
 
 describe('InlineColorPicker', () => {
@@ -429,5 +442,97 @@ describe('InlineColorPicker', () => {
       const calls = (useAutoAlign as jest.Mock).mock.calls
       expect(calls[calls.length - 1][3]).toBe(-90)
     })
+  })
+
+  describe('alignOverride', () => {
+    it('renders successfully with a full alignOverride, ignoring its own useAutoAlign result entirely', () => {
+      const hostBox = newHostBox()
+      render(
+        <Harness
+          onHost={(h) => {
+            hostBox.host = h
+          }}
+          value={defaultColors[0].value}
+          onChange={jest.fn()}
+          alignOverride={{ align: 'right', verticalAlign: 'above', maxHeight: 123, measured: true, triggerRef: { current: null } }}
+        />
+      )
+
+      act(() => triggerOnPress()())
+
+      expect(hostBox.host?.openId).toBe('picker')
+      for (const color of defaultColors) {
+        expect(lastRippleWithColor(color.value)).toBeDefined()
+      }
+    })
+
+    it('still calls useAutoAlign unconditionally (hooks cannot be called conditionally) even when alignOverride is supplied', () => {
+      const hostBox = newHostBox()
+      render(
+        <Harness
+          onHost={(h) => {
+            hostBox.host = h
+          }}
+          value={defaultColors[0].value}
+          onChange={jest.fn()}
+          alignOverride={{ align: 'right', verticalAlign: 'above', maxHeight: 123, measured: true, triggerRef: { current: null } }}
+        />
+      )
+
+      expect(useAutoAlign).toHaveBeenCalled()
+    })
+  })
+})
+
+describe('getInlineColorPickerContentSize', () => {
+  // 20 swatches (the defaultColors length, and what every real consumer passes) at a wide window
+  // clamps to 5 auto columns -> 4 rows; a narrow window clamps to 4 auto columns -> 5 rows. These
+  // are the same MIN_COLUMNS/MAX_COLUMNS/SCREEN_MARGIN/SWATCH_SIZE/SWATCHES_GAP boundaries the
+  // component's own auto-column clamp uses internally.
+  it('auto-picks 5 columns at a wide window and returns the matching width/height', () => {
+    const { width, height } = getInlineColorPickerContentSize(20, 800)
+    expect(width).toBe(184) // widthForColumns(5): 2*2 + 2*8 + 28*5 + 6*4
+    expect(height).toBe(150) // 4 rows: 2*2 + 2*8 + 28*4 + 6*3
+  })
+
+  it('auto-picks 4 columns at a narrow window and returns the matching width/height', () => {
+    const { width, height } = getInlineColorPickerContentSize(20, 200)
+    expect(width).toBe(150) // widthForColumns(4): 2*2 + 2*8 + 28*4 + 6*3
+    expect(height).toBe(184) // 5 rows: 2*2 + 2*8 + 28*5 + 6*4
+  })
+
+  it('respects an explicit columns override regardless of window width', () => {
+    // A window wide enough to auto-pick 5 columns, but columns=3 is forced instead.
+    const { width, height } = getInlineColorPickerContentSize(20, 800, 3)
+    expect(width).toBe(116) // widthForColumns(3): 2*2 + 2*8 + 28*3 + 6*2
+    expect(height).toBe(252) // ceil(20/3) = 7 rows: 2*2 + 2*8 + 28*7 + 6*6
+  })
+
+  // Cross-checks the standalone function against the actual rendered popover's own ScrollView size
+  // (see lastScrollViewSize) for the same swatchCount/windowWidth/columns combinations, so this
+  // export can never silently drift from what InlineColorPicker itself renders.
+  it.each([
+    { windowWidth: 800, columns: undefined, label: 'wide window, auto columns' },
+    { windowWidth: 200, columns: undefined, label: 'narrow window, auto columns' },
+    { windowWidth: 402, columns: 3, label: 'default window, explicit columns override' }
+  ])("matches the rendered component's own swatch-grid size ($label)", ({ windowWidth, columns }) => {
+    ;(useWindowDimensions as jest.Mock).mockReturnValue({ width: windowWidth, height: 874, scale: 3, fontScale: 1 })
+    const hostBox = newHostBox()
+    render(
+      <Harness
+        onHost={(h) => {
+          hostBox.host = h
+        }}
+        value={defaultColors[0].value}
+        onChange={jest.fn()}
+        columns={columns}
+      />
+    )
+
+    act(() => triggerOnPress()())
+
+    const { width: renderedWidth } = lastScrollViewSize()
+    const expected = getInlineColorPickerContentSize(defaultColors.length, windowWidth, columns)
+    expect(renderedWidth).toBe(expected.width)
   })
 })

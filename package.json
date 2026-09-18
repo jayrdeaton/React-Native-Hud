@@ -1,6 +1,6 @@
 {
   "name": "@tastic/hud",
-  "version": "0.8.5",
+  "version": "0.11.0",
   "description": "Visual component kit for local-multiplayer React Native games: inline (non-modal) popovers, dropdowns, color pickers, gauges, ready buttons, and dialogs, built to stay scoped to one player's own zone on a shared screen",
   "keywords": [
     "react-native",
@@ -71,14 +71,17 @@
   "prettier": "@infinitetoken/eslint-config/prettier",
   "devDependencies": {
     "@infinitetoken/eslint-config": "^0.2.0",
-    "@infinitetoken/jest-config": "^0.3.0",
-    "@infinitetoken/tsconfig": "^0.4.1",
-    "@rific/auto-paper": "^0.11.0",
-    "@rific/core": "^0.1.1",
-    "@rific/feedback-press": "^0.11.1",
+    "@infinitetoken/jest-config": "^0.4.0",
+    "@infinitetoken/tsconfig": "^0.5.0",
+    "@rific/auto-paper": "^0.12.0",
+    "@rific/core": "^0.2.0",
+    "@rific/feedback-press": "^0.12.0",
     "@rific/updater": "^0.6.0",
     "@shopify/react-native-skia": "^2.6.2",
-    "@tastic/core": "^0.4.1",
+    "@tastic/achievements": "^0.2.0",
+    "@tastic/core": "^0.8.0",
+    "@tastic/profile": "^0.7.0",
+    "@tastic/split-screen": "^0.5.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@types/jest": "^30.0.0",
@@ -94,6 +97,7 @@
     "react-native": "^0.85.3",
     "react-native-paper": "^5.15.2",
     "react-native-reanimated": "^4.5.1",
+    "react-native-safe-area-context": "^5.10.0",
     "tsup": "^8.0.0",
     "typescript": "^6.0.3"
   },
@@ -102,11 +106,15 @@
     "@rific/feedback-press": ">=0.10.0",
     "@rific/updater": ">=0.4.0",
     "@shopify/react-native-skia": ">=1.5.0",
+    "@tastic/achievements": ">=0.1.2",
     "@tastic/core": ">=0.3.0",
+    "@tastic/profile": ">=0.4.0",
+    "@tastic/split-screen": ">=0.5.0",
     "react": ">=19.0.0",
     "react-native": ">=0.76.0",
     "react-native-paper": ">=5.0.0",
-    "react-native-reanimated": ">=3.0.0"
+    "react-native-reanimated": ">=3.0.0",
+    "react-native-safe-area-context": ">=5.0.0"
   },
   "publishConfig": {
     "access": "public"

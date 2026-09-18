@@ -38,6 +38,31 @@ corner of the screen.
 - **`TriggerGauge`** — decorative ring of tick marks around a trigger, showing which option(s) are
   active without opening the popover.
 - **`ReadyButton`** — a per-player or standalone ready toggle.
+- **`PlayerSetupPanel`** — one panel per player slot in a local-multiplayer loadout/lobby screen: a
+  name header (a saved-profile switcher for a human seat, a CPU-difficulty `LabeledDropdown` for a
+  non-human one, or a plain label when neither applies), a color picker (`InlineColorPicker`)
+  optionally paired with a caller-rendered `secondPicker` slot, and a `ReadyButton` for human seats.
+  Ported from five apps' own near-identical `PlayerSetupPanel.tsx`/`LobbyPlayerPanel.tsx`
+  (AirHockey, BoxHockey, Pong, LightCycles, Snake), which had all independently converged on this
+  exact skeleton. See "The secondPicker slot" below before wiring up that one prop.
+- **`CornerActionButtons`** — Back (top-left) + Settings (top-right) icon buttons fixed at a
+  screen's rotated corners. This isn't just a loadout/lobby-screen convention — it's the right
+  default for *any* screen with top-corner icon buttons, home screens included: every app in the
+  fleet still hand-rolls its own trophy/cog `IconButton` pair on the home screen specifically
+  instead of reusing this component there, a real (if minor) missed-reuse case worth fixing next
+  time one of those screens gets touched. Not the right fit for a screen where the top corners fall
+  *inside* one player's own rotated zone (two-player face-to-face) — see `SharedActionBand` for
+  that case instead.
+- **`StaggeredWord`** / **`getStaggeredWordDuration`** — the letter-by-letter stagger-in animation
+  every app's own hero-title screen had hand-rolled independently, identical down to the same 45ms
+  stagger, 320ms per-letter duration, and back-ease overshoot. Renders one word/line at a time — a
+  caller stacking several words (AirHockey's "AIR"/"HOCKEY", LightCycles' "Light"/"Cycles") renders
+  more than one `StaggeredWord` and threads `startIndex` through so the whole wordmark reads as one
+  continuous cascade instead of each word restarting its own stagger from zero.
+  `getStaggeredWordDuration(letterCount)` is the matching total-duration formula, exported as a
+  plain function rather than something read off a ref or hook, so a caller's own follow-on
+  animation (a paddle rally, a bouncing puck, a looping trail) can compute once, outside render,
+  when the lettering has mostly landed.
 - **`PressAwayOverlay`** — an invisible full-bleed tap-catcher for press-away-to-close. This is the
   one piece that needs care in a split-screen layout — see below.
 - **`BaseSettingsDialog`** / **`BaseStatsScreen`** / **`ConfirmDialog`** — shared shells for the
@@ -118,37 +143,293 @@ your shared/global settings) gets the whole-screen overlay; every other player's
 must stay mounted (shielding, if not actually closing anything) whenever *any* host with broader
 reach is open — not just their own.
 
+## Integrating BaseSettingsDialog
+
+`BaseSettingsDialog` is a shared shell, not a drop-in screen — every one of the five consuming apps
+(AirHockey, BoxHockey, Pong, LightCycles, Snake) wraps it in its own local
+`src/components/SettingsDialog.tsx` adapter rather than rendering it directly from a route. The
+adapter's whole job is to bridge whatever local settings mechanism the app uses onto this package's
+fixed prop contract — it should carry no UI of its own beyond that plumbing.
+
+That local mechanism genuinely varies per app. AirHockey/BoxHockey/LightCycles thread a
+`settings`/`setSettings` pair in as props from a caller-owned `GameSettings` object (each adapter's
+own three call sites already have one in scope for other reasons). Pong reads that same shape off
+its own `useGameSettings()` hook internally instead of taking it as props. Snake — the one app in
+the fleet with real Redux Toolkit state — reads `lockOrientation`/`deferBottomEdgeGestures` via
+`useSelector` and writes them back via `dispatch(gameActions.setLockOrientation(...))` directly
+inside the adapter, with nothing threaded through props at all. `BaseSettingsDialog` doesn't care
+which of these an app uses: sound, haptics, appearance, and update-checking are identical across
+every app and live entirely inside this package now, so `lockOrientation`/`onLockOrientationChange`
+and `deferBottomEdgeGestures`/`onDeferBottomEdgeGestures` are the only two settings an adapter
+actually needs to source itself, however it does that.
+
+Every adapter also passes `version={release.otaVersion}` (so the dialog's own update-check button
+knows what it's currently running) and `onUpdateError`, wired to a real `useToast()` call. Wire this
+one up — an adapter that leaves `onUpdateError` unset silently swallows a failed update check
+instead of surfacing it anywhere, which is a real bug this fleet actually shipped in one app before
+being caught and fixed. If your app has no toast system, route it to whatever your own
+error-surfacing convention is; just don't leave it as a no-op.
+
+A minimal adapter, following the shape every current one uses:
+
+```tsx
+export function SettingsDialog({ visible, onDismiss, rotation = 0, settings, setSettings }: SettingsDialogProps) {
+  const { error } = useToast()
+
+  return (
+    <BaseSettingsDialog
+      visible={visible}
+      onDismiss={onDismiss}
+      rotation={rotation}
+      version={release.otaVersion}
+      lockOrientation={settings.lockOrientation}
+      onLockOrientationChange={(value) => setSettings({ lockOrientation: value })}
+      deferBottomEdgeGestures={settings.deferBottomEdgeGestures}
+      onDeferBottomEdgeGestures={(value) => setSettings({ deferBottomEdgeGestures: value })}
+      onUpdateError={(message) => error('Update check failed', message)}
+    />
+  )
+}
+```
+
+## Zone-aware popovers (`useZoneClampedAlign`)
+
+`useAutoAlign` — and everything built on it, including `SectionedDropdown`, `InlineColorPicker`, and
+`LabeledDropdown` — only knows about the full device window edge. It has no concept of a
+`@tastic/split-screen` zone boundary: the shared neutral band between two players' halves, or the
+line where one player's zone stops and the other's begins. A popover host that lives entirely
+inside one player's zone (rather than centered app-wide, the way `BaseSettingsDialog` is) can end up
+choosing an alignment that opens toward the shared band, or overflows past the zone boundary into
+the other player's half — not because `useAutoAlign` measured wrong, but because the window edge it
+correctly measured against isn't the boundary that actually matters there.
+
+LightCycles hit this for real — its `PlayerSetupPanel`-hosted color/CPU-difficulty pickers live
+inside a rotated split-screen zone — and originally built its own local fix for it rather than
+waiting for this package to grow zone-awareness. That fix is now `useZoneClampedAlign`, a
+first-class export of this package: it wraps `useAutoAlign`'s result and re-derives the vertical
+decision (and `maxHeight`) against the zone's real edge, via `@tastic/split-screen`'s
+`useZoneBounds()`, instead of the window edge — including correcting for a 180°-rotated zone
+inverting `PopoverBody`'s local 'above'/'below' labels relative to their real-world direction.
+`@tastic/split-screen` is a peer dependency of this package because of this hook specifically — it's
+only ever imported if you actually call `useZoneClampedAlign`.
+
+Same signature and return shape as `useAutoAlign` (`open`, `contentWidth`, `contentHeight` in;
+`align`, `verticalAlign`, `maxHeight`, `measured`, `triggerRef` out — exported as `AlignResult`, see
+below) so it's a drop-in replacement anywhere `useAutoAlign` is called directly. Outside a
+`@tastic/split-screen` zone (`useZoneBounds()` returns `null`), it's a pure passthrough to
+`useAutoAlign`'s own decision — safe to reach for even in a component that might or might not end up
+inside one:
+
+```tsx
+const auto = useZoneClampedAlign(open, POPOVER_WIDTH, contentHeight)
+```
+
+`LabeledDropdown`, `SectionedDropdown`, and `InlineColorPicker` all accept the result of the above
+via an `alignOverride` prop (typed `AlignResult`, also exported), substituting it wholesale for
+their own internal, zone-blind `useAutoAlign` call:
+
+```tsx
+<SectionedDropdown id='p1-arena' host={host} sections={sections} accentColor={color} mutedColor={muted} dark={dark} alignOverride={useZoneClampedAlign(open, MENU_WIDTH, contentHeight)} />
+```
+
+`ControlSchemePicker` forwards both `alignOverride` and `rotation` straight through to the
+`SectionedDropdown` it renders internally, so the same call works there too. `PlayerSetupPanel`'s
+own internal color/CPU-difficulty pickers aren't reachable this way (they're not a `ReactNode` slot
+your own code renders — see "The secondPicker slot" below), so it exposes `colorAlignOverride` and
+`cpuDifficultyAlignOverride` props instead, forwarded straight to `InlineColorPicker`'s and
+`LabeledDropdown`'s own `alignOverride` internally. Computing `open` for either one needs that
+picker's own popover id, which `PlayerSetupPanel` derives internally from `idPrefix` — call
+`getColorPopoverId(idPrefix)`/`getCpuDifficultyPopoverId(idPrefix)` (both exported) rather than
+guessing or hardcoding the naming convention yourself:
+
+```tsx
+const cpuOpen = host.openId === getCpuDifficultyPopoverId('p2')
+const cpuAlign = useZoneClampedAlign(cpuOpen, LABELED_DROPDOWN_POPOVER_WIDTH, getLabeledDropdownContentHeight(cpuDifficultyOptions.length))
+
+<PlayerSetupPanel idPrefix='p2' host={host} cpuDifficulty={difficulty} cpuDifficultyOptions={cpuDifficultyOptions} onCpuDifficultyChange={setDifficulty} cpuDifficultyAlignOverride={cpuAlign} /* ...the rest of your usual props */ />
+```
+
+For any other popover-hosting component that might sit inside a split-screen zone, call
+`useZoneClampedAlign` directly in place of `useAutoAlign`.
+
+## The secondPicker slot (read this before wiring one up)
+
+`PlayerSetupPanel`'s `secondPicker` is a caller-rendered `ReactNode` slot next to the built-in color
+picker, not a fixed prop shape — the five apps this component was extracted from each wanted a
+genuinely different second control there (a `ControlSchemePicker`, a raw `SectionedDropdown`, or
+nothing at all), so rather than this package baking in one shape most consumers don't need, the
+panel just renders whatever `secondPicker` is given, wherever it's given.
+
+If whatever you slot in opens its own popover, pass its popover id as `secondPickerId` too:
+
+```tsx
+<PlayerSetupPanel
+  idPrefix='p1'
+  host={sharedHost}
+  color={color}
+  onColorChange={setColor}
+  swatches={swatches}
+  isHuman
+  secondPicker={<ControlSchemePicker id='p1-scheme' host={sharedHost} value={scheme} onChange={setScheme} />}
+  secondPickerId='p1-scheme'
+  dark={dark}
+/>
+```
+
+Skipping `secondPickerId` when your slotted picker does open a popover is easy to get wrong, and it
+fails silently rather than throwing: `PlayerSetupPanel` uses it to decide whether its own
+`pickerRow` needs the elevated z-index that lets a popover escape the row's bounds and paint above a
+later sibling (the `ReadyButton` beneath it, or another panel next to it — see `pickerRowOpen` in
+the component's own source). Without `secondPickerId`, the panel has no way to know your picker's
+popover is open, so that elevation never kicks in, and your popover can silently render underneath
+sibling content instead of on top of it. If your `secondPicker` never opens a popover of its own (a
+plain toggle, static content, or nothing at all), omit `secondPickerId` — there's nothing for it to
+track. And if that slotted picker's own popover lives inside a split-screen zone, see "Zone-aware
+popovers" above for how to wire `alignOverride`/`rotation` into whatever you construct there.
+
+## Quit confirmation (`useQuitConfirmation`)
+
+Captures the `onBackPress` + `<ConfirmDialog>` "Quit Match?" pattern every fleet `game.tsx` used to
+hand-wire on its own (Snake, AirHockey, BoxHockey, Pong, LightCycles): interrupt backing out of a
+match with a confirmation only when there's progress worth losing, otherwise back out immediately.
+
+```ts
+function useQuitConfirmation(hasProgress: () => boolean, onConfirmedBack: () => void): QuitConfirmation
+
+interface QuitConfirmation {
+  confirmVisible: boolean
+  requestBack: () => void
+  cancelBack: () => void
+}
+```
+
+Wire `confirmVisible`/`cancelBack` straight to `<ConfirmDialog visible={...} onCancel={...}>`, and
+`requestBack` to the back button's `onPress`. The hook deliberately doesn't own or render the
+`<ConfirmDialog>` itself — title/message/icon/labels/rotation stay authored at each call site (a
+score pairing in most apps, a round-history pip row in LightCycles), matching this package's
+established "hooks return data, JSX stays at the call site" convention (`usePopoverHost`,
+`useAutoAlign`, `useZoneClampedAlign` all do the same).
+
+**`hasProgress` is a lazy `() => boolean` getter, not a plain `boolean` — this is a load-bearing
+correction, not a style choice.** A plain-boolean argument forces the caller to compute it every
+render from state that, in several apps, doesn't exist yet at that point in the render.
+AirHockey/BoxHockey/Pong all fold this hook's own `confirmVisible` into a
+`paused = settingsOpen || confirmVisible` that gates `useGameState(paused)` — and
+`useGameState`'s *return value* (scores, lives, bricks) is exactly what `hasProgress` needs to
+read. A plain boolean here would create a real circular render dependency:
+`confirmVisible → paused → useGameState(paused) → {scores/lives/bricks} → hasProgress →
+confirmVisible`. The lazy getter breaks the cycle: `hasProgress` is only invoked inside
+`requestBack`, at tap time, well after `useGameState` has already produced that render's state —
+the getter's closure just reads whatever `scores` is bound to *by then*, the same way a hand-rolled
+`onBackPress` closure always did before this hook existed:
+
+```tsx
+// AirHockey's game.tsx — hasProgress reads `scores`, a value useGameState (below) hasn't produced
+// yet at the point useQuitConfirmation is called. That's fine: the getter is only ever called from
+// inside requestBack, well after this render has finished and `scores` is a real value.
+const [settingsOpen, setSettingsOpen] = useState(false)
+const { confirmVisible, requestBack, cancelBack } = useQuitConfirmation(() => scores[0] > 0 || scores[1] > 0, safeBack)
+const paused = settingsOpen || confirmVisible
+
+const { state } = useGameState(board, scoreToWin, friction, paused)
+const { scores } = state
+
+// ...
+
+<IconButton icon='arrow-left' onPress={requestBack} />
+
+<ConfirmDialog
+  visible={confirmVisible}
+  title='Quit Match?'
+  message={`${scores[0]} – ${scores[1]}`}
+  confirmLabel='Quit'
+  cancelLabel='Cancel'
+  onConfirm={safeBack}
+  onCancel={cancelBack}
+/>
+```
+
+A game with no such circular dependency (Snake reads `humanScore`/`opponentScore`, LightCycles
+reads `roundHistory.length`) still passes a getter — `() => humanScore > 0 || (opponentScore ?? 0) > 0`
+— it's just a plain wrapper around an expression that could have been a bare boolean there; the
+signature stays uniform across every call site rather than special-casing the apps that don't
+currently need the deferred read.
+
+## Achievements catalog (`AchievementCatalogSection`, `ActivityStatSection`)
+
+Two presentational components for an achievements/stats screen, designed to pair with
+[`@tastic/achievements`](https://github.com/jayrdeaton/react-native-game-achievements)'s own
+`getAchievementCatalogRows` — the row-computation logic (reading `ACHIEVEMENT_CATALOG`,
+`unlockedAchievements`, and stats) lives in that headless package (no react-native/Paper deps of
+its own); the two components that actually render the result live here. Mirrors this package's
+existing `AchievementRow` (hud, presentational, fully-precomputed props) / achievement-engine-shaped
+(pure data) boundary.
+
+**`AchievementCatalogSection`** — an "ALL ACHIEVEMENTS" heading plus one `<AchievementRow>` per
+row. Returns a `Fragment`, not a `View`: every call site renders the heading and rows as flat
+siblings inside `BaseStatsScreen`'s own gap-spaced `ScrollView` content, and a wrapping container
+here would double up that spacing. Resolves each row's locked-vs-unlocked `badgeColor` itself
+(`row.tierColor` once `row.unlockedAt` is set, else the locked color) rather than upstream, since
+`getAchievementCatalogRows` deliberately leaves that choice to whatever renders the rows.
+
+```ts
+interface AchievementCatalogSectionProps {
+  rows: AchievementCatalogRow[] // from @tastic/achievements' getAchievementCatalogRows
+  label?: string // default 'ALL ACHIEVEMENTS'
+  fg?: string
+  fgMuted?: string
+}
+```
+
+**`ActivityStatSection`** — the "ACTIVITY" `<StatSection>` (Days Played / Day Streak / Best Day
+Streak). Takes a plain structural `ActivityStats` shape rather than importing
+`@tastic/achievements`' own `DayStreakState` type, even though the fields match exactly — this
+component has zero dependency, not even type-only, on `@tastic/achievements`; any caller's own
+stats object with these three fields satisfies it:
+
+```ts
+interface ActivityStatSectionProps {
+  stats: { distinctDaysPlayed: number; currentDayStreak: number; bestDayStreak: number }
+}
+```
+
+Composing both with `@tastic/achievements`' own row computation:
+
+```tsx
+import { getAchievementCatalogRows } from '@tastic/achievements'
+import { AchievementCatalogSection, ActivityStatSection, BaseStatsScreen } from '@tastic/hud'
+
+const rows = getAchievementCatalogRows(ACHIEVEMENT_CATALOG, deviceStats, statsView, unlockedAchievements, profileId)
+
+return (
+  <BaseStatsScreen /* ...your usual props */>
+    <ActivityStatSection stats={statsView} />
+    <AchievementCatalogSection rows={rows} />
+  </BaseStatsScreen>
+)
+```
+
+`AchievementCatalogSection` is the only place in this package with a `@tastic/achievements`
+dependency, and even there it's type-only (`AchievementCatalogRow`) — never a value/runtime
+import. See Peer Dependencies below.
+
 ## Install
 
-Published to the public npm registry as `@tastic/hud`. The self-reading rotation behavior described
-above is newer than the latest published version, though — for now it only exists in local,
-`yalc`-linked builds (see below) until it's published for real; the published version's `rotation`
-prop on these four components defaults to a plain `0` rather than reading `@tastic/core`'s
-`useRotation()`.
+Published to the public npm registry as `@tastic/hud`. Everything described above, including the
+self-reading rotation behavior on these four components (defaulting to `@tastic/core`'s own
+`useRotation()` rather than a plain `0`), `PlayerSetupPanel`, and `StaggeredWord`, is live on npm.
 
 ```bash
 npm install @tastic/hud
 ```
-
-### Local dev via yalc (for unpublished changes)
-
-```bash
-cd react-native-hud
-npm run build
-yalc publish
-
-cd ../your-game
-yalc add @tastic/hud
-npm install
-```
-
-Re-run `npm run build && yalc push` from this package after any change to propagate it to every
-linked consumer at once.
 
 ## Peer dependencies
 
 `react`, `react-native`, `react-native-paper` (`Icon`, `IconButton`, `Text`), `@rific/auto-paper`
 (`defaultColors`, `getContrastColor`, `getBlendedColor`, `SeedColor`), `@rific/feedback-press`
 (`IconButton`, `TouchableRipple`), [`@tastic/core`](https://github.com/jayrdeaton/react-native-game-core)
-(>=0.1.0 — `useRotation()`, see Rotation above) — none of these are bundled, so use whatever
-versions your app already has.
+(>=0.1.0 — `useRotation()`, see Rotation above),
+[`@tastic/achievements`](https://github.com/jayrdeaton/react-native-game-achievements) (>=0.1.2 —
+`AchievementCatalogRow`, in `AchievementCatalogSection.tsx` only, and type-only: no value/runtime
+import, see Achievements catalog above) — none of these are bundled, so use whatever versions your
+app already has.

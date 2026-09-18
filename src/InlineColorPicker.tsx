@@ -6,7 +6,7 @@ import { Icon, Text } from 'react-native-paper'
 
 import { MONO_FONT } from './fonts'
 import { PopoverBody } from './PopoverBody'
-import { PopoverRotation, useAutoAlign } from './useAutoAlign'
+import { AlignResult, PopoverRotation, useAutoAlign } from './useAutoAlign'
 import { PopoverHost } from './usePopoverHost'
 
 // Presence check, not a full-string "is this exactly one emoji" validation — this only decides a
@@ -35,6 +35,26 @@ function widthForColumns(columns: number) {
   return SWATCHES_BORDER_WIDTH * 2 + SWATCHES_PADDING * 2 + SWATCH_SIZE * columns + SWATCHES_GAP * (columns - 1)
 }
 
+// Exported so a caller that needs to independently compute this popover's own content size — to
+// feed useZoneClampedAlign's contentWidth/contentHeight params with, ahead of producing a
+// colorAlignOverride for a picker living inside a @tastic/split-screen zone — can match this
+// component's real rendered size exactly, rather than re-deriving or hardcoding its internal
+// column/row math. Same job as LabeledDropdown's own getLabeledDropdownContentHeight, but this
+// picker's size also depends on window width (via the auto-column clamp below), so windowWidth is
+// a required parameter here rather than an ambient useWindowDimensions() read — a caller computing
+// this ahead of render (to decide alignment before the picker itself has even mounted) has no
+// component instance to read that hook from, so it has to pass the value in instead. The component
+// below calls this same function with its own live useWindowDimensions() read, so there is exactly
+// one place this formula lives.
+export function getInlineColorPickerContentSize(swatchCount: number, windowWidth: number, columns?: number): { width: number; height: number } {
+  const autoColumns = clamp(Math.floor((windowWidth - 2 * SCREEN_MARGIN + SWATCHES_GAP) / (SWATCH_SIZE + SWATCHES_GAP)), MIN_COLUMNS, MAX_COLUMNS)
+  const resolvedColumns = columns ?? autoColumns
+  const width = widthForColumns(resolvedColumns)
+  const rows = Math.ceil(swatchCount / resolvedColumns)
+  const height = SWATCHES_BORDER_WIDTH * 2 + SWATCHES_PADDING * 2 + SWATCH_SIZE * rows + SWATCHES_GAP * (rows - 1)
+  return { width, height }
+}
+
 interface Props {
   id: string
   host: PopoverHost
@@ -59,9 +79,16 @@ interface Props {
   // tradeoff.
   allowSwapTaken?: boolean
   dark: boolean
-  // Manual override — omit to let the popover measure its own trigger and pick whichever alignment
-  // keeps it from overflowing the screen edge (see useAutoAlign).
+  // Forces a specific horizontal alignment instead of letting whichever placement result applies
+  // (see alignOverride below) decide.
   align?: 'left' | 'right' | 'center'
+  // Substitutes this package's own plain useAutoAlign-based placement wholesale (align,
+  // verticalAlign, maxHeight, measured, triggerRef) with a caller-supplied one — e.g.
+  // useZoneClampedAlign's result, for a picker living inside a @tastic/split-screen zone, where the
+  // plain window-relative decision can pick a direction that overflows into the shared row instead
+  // of the zone's own boundary. Same shape LabeledDropdown's/SectionedDropdown's own alignOverride
+  // takes; omit for the ordinary case (a popover with nothing but the screen edge to avoid).
+  alignOverride?: AlignResult
   // Explicit override for the rotation a @tastic/split-screen-style FakeLandscapeView (or
   // equivalent) ancestor is currently applying — see SectionedDropdown's identical prop for the
   // full reasoning. Defaults to a live ambient read via @tastic/core's useRotation() when omitted.
@@ -93,20 +120,20 @@ interface Props {
 // Renders inline rather than as a full-screen modal, scoped to its own panel — a modal color
 // picker would block the whole screen for one player while another can't touch their own panel at
 // the same time, which defeats the point of a split-screen lobby.
-export function InlineColorPicker({ id, host, value, onChange, previewValue, swatches = defaultColors, takenValue, allowSwapTaken, dark, align: alignOverride, rotation: rotationOverride, icon = 'palette', tag, labelFontFamily = MONO_FONT, autoDismiss = true, columns, size = DEFAULT_SIZE }: Props) {
+export function InlineColorPicker({ id, host, value, onChange, previewValue, swatches = defaultColors, takenValue, allowSwapTaken, dark, align: forcedAlign, alignOverride, rotation: rotationOverride, icon = 'palette', tag, labelFontFamily = MONO_FONT, autoDismiss = true, columns, size = DEFAULT_SIZE }: Props) {
   const ambientRotation = useRotation()
   const rotation = rotationOverride ?? ambientRotation
   const menuBg = dark ? '#000000' : '#FFFFFF'
   const { width: windowWidth } = useWindowDimensions()
-  const autoColumns = clamp(Math.floor((windowWidth - 2 * SCREEN_MARGIN + SWATCHES_GAP) / (SWATCH_SIZE + SWATCHES_GAP)), MIN_COLUMNS, MAX_COLUMNS)
-  const resolvedColumns = columns ?? autoColumns
-  const swatchesWidth = widthForColumns(resolvedColumns)
-  const swatchRows = Math.ceil(swatches.length / resolvedColumns)
-  const swatchesHeight = SWATCHES_BORDER_WIDTH * 2 + SWATCHES_PADDING * 2 + SWATCH_SIZE * swatchRows + SWATCHES_GAP * (swatchRows - 1)
+  const { width: swatchesWidth, height: swatchesHeight } = getInlineColorPickerContentSize(swatches.length, windowWidth, columns)
 
   const open = host.openId === id
-  const { align: autoAlign, maxHeight, measured, triggerRef, verticalAlign } = useAutoAlign(open, swatchesWidth, swatchesHeight, rotation)
-  const align = alignOverride ?? autoAlign
+  // Always called, even when alignOverride is supplied and this result goes unused — hooks can't be
+  // called conditionally. See LabeledDropdown's identical comment for the same tradeoff.
+  const auto = useAutoAlign(open, swatchesWidth, swatchesHeight, rotation)
+  const placement = alignOverride ?? auto
+  const { maxHeight, measured, triggerRef, verticalAlign } = placement
+  const align = forcedAlign ?? placement.align
   const displayFor = previewValue ?? ((hex: string) => hex)
   const displayValue = displayFor(value)
   const contrastColor = getContrastColor(displayValue)

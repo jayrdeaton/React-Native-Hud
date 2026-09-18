@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 
 // Real reanimated's whole point is running these off the JS thread without triggering React
 // re-renders — the mock instead resolves synchronously, on the JS thread, so a plain re-render
@@ -7,7 +7,11 @@ import { useState } from 'react'
 export const Easing = {
   cubic: (t: number) => t,
   linear: (t: number) => t,
-  out: (fn: (t: number) => number) => fn
+  out: (fn: (t: number) => number) => fn,
+  // Overshoot amplitude ignored — same "identity-shaped stand-in" treatment as cubic/linear above,
+  // since this mock only ever needs the settled (t=1) end value, never the curve's own shape along
+  // the way.
+  back: (_amplitude: number) => (t: number) => t
 }
 
 export interface SharedValue<T> {
@@ -38,3 +42,35 @@ export function withTiming<T>(toValue: T, _config?: unknown, callback?: (finishe
   callback?.(true)
   return toValue
 }
+
+// Delay ignored, same treatment as withTiming's own config above — `animation` here is already the
+// fully-resolved end value (whatever the wrapped withTiming/withSequence/etc. call itself
+// resolved to under this same mock), so passing it straight through is what "settles instantly,
+// synchronously" actually means for a delayed animation under this mock.
+export function withDelay<T>(_delayMs: number, animation: T): T {
+  return animation
+}
+
+// Recomputed on every call, not memoized against a dependency array the way the real worklet-based
+// hook would be — same reasoning as useDerivedValue above: this mock has no worklet/UI-thread
+// machinery to invalidate against, so "always reflects whatever the latest shared-value reads are
+// at render time" is the simplest faithful stand-in, and it's what a real animated style converges
+// to once its own shared values settle anyway.
+export function useAnimatedStyle<T>(fn: () => T): T {
+  return fn()
+}
+
+const stub = ({ children }: { children?: React.ReactNode }) => children ?? null
+
+// Real Animated.View/Animated.Text are createAnimatedComponent-wrapped native primitives that
+// apply a worklet-computed style outside of React's own render/commit cycle — under this mock,
+// useAnimatedStyle above already resolves that style synchronously at render time (a plain object,
+// not a worklet handle), so these just need to render like any other bare View/Text stub in this
+// package's own mocks (see react-native.ts/react-native-paper.ts), captured as jest.fn()s so a test
+// can inspect exactly what style/props a given letter actually received.
+const Animated = {
+  View: jest.fn(stub),
+  Text: jest.fn(stub)
+}
+
+export default Animated

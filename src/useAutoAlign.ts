@@ -1,5 +1,5 @@
 import { type ViewRotation } from '@tastic/core'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { useWindowDimensions, View } from 'react-native'
 
 // Minimum breathing room between a popover's outer edge and the screen edge — matches the general
@@ -12,6 +12,22 @@ export type PopoverVerticalAlign = 'below' | 'above'
 // name rather than switching every call site to import ViewRotation directly, since "popover
 // rotation" reads clearer at these call sites than the more general core name.
 export type PopoverRotation = ViewRotation
+
+// Same shape useAutoAlign itself returns — exported so a caller can substitute this package's own
+// plain, screen-edge-aware placement wholesale via a component's own `alignOverride` prop (see
+// LabeledDropdown's, SectionedDropdown's, and InlineColorPicker's own `alignOverride`), most often
+// with useZoneClampedAlign's result for a popover living inside a @tastic/split-screen zone, where
+// the plain window-relative decision can pick a direction that overflows into the shared row
+// instead of the zone's own boundary. Hand-declared rather than `ReturnType<typeof useAutoAlign>`
+// so this stays a stable, self-documented public type regardless of useAutoAlign's own internal
+// implementation shape.
+export interface AlignResult {
+  align: PopoverAlign
+  verticalAlign: PopoverVerticalAlign
+  maxHeight: number
+  measured: boolean
+  triggerRef: RefObject<View | null>
+}
 
 // Reflects a rect from the PRE-rotation layout frame measureInWindow actually reports (see
 // useAutoAlign's own comment below for why that's what it reports, not the post-rotation visual

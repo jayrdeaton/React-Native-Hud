@@ -27,7 +27,19 @@ module.exports = require('@infinitetoken/jest-config/react-native')({
     '^@tastic/core$': '<rootDir>/src/__mocks__/tastic-core.ts',
     // Real @rific/updater talks to expo-updates at module scope, which has no jsdom equivalent —
     // mocked wholesale, same treatment as every other native-backed peer above.
-    '^@rific/updater$': '<rootDir>/src/__mocks__/rific-updater.ts'
+    '^@rific/updater$': '<rootDir>/src/__mocks__/rific-updater.ts',
+    // Real @tastic/profile peer-depends right back on this package — see the mock file's own
+    // comment for the full reasoning (a real, intentional cycle at the source level that this
+    // repo's own test run has no dist/ to resolve it against) — plus several native/Expo peers
+    // this repo has no test setup for at all.
+    '^@tastic/profile$': '<rootDir>/src/__mocks__/tastic-profile.ts',
+    // Real react-native-safe-area-context's useSafeAreaInsets does live native measurement, with no
+    // jsdom equivalent — mocked to a deterministic zero-insets stand-in, same treatment as every
+    // other native-backed peer above.
+    '^react-native-safe-area-context$': '<rootDir>/src/__mocks__/react-native-safe-area-context.ts',
+    // Real @tastic/split-screen resolves to raw .ts source under node_modules via the same
+    // "react-native" export-condition mismatch as @tastic/core above — see that mock's own comment.
+    '^@tastic/split-screen$': '<rootDir>/src/__mocks__/tastic-split-screen.ts'
   },
   overrides: {
     // Every mock above is a `jest.fn(...)` — cleared (not restored/reset, since none use

@@ -2,6 +2,7 @@ import { useIsTouchPrimaryDevice } from '@tastic/core'
 import { Platform } from 'react-native'
 
 import { MenuOption, SectionedDropdown } from './SectionedDropdown'
+import { AlignResult, PopoverRotation } from './useAutoAlign'
 import { PopoverHost } from './usePopoverHost'
 
 export interface ControlSchemePickerProps<T extends string | number> {
@@ -21,6 +22,14 @@ export interface ControlSchemePickerProps<T extends string | number> {
   onAccentColor?: string
   dark: boolean
   align?: 'left' | 'right' | 'center'
+  // Passed straight through to the underlying SectionedDropdown — see that component's own
+  // `alignOverride` doc. Lets a caller inside a @tastic/split-screen zone substitute
+  // useZoneClampedAlign's result for this picker's own popover placement.
+  alignOverride?: AlignResult
+  // Passed straight through to the underlying SectionedDropdown — see that component's own
+  // `rotation` doc. Defaults to a live ambient useRotation() read when omitted, same as
+  // SectionedDropdown itself.
+  rotation?: PopoverRotation
   labelFontFamily?: string
 }
 
@@ -45,9 +54,9 @@ export interface ControlSchemePickerProps<T extends string | number> {
 // no keys of their own (a "keep using pointer input" option, say) are purely a per-app label — so a
 // caller always supplies its own `options` (and typically its own `T`) rather than this component
 // importing `@tastic/input` and choosing a set for every consumer.
-export function ControlSchemePicker<T extends string | number>({ id, host, value, onChange, options, takenValue, accentColor, mutedColor, onAccentColor, dark, align, labelFontFamily }: ControlSchemePickerProps<T>) {
+export function ControlSchemePicker<T extends string | number>({ id, host, value, onChange, options, takenValue, accentColor, mutedColor, onAccentColor, dark, align, alignOverride, rotation, labelFontFamily }: ControlSchemePickerProps<T>) {
   const isTouchPrimary = useIsTouchPrimaryDevice()
   if (Platform.OS !== 'web' || isTouchPrimary) return null
 
-  return <SectionedDropdown id={id} host={host} icon='keyboard-outline' accessibilityLabel='Control scheme' sections={[{ kind: 'single', id: 'controls', options, value, onChange, takenValue }]} accentColor={accentColor} mutedColor={mutedColor} onAccentColor={onAccentColor} dark={dark} align={align} labelFontFamily={labelFontFamily} />
+  return <SectionedDropdown id={id} host={host} icon='keyboard-outline' accessibilityLabel='Control scheme' sections={[{ kind: 'single', id: 'controls', options, value, onChange, takenValue }]} accentColor={accentColor} mutedColor={mutedColor} onAccentColor={onAccentColor} dark={dark} align={align} alignOverride={alignOverride} rotation={rotation} labelFontFamily={labelFontFamily} />
 }

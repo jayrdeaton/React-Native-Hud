@@ -142,6 +142,119 @@ mounts) references that same API surface regardless of which `SkiaGate` file got
 presence proves nothing about `WithSkiaWeb` specifically. The only real check is exporting for web and
 actually clicking through to the `SkiaGate`-mounted screen in a browser and watching the console.
 
+### `getInlineColorPickerContentSize` (2026-09-18)
+
+A fleet-wide drift scan found that `PlayerSetupPanel`'s existing `colorAlignOverride` prop (forwarded straight into `InlineColorPicker`'s own `alignOverride`, exactly the same plumbing `cpuDifficultyAlignOverride` already had for the CPU-difficulty dropdown) was never actually wired up by any of the 5 consuming apps — a real bug, not a documentation gap, since the color picker (unlike the CPU-difficulty picker, a confirmed no-op everywhere) genuinely renders inside a live `@tastic/split-screen` zone in every app's two-human-player mode. The missing piece was a way for a caller to compute the popover's own content size ahead of render, the same job `LabeledDropdown`'s `getLabeledDropdownContentHeight` already does for that picker — `InlineColorPicker` had no equivalent export, just an internal computation.
+
+Added `getInlineColorPickerContentSize(swatchCount, windowWidth, columns?): { width, height }`, exported alongside `InlineColorPicker`. Unlike `getLabeledDropdownContentHeight` (which only depends on a static option count), this one also takes `windowWidth` explicitly — the picker's own auto-column clamp depends on window width, and a caller computing this ahead of the picker's own mount has no component instance to read `useWindowDimensions()` from. `InlineColorPicker`'s own internal computation now calls this same function (removed the duplicated inline formula), so there's exactly one place this math lives. Now `0.9.1` (patch, no breaking change — this is a new export only; no app was wired to use it as part of this fix, see each app's own CLAUDE.md for that follow-up).
+
+### `useZoneClampedAlign` rotation threading (2026-09-18)
+
+`useZoneClampedAlign` gained a `rotation: PopoverRotation = 0` fourth parameter, threaded straight into its internal `useAutoAlign` call — low-risk, since it only ever reaches `useAutoAlign`'s own already-rotation-aware horizontal-align decision (verbatim, via the `if (!zone) return auto` fallback whenever the hook is used outside a zone). `PlayerSetupPanel` gained a matching `colorRotation?: PopoverRotation` prop, forwarded to its internal `InlineColorPicker`'s own `rotation` prop.
+
+While threading it, the hook's own doc comment was found to be actively wrong — it claimed `measureInWindow` "resolves post-transform," the same false claim `useAutoAlign.ts` itself already documents as having shipped one real, unnoticed bug (measureInWindow reports the PRE-transform frame). The comment was rewritten to correct that and to honestly document a real, currently-unfixed gap this hook still has: it never applies `useAutoAlign`'s own `rotateRect(...)` correction to its raw `measureInWindow` read, so `awayRoom`/`towardRoom` are computed from the uncorrected frame. A full fix would also need `@tastic/split-screen`'s `DualZoneLayout.measureShared` corrected in tandem (`sharedEdgeY` has the identical gap) — `zone.rotated` alone isn't sufficient to fix just this hook's half, since it captures a trigger's own net rotation, not the outer ambient rotation `sharedEdgeY`'s own correction would need, and the two don't compose simply. Deliberately left unfixed rather than guessing at unverified trigonometry across a third package: confirmed every real `cpuDifficultyAlignOverride` call site across the fleet is a no-op today (never actually rendering inside a live `DualZoneLayout` zone), so nothing currently miscalculates in practice — but this needs real rotated-zone test coverage before either hook's math under live rotation is trustworthy.
+
+### `useQuitConfirmation` (2026-09-18)
+
+New hook, `src/useQuitConfirmation.ts`, capturing the `onBackPress` + `<ConfirmDialog>` "Quit
+Match?" pattern every fleet `game.tsx` already hand-wired (Snake, AirHockey, BoxHockey, Pong,
+LightCycles): interrupt backing out of a match with a confirmation only when there's progress worth
+losing, otherwise back out immediately. Returns `{ confirmVisible, requestBack, cancelBack }` —
+wire `confirmVisible`/`cancelBack` straight to `<ConfirmDialog visible={...} onCancel={...}>`,
+`requestBack` to the back button's `onPress`. Deliberately does not own or render the
+`<ConfirmDialog>` itself — title/message/icon/confirmLabel/cancelLabel/rotation stay authored at
+each call site (a score pairing in most apps, a `<RoundHistoryPips>` component in LightCycles),
+matching this package's established "hooks return data, JSX stays at the call site" convention
+(`usePopoverHost`, `useAutoAlign`, `useZoneClampedAlign` all do the same). Exported, with its
+`QuitConfirmation` type, from `src/index.ts`; covered by `src/__tests__/useQuitConfirmation.test.ts`.
+
+**The signature is `hasProgress: () => boolean`, a lazy getter — not the plain `boolean` the
+original design called for — and that's a real, load-bearing correction made after initial
+implementation, not a stylistic choice.** The version of this hook worked out before implementation
+took `hasProgress: boolean`, computed fresh by the caller on every render, exactly like each app's
+own pre-extraction `onBackPress` closure already did. That looked safe until it was actually wired
+into AirHockey, BoxHockey, and Pong — all three fold this hook's own `confirmVisible` into a
+`paused = settingsOpen || confirmVisible` that gates `useGameState(paused)`, and `useGameState`'s
+*return value* (scores, lives, bricks) is exactly what each app's `hasProgress` expression needs to
+read. A plain-boolean argument forces that read to happen before `useGameState` has run on that
+render: `confirmVisible → paused → useGameState(paused) → {scores/lives/bricks} → hasProgress →
+confirmVisible` — a genuine circular render dependency, not just an ordering inconvenience. All
+three apps hit this independently and worked around it with their own bespoke one-commit-behind
+shadow state (reading last render's scores instead of the current one), converging on the same fix
+under three different names — which was itself the signal that the hook's *contract* was wrong, not
+that three call sites each needed their own patch.
+
+The fix: `hasProgress` became a lazy `() => boolean` getter, and both it and `onConfirmedBack` are
+mirrored into refs via this fleet's standard effect-based idiom — `useRef` seeded once, then kept
+current by a bare `useEffect(() => { ref.current = value })` with **no dependency array** (runs
+after every commit, not just on mount) rather than a render-time assignment, the same convention
+`@rific/core`'s `createSettingsContext.tsx` uses for the same reason. `requestBack` reads
+`hasProgressRef.current()` at tap time, not at the render that defined it, which defers the read
+past the point where `useGameState`'s own output actually exists — exactly mirroring how the
+original hand-rolled version in every app read scores/bricks/lives fresh from its own `onBackPress`
+closure rather than needing the value threaded in earlier. This also gives `requestBack`/
+`cancelBack` a stable identity across every render (empty deps on both `useCallback`s), which the
+plain-boolean version couldn't offer — a changing `hasProgress` value would have forced
+`requestBack`'s own deps array to include it, producing a new function identity on every render
+where progress state changed.
+
+Snake and LightCycles never had this circular dependency (their `hasProgress` expressions don't
+route through a `paused`-gated `useGameState`), so for them the lazy-getter signature is a no-op
+wrapper around the same expression they'd otherwise have passed directly. The correction exists for
+AirHockey/BoxHockey/Pong's shape specifically, but the signature is uniform across all 5 call sites
+— there's no partial/conditional API here, and there shouldn't be one: a caller with no circular
+dependency today can still acquire one later (a refactor that moves score state behind the same
+`paused` gate), and the lazy-getter signature costs nothing for the apps that don't currently need
+it.
+
+### `AchievementCatalogSection` + `ActivityStatSection` (2026-09-18)
+
+Two new presentational components landing the achievements-scaffolding extraction, paired with
+`@tastic/achievements`'s own new `catalogRows.ts` (`AchievementCatalogRow`,
+`getAchievementCatalogRows`, `defaultFormatUnlockedLabel`) added in the same pass. The split mirrors
+this package's existing `AchievementRow` (hud, presentational, fully-precomputed props) /
+`achievementEngine.ts`-shaped (achievements, pure data) boundary — `@tastic/achievements` is
+headless by design (its own CLAUDE.md: "nothing here renders," zero react-native/Paper peer deps),
+so the row-computation logic reading `ACHIEVEMENT_CATALOG`/`unlockedAchievements`/stats lives there,
+and the two components that actually render the result live here.
+
+- **`AchievementCatalogSection.tsx`** — the "ALL ACHIEVEMENTS" `labelMedium` heading (`MONO_FONT`,
+  `letterSpacing: 2`) plus one `<AchievementRow>` per `AchievementCatalogRow` in `rows`. Extracted
+  byte-for-byte from every fleet app's own `achievements.tsx` (Snake, AirHockey, BoxHockey, Pong,
+  LightCycles). Returns a `Fragment`, not a `View` — every call site rendered the heading and rows
+  as flat siblings inside `BaseStatsScreen`'s own gap-spaced `ScrollView` content, and a wrapping
+  container here would double up that spacing. Resolves each row's locked-vs-unlocked `badgeColor`
+  here (`row.tierColor` when `row.unlockedAt !== undefined`, else `LOCKED_BADGE_COLOR`) rather than
+  upstream, matching `AchievementRow`'s own "badge color is a rendering decision" doc comment —
+  `@tastic/achievements`'s `getAchievementCatalogRows` deliberately leaves `tierColor` unresolved
+  for the same reason.
+- **`ActivityStatSection.tsx`** — the "ACTIVITY" `<StatSection>` (Days Played / Day Streak / Best
+  Day Streak), also extracted byte-for-byte from the same 5 apps. Takes a plain structural
+  `ActivityStats { distinctDaysPlayed, currentDayStreak, bestDayStreak }` interface, deliberately
+  *not* `@tastic/achievements`'s own `DayStreakState` type even though the shapes match — this
+  component has zero dependency, not even type-only, on `@tastic/achievements`; any caller's own
+  stats object satisfying the structural shape works. This is the asymmetric half of the split:
+  unlike `AchievementCatalogSection`, nothing here needed the sibling package at all.
+
+**Verified against current source, not the original design doc: `AchievementCatalogRow` is a real
+type-only import today, not a locally-duplicated one.** The design worked out before
+`@tastic/achievements` had shipped `catalogRows.ts` anticipated `AchievementCatalogSection` briefly
+carrying its own local copy of the `AchievementCatalogRow` interface as a stopgap until the sibling
+package caught up. That stopgap is not what's in the repo now — `AchievementCatalogSection.tsx`
+line 2 is `import type { AchievementCatalogRow } from '@tastic/achievements'`, and the file's own
+comment (lines 10–13) records that the shapes were checked against each other before this real
+dependency was wired in: "no longer duplicated locally now that package has actually published the
+export (confirmed the two shapes match exactly before wiring this real, type-only peer
+dependency)." `@tastic/achievements` is now a declared `peerDependency` here (`>=0.1.2` — see Peer
+Dependencies below), the first (and so far only) dependency this package takes on
+`@tastic/achievements`, and it's type-only: no value import, no runtime coupling. It's currently
+resolved via yalc (`file:.yalc/@tastic/achievements` in `devDependencies`) rather than a real
+npm-published version, matching this repo's own "Local development (yalc)" flow documented above,
+ahead of `@tastic/achievements` cutting a real release.
+
+Both components are exported from `src/index.ts`'s barrel and covered by their own test files
+(`src/__tests__/AchievementCatalogSection.test.tsx`, `src/__tests__/ActivityStatSection.test.tsx`).
+
 ### The press-away pattern for split-screen (no component for this — it's a wiring pattern)
 
 A single full-screen `PressAwayOverlay` works for one player. For two players sharing a screen, the
@@ -181,7 +294,14 @@ export { type PopoverHost, usePopoverHost } from './usePopoverHost'
 several real exports, e.g. `AchievementRow`, `BaseSettingsDialog`, `BaseStatsScreen`, `ContentGutter`,
 `CornerActionButtons`, `LabeledDropdown`, `SharedActionBand`, `StatRow`, `StatSection`, before this
 edit; only `ControlSchemePicker` was added here, so it's still not a complete/accurate barrel — cross-
-check `src/index.ts` directly rather than trusting this list exhaustively.)
+check `src/index.ts` directly rather than trusting this list exhaustively. Also now missing, as of
+the 2026-09-17 `alignOverride`/zone-awareness pass (see README's "Zone-aware popovers" section for
+the full story): `AlignResult`, `getColorPopoverId`, `getCpuDifficultyPopoverId`, `PlayerSetupPanel`,
+`useZoneClampedAlign`. Also now missing, as of the 2026-09-18 achievements-scaffolding +
+`useQuitConfirmation` passes (see Architecture above): `AchievementCatalogSection`,
+`ActivityStatSection`, `QuitConfirmation`, `useQuitConfirmation` — this doc's own staleness
+compounding is itself evidence for cross-checking `src/index.ts` directly rather than trying to keep
+patching this list forward piecemeal.)
 
 `TriggerGauge` itself (the raw Skia component) is deliberately **not** exported — only its type
 (`TriggerGaugeProps`) is. A value re-export would force the bundler to fold `TriggerGauge.tsx`'s own
@@ -203,10 +323,15 @@ Real `peerDependencies` from `package.json`, with their actual version floors:
 **Internal fleet:**
 - `@rific/auto-paper` — `>=0.9.0` (`defaultColors`, `getContrastColor`, `getBlendedColor`, `getColorRoles`, `SeedColor`)
 - `@rific/feedback-press` — `>=0.10.0` (`IconButton`, `TouchableRipple`)
+- `@tastic/achievements` — `>=0.1.2` (`AchievementCatalogRow` type, in `AchievementCatalogSection.tsx`
+  only — type-only, no value/runtime import; see "AchievementCatalogSection + ActivityStatSection"
+  above). The newest peer here (added in the same 2026-09-18 pass as that component) and currently
+  resolved via yalc (`file:.yalc/@tastic/achievements` in `devDependencies`) rather than a real
+  npm-published version.
 - `@tastic/core` — `>=0.1.0` (`clamp`, `useIsTouchPrimaryDevice`)
 
 None of these are bundled — consumers use whatever versions their app already has. This repo also
-declares each of the eight peers above as a `devDependency` (own dev/test/build, at or above the
+declares each of the nine peers above as a `devDependency` (own dev/test/build, at or above the
 floor) so lint/typecheck/test/build have something real to run against.
 
 Unrelated to the peer deps above — the fleet's own shared tooling, pulled in as plain
