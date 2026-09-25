@@ -1,3 +1,5 @@
+import { useWindowDimensions } from './react-native'
+
 // Real @tastic/core's package.json "browser"/"react-native" export conditions point at its own
 // raw .ts source (so bundlers can inline it, worklet directive and all) rather than the compiled
 // dist — jsdom's default customExportConditions includes "browser", so plain resolution hands
@@ -31,3 +33,12 @@ export const useRotation = jest.fn(() => 0)
 export function toRotationStyle(rotation: number): { transform: [{ rotate: string }] } | undefined {
   return rotation % 360 !== 0 ? { transform: [{ rotate: `${rotation}deg` }] } : undefined
 }
+
+// Mirrors the real hook (useWindowDimensions swapped through the ambient useRotation, exact identity
+// at rotation 0 / 180) using this directory's own mocks of both, so a test drives it by overriding
+// useWindowDimensions + useRotation - or overrides this jest.fn directly to pin a footprint.
+export const useRotatedWindowDimensions = jest.fn((): { width: number; height: number } => {
+  const { width, height } = useWindowDimensions()
+  const rotation = useRotation()
+  return Math.abs(rotation) === 90 ? { width: height, height: width } : { width, height }
+})

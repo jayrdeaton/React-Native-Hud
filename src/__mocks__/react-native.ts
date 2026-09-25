@@ -31,7 +31,14 @@ const Platform = {
   select: <T extends Record<string, unknown>>(spec: T) => spec.ios ?? spec.default
 }
 
-export { Appearance, Platform, StyleSheet }
+// HowToPlayDialog subscribes to hardwareBackPress while open. A test that needs to fire it pulls the
+// registered handler out of `mockBackHandlerAdd.mock.calls` directly, same technique as
+// mockMeasureInWindow above — not through the 'react-native' module-name-mapper redirect.
+export const mockBackHandlerRemove = jest.fn()
+export const mockBackHandlerAdd = jest.fn((_event: string, _handler: () => boolean) => ({ remove: mockBackHandlerRemove }))
+const BackHandler = { addEventListener: mockBackHandlerAdd }
+
+export { Appearance, BackHandler, Platform, StyleSheet }
 export const StatusBar = stub
 // forwardRef, not a bare `jest.fn(stub)` like the others below — useAutoAlign (and everything
 // built on it: PopoverBody's caller in SectionedDropdown/InlineColorPicker) measures its trigger
@@ -48,6 +55,15 @@ export const mockViewRender = jest.fn((props: { children?: React.ReactNode } & R
   return props.children ?? null
 })
 export const View = React.forwardRef(mockViewRender)
-export const ScrollView = jest.fn(stub)
+// Still a plain jest.fn (InlineColorPicker.test.tsx reads a <ScrollView>'s captured props straight off
+// `ScrollView.mock.calls`), but it also attaches an imperative handle: HowToPlayDialog pages its cards
+// with `scrollRef.current?.scrollTo(...)`, which only fires if a ref actually attaches. React 19 hands
+// a function component its `ref` as an ordinary prop, so no forwardRef wrapper (which would lose
+// `.mock`) is needed. Tests assert on `mockScrollTo` directly.
+export const mockScrollTo = jest.fn()
+export const ScrollView = jest.fn(({ children, ref }: { children?: React.ReactNode; ref?: React.Ref<{ scrollTo: typeof mockScrollTo }> }) => {
+  useImperativeHandle(ref, () => ({ scrollTo: mockScrollTo }))
+  return children ?? null
+})
 export const Pressable = jest.fn(stub)
 export const useWindowDimensions = jest.fn(() => ({ width: 402, height: 874, scale: 3, fontScale: 1 }))

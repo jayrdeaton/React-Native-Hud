@@ -245,7 +245,7 @@ line 2 is `import type { AchievementCatalogRow } from '@tastic/achievements'`, a
 comment (lines 10–13) records that the shapes were checked against each other before this real
 dependency was wired in: "no longer duplicated locally now that package has actually published the
 export (confirmed the two shapes match exactly before wiring this real, type-only peer
-dependency)." `@tastic/achievements` is now a declared `peerDependency` here (`>=0.1.2` — see Peer
+dependency)." `@tastic/achievements` is now a declared `peerDependency` here (`>=0.2.0`, the first release exporting `AchievementCatalogRow` — see Peer
 Dependencies below), the first (and so far only) dependency this package takes on
 `@tastic/achievements`, and it's type-only: no value import, no runtime coupling. It's currently
 resolved via yalc (`file:.yalc/@tastic/achievements` in `devDependencies`) rather than a real
@@ -254,6 +254,19 @@ ahead of `@tastic/achievements` cutting a real release.
 
 Both components are exported from `src/index.ts`'s barrel and covered by their own test files
 (`src/__tests__/AchievementCatalogSection.test.tsx`, `src/__tests__/ActivityStatSection.test.tsx`).
+
+### `AchievementUnlockList` (2026-09-25)
+
+The newly-unlocked rows on a game-over / round-over card, extracted from 5 per-app copies (Snake's
+`GameOverDialog`, LightCycles' `MatchOverDialog`, Pong's/AirHockey's/BoxHockey's `game.tsx`). The
+copies agreed on the badge (tier color, 18px circle, black icon) and title, but had drifted to three
+owner markers: `ProfileChip`-or-color-avatar (Pong, AirHockey), a color circle with the profile tag
+(LightCycles), a trailing YOU/OPPONENT label (Snake), and none at all (BoxHockey). Jay chose to
+converge on the first. `tierColors` is a required prop rather than a default read from
+`ACHIEVEMENT_TIER_COLORS`, so `@tastic/achievements` stays type-only here (see below). The guest
+avatar's icon uses `getContrastColor(color)`, where Pong/AirHockey used the theme's on-color; same
+result for their theme primary/secondary colors in practice. Snake's 2 Player game-over card was
+checked in a browser (guest seats, bronze unlocks, no console errors); the other four were not.
 
 ### The press-away pattern for split-screen (no component for this — it's a wiring pattern)
 
@@ -264,6 +277,100 @@ host with broader reach is open — not just their own — or a tap on their own
 and close the other player's popover. See the package README for the full code example; this isn't
 enforced by any component here, since the zone rectangles are always specific to the consuming
 app's own layout.
+
+### The guide subpath — `@tastic/hud/guide` (2026-09-19)
+
+A paged, skippable "how to play" flow (`src/guide/`): `HowToPlayDialog` (controlled card), `GuideProvider` +
+`useGuide()` + `useAutoShowGuide()` (context, once-per-session auto-show), `createGuideSlice` (the persisted
+"seen version" flag), `createReturningPlayerMigrate` (see below), and the shared illustrations `SwipeHint` (finger or
+`pointer='mouse'`), `DirectionKeysHint` (inverted T, or `axis='vertical'`), `SeatDiagram` and `SeatDevicesHint`. Built exactly like `./skia-gate`
+and for the same reason — a standalone tsup entry (`src/guide/index.ts` → `dist/guide/index.*`; esbuild keeps
+an entry's path relative to the common `src/` root) reachable without touching the barrel, so it carries none
+of the barrel's peer-dependency surface. `BaseSettingsDialog` also gained an optional `onShowHowToPlay` (a
+"How to Play" row in the toggle group, hidden when omitted; press calls `onDismiss()` first, then the
+callback, so the two overlays never stack).
+
+**Jay's calls on the look (2026-09-24), don't drift from them:** Title Case titles and labels (the fleet
+convention: "Quit Match?", "Lock Orientation"; the row is "How to Play"), one-word buttons, and the exact
+ConfirmDialog action row. That row now lives in `overlayCard.ts` as `overlayActionStyles` (moved out of
+ConfirmDialog, which uses it too) so the two can't diverge: outlined secondary left, contained primary
+right, 128 minimum each. Skip and Back share the secondary slot (three full-size buttons don't fit), so
+Skip shows on the first card only; Android back skips from anywhere. The last card's button is `Ready`.
+The guide's first version used text-mode Skip/Back, the only text buttons in the fleet.
+
+**Uniform by construction (Jay, 2026-09-24: "I want all of them to be uniform. Only their content should be
+different. The uniform component should be upstream.").** A game supplies its `steps` (title, body, art) and
+the environment (seen version, rotation) and nothing else: there is deliberately no prop for button labels,
+the Settings row label, layout, or colors beyond the app's own theme. `finishLabel` (GuideProvider /
+HowToPlayDialog) and `howToPlayLabel` (BaseSettingsDialog) existed briefly and were removed for exactly this
+reason. Don't add per-app knobs back; a change to the look is a change here, for every game at once.
+
+**The pager syncs from `onScroll`, not just `onMomentumScrollEnd` (2026-09-24).** react-native-web never fires
+the momentum events (its ScrollViewBase only emits onScroll), so on web a swipe or trackpad scroll moved the
+cards while the dots and Skip/Back/Next/Ready stayed on the old page (Jay spotted it in Solitaire). The index
+now follows whichever page is more than half in view. A Next/Back tap records its target page in a ref and
+ignores intermediate offsets until the animation arrives (otherwise the dots flicker back to the page being
+left); native's momentum-end event clears a target an interrupted animation never reached.
+
+**Why it's here and not in `@tastic/core` or a new package:** `@tastic/core` is the base layer the headless
+packages (`input`, `physics`) peer on and has no UI peers today; dialogs need paper, reanimated, auto-paper and
+feedback-press. This package is already the shared-dialog home and 6 of the 7 games depend on it. The one app
+without it, Hangman (no Skia, no `@tastic/core`), is exactly why the subpath must stay light.
+
+**The import boundary is load-bearing.** Nothing under `src/guide/` may import `@tastic/core`,
+`@tastic/profile`, `@tastic/split-screen`, `@tastic/achievements`, `@rific/updater`, Skia, or the main barrel.
+Those six are `optional` in `peerDependenciesMeta` (that's what lets Hangman install hud without them), and
+`src/__tests__/guideImports.test.ts` asserts the source-level boundary — the unit tests above it mock every
+peer and would never catch a regression here; it would surface as a broken Hangman bundle. The one borrowed
+module, `src/overlayCard.ts`, imports only `react-native` (also asserted). Because it can't import
+`@tastic/core`, rotation is `GuideRotation` (a structural copy of core's `ViewRotation`) and the card builds
+its own `rotate` transform.
+
+**Size the card against the SWAPPED window when it's quarter-turned (2026-09-24).** The first version took a
+pre-rotated `style` from the caller and sized the card from the raw window width. But the fleet's rotation is
+fake (the OS window stays portrait), so a sideways card's on-screen width is its layout HEIGHT, which has to
+fit the window's short edge. The Solitaire review measured about 378pt of card against a 360pt Android phone.
+`getGuideCardSize(windowWidth, windowHeight, rotation)` now swaps the axes for +/-90, lets a turned card go
+up to 520 wide (shorter lines, fewer of them), caps its height, and shrinks the art box to 88 under 480pt of
+usable height. Each page is also its own vertical ScrollView inside a shrinkable pager, so anything that
+still doesn't fit scrolls instead of clipping. Not yet checked on a real device held sideways.
+
+Gotchas worth knowing:
+- **`GuideAction` must be a `type` alias, not an `interface`.** redux's `UnknownAction` has a string index
+  signature and only an object-literal type alias is implicitly assignable to one; as an interface,
+  `configureStore` rejects the reducer at the *consuming app's* typecheck (found in LightCycles, invisible in
+  this repo). Pinned by a compile-time assertion in `guideSlice.test.ts`.
+- **`createGuideSlice` alone does NOT grandfather players whose last shipped build had no root store.**
+  Found 2026-09-24: LightCycles, AirHockey, BoxHockey and Pong all got their redux-persist root store
+  after their last shipped update, so their current players rehydrate with no payload, exactly like a fresh
+  install. `createReturningPlayerMigrate(AsyncStorage, legacyKeys)` goes in the persistConfig's `migrate`:
+  no root store + any key the shipped build wrote = rehydrate with an empty payload, which the slice
+  grandfathers. Race-free because redux-persist runs `migrate` before REHYDRATE and before PersistGate
+  renders anything. Pong's rollout agent found the mechanism; it was promoted here so every app shares it.
+  Take `legacyKeys` from the last shipped commit's source (`git log -G otaVersion -- src/constants/release.ts`),
+  not today's: Pong's shipped build really did write `airhockey.*` keys (a copy-paste leftover in its
+  `Feedback.tsx`/`Theme.tsx` constants). Verify every key against actual writes, not comments:
+  AirHockey's `useGameStats.tsx` carried a comment claiming it wrote `boxhockey.achievements`, but
+  `@tastic/achievements` builds the key from the namespace, so it wrote `airhockey.achievements`.
+- **`createGuideSlice` tells a fresh install from an existing player.** Fresh install: `REHYDRATE` payload is
+  `undefined` (redux-persist's `getStoredState` finds nothing). Existing player: a payload object with no
+  `[mountKey]` entry, stamped with `currentVersion` so an OTA update never shows them the guide. A REHYDRATE
+  for a *different* persist key (`action.key !== persistKey`) is ignored, or a nested persisted reducer's
+  substate would look like "an existing player". Verified against real redux-persist in LightCycles.
+- **The pager syncs its index from `onScroll` with a target-page guard** (see "The pager syncs from `onScroll`"
+  above): `onMomentumScrollEnd` alone never fires on web. Page width is
+  computed up front from `useWindowDimensions()` (card `maxWidth` 360, minus gutters/padding) because the
+  ScrollView snaps to multiples of it. `raw window width` is right only while the dialog mounts at the app
+  root, outside any rotated view.
+- **`GuideProvider`'s default context is a no-op, not a throw**, so an app's own tests rendering Settings or
+  Home without a provider don't break — at the cost that a missing provider fails silently (a dead row).
+- **Jest mocks:** the `react-native` mock's `ScrollView` is still a plain `jest.fn` (InlineColorPicker's test
+  reads `ScrollView.mock.calls`) but now attaches a `scrollTo` imperative handle via the React 19 `ref`-as-prop;
+  it also gained `BackHandler`. The reanimated mock gained `useReducedMotion`, `withRepeat`, `withSequence`.
+  Import the `mock*` helpers from `../__mocks__/react-native`, not `'react-native'`, so TypeScript sees them.
+- **Never `yalc push` from this repo.** It publishes and then updates *every* project registered in yalc's
+  store for this package (`~/.yalc/installations.json`), rewriting their `package.json` to `file:.yalc/...`.
+  Use `yalc publish` here and `yalc link @tastic/hud` (no `package.json` change) in the one app you're testing.
 
 ## Public API
 
@@ -321,9 +428,9 @@ Real `peerDependencies` from `package.json`, with their actual version floors:
 - `@shopify/react-native-skia` — `>=1.5.0` (`Canvas`, `Path`, `Skia` in `TriggerGauge.tsx`; `LoadSkiaWeb` via its own `/src/web` subpath in `loadSkiaWeb.web.ts`)
 
 **Internal fleet:**
-- `@rific/auto-paper` — `>=0.9.0` (`defaultColors`, `getContrastColor`, `getBlendedColor`, `getColorRoles`, `SeedColor`)
-- `@rific/feedback-press` — `>=0.10.0` (`IconButton`, `TouchableRipple`)
-- `@tastic/achievements` — `>=0.1.2` (`AchievementCatalogRow` type, in `AchievementCatalogSection.tsx`
+- `@rific/auto-paper` — `>=0.9.4`, the first release with `AutoAppearancePicker` (`AutoAppearancePicker`, `defaultColors`, `getContrastColor`, `getBlendedColor`, `getColorRoles`, `SeedColor`)
+- `@rific/feedback-press` — `>=0.10.2`, the first release with `useSoundSettings` (`IconButton`, `TouchableRipple`, `useSoundSettings`)
+- `@tastic/achievements` — `>=0.2.0` (`AchievementCatalogRow` type, in `AchievementCatalogSection.tsx`
   only — type-only, no value/runtime import; see "AchievementCatalogSection + ActivityStatSection"
   above). The newest peer here (added in the same 2026-09-18 pass as that component) and currently
   resolved via yalc (`file:.yalc/@tastic/achievements` in `devDependencies`) rather than a real
@@ -379,3 +486,26 @@ overrides) and its bundled Prettier config (`package.json`'s `"prettier"` field 
 - `package-json/order-properties`, `package-json/sort-collections` — warn, on `package.json` itself
 - Test/mock files (`__tests__/`, `__mocks__/`) are linted like any other source, except
   `@typescript-eslint/no-explicit-any` is off there
+
+## ContentGutter reads the rotated footprint (2026-09-19)
+
+`ContentGutter` clamps against `@tastic/core`'s `useRotatedWindowDimensions()`, not raw
+`useWindowDimensions()`. Under a fake-landscape ancestor (`FakeLandscapeView`) the raw width never
+changes (the OS window is portrait-locked), so the old read capped a rotated play area at the portrait
+width (402) while its contents laid out for the landscape width (874), clipping the board. The hook is
+an exact identity with `useWindowDimensions()` at no rotation, so unrotated behavior is unchanged.
+`@tastic/core` peer range raised `>=0.3.0` -> `>=0.5.0` (first tag exporting the hook).
+
+Audit of the other raw `useWindowDimensions()` / `useSafeAreaInsets()` consumers, deliberately left as-is:
+- `useAutoAlign`: window size is used against `measureInWindow` results, which are in raw window
+  coordinates, and `rotateRect` pivots about the raw window centre; the overflow tests compare the
+  rotated (visual) rect to the physical screen edges. Raw size is the correct value here - swapping it
+  would break the pivot.
+- `useZoneClampedAlign`: same raw-window reasoning; its insets are physical device edges (see its own comment).
+- `InlineColorPicker`: window width only feeds the auto-column clamp. Inside a rotated ancestor raw width
+  under-counts columns (conservative, never clips), and the popover's overflow check runs against the
+  physical screen, so a wider rotated picker would not be clearly better. Maintainer: pass `columns`
+  explicitly if a landscape layout wants more.
+- `guide/HowToPlayDialog`: card width from raw window width; correct as long as the dialog mounts at the
+  root (outside the rotated view). If it is ever mounted inside a rotated ancestor, switch it to
+  `useRotatedWindowDimensions` (would need a core import in that entry point, which it avoids on purpose).

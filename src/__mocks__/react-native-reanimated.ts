@@ -60,6 +60,21 @@ export function useAnimatedStyle<T>(fn: () => T): T {
   return fn()
 }
 
+// A test that needs the reduced-motion branch flips this per test, same as every other jest.fn() mock
+// in this directory — defaults to motion allowed.
+export const useReducedMotion = jest.fn(() => false)
+
+// Both collapse to their own end value, same "settle instantly, synchronously" treatment as
+// withTiming/withDelay above — a repeat is only ever observed at its first iteration's end state,
+// and a sequence's end state is its last step's.
+export function withRepeat<T>(animation: T, _numberOfReps?: number, _reverse?: boolean): T {
+  return animation
+}
+
+export function withSequence<T>(...animations: T[]): T {
+  return animations[animations.length - 1]
+}
+
 const stub = ({ children }: { children?: React.ReactNode }) => children ?? null
 
 // Real Animated.View/Animated.Text are createAnimatedComponent-wrapped native primitives that

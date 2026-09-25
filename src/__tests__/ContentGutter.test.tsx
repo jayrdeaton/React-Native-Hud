@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react'
 
 import { mockViewRender, useWindowDimensions } from '../__mocks__/react-native'
+import { useRotatedWindowDimensions, useRotation } from '../__mocks__/tastic-core'
 import { ContentGutter } from '../ContentGutter'
 
 const flatten = (style: unknown): Record<string, unknown>[] =>
@@ -52,5 +53,37 @@ describe('ContentGutter', () => {
 
     expect(mockViewRender.mock.calls[1][0].children).toBe('wall-left')
     expect(mockViewRender.mock.calls[3][0].children).toBe('wall-right')
+  })
+
+  it('with no rotation, gutter widths equal the raw useWindowDimensions() computation', () => {
+    ;(useWindowDimensions as jest.Mock).mockReturnValueOnce({ width: 1500, height: 874, scale: 1, fontScale: 1 })
+    render(<ContentGutter maxContentWidth={1040}>board</ContentGutter>)
+
+    expect(widthOf(1)).toBe(230)
+    expect(widthOf(2)).toBe(1040)
+    expect(widthOf(3)).toBe(230)
+  })
+
+  it('reads the ROTATED footprint: a 402x874 window rotated to 874x402 lets a 1040 cap pass the full 874 through', () => {
+    ;(useWindowDimensions as jest.Mock).mockReturnValue({ width: 402, height: 874, scale: 3, fontScale: 1 })
+    ;(useRotation as jest.Mock).mockReturnValue(90)
+    try {
+      render(<ContentGutter maxContentWidth={1040}>board</ContentGutter>)
+      // Raw width would give 402; the rotated width is 874.
+      expect(widthOf(1)).toBe(0)
+      expect(widthOf(2)).toBe(874)
+      expect(widthOf(3)).toBe(0)
+    } finally {
+      ;(useRotation as jest.Mock).mockReturnValue(0)
+    }
+  })
+
+  it('caps and centres against the ROTATED width when it exceeds maxContentWidth', () => {
+    ;(useRotatedWindowDimensions as jest.Mock).mockReturnValueOnce({ width: 874, height: 402 })
+    render(<ContentGutter maxContentWidth={600}>board</ContentGutter>)
+
+    expect(widthOf(1)).toBe(137)
+    expect(widthOf(2)).toBe(600)
+    expect(widthOf(3)).toBe(137)
   })
 })
