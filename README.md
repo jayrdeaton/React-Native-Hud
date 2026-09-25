@@ -409,9 +409,108 @@ return (
 )
 ```
 
-`AchievementCatalogSection` is the only place in this package with a `@tastic/achievements`
-dependency, and even there it's type-only (`AchievementCatalogRow`) — never a value/runtime
-import. See Peer Dependencies below.
+`AchievementCatalogSection` and `AchievementUnlockList` (below) are the only places in this package
+with a `@tastic/achievements` dependency, and both are type-only (`AchievementCatalogRow`,
+`AchievementTier`) — never a value/runtime import. See Peer Dependencies below.
+
+## Achievement unlocks on a result card (`AchievementUnlockList`)
+
+The achievements a match just unlocked, for a game-over or round-over card: one row per
+achievement, each with its owner's avatar (the seat's `ProfileChip`, or a plain avatar in the seat's
+color for a guest), a tier-colored icon badge, and the title. Rows are listed seat by seat. Renders
+nothing when no seat unlocked anything, so it can sit in the card unconditionally.
+
+```tsx
+import { ACHIEVEMENT_TIER_COLORS } from '@tastic/achievements'
+import { AchievementUnlockList } from '@tastic/hud'
+
+<AchievementUnlockList
+  unlocks={seatUnlocks} // Partial<Record<Seat, { id, icon, title, tier }[]>>
+  seats={[1, 2]}
+  owners={{ 1: { profile: p1Profile, color: p1Color }, 2: { profile: null, color: p2Color } }}
+  tierColors={ACHIEVEMENT_TIER_COLORS} // a prop, so @tastic/achievements stays type-only here
+/>
+```
+
+Optional `fg` (title color, defaults from the theme) and `style` (the list container).
+
+For muted profile colors, mount `@tastic/profile`'s `ProfileColorProvider`: the `ProfileChip`s here
+pick it up. A guest seat's avatar draws the `color` you pass as-is, so pass it already muted.
+
+## How-to-play guide (`@tastic/hud/guide`)
+
+A short, skippable, paged "how to play" card that shows once on a fresh install and can be replayed on
+demand from Settings. Import it from the **`@tastic/hud/guide` subpath**, not the main barrel: it's a
+standalone build that pulls in only `react`, `react-native`, `react-native-paper`,
+`react-native-reanimated`, `@rific/auto-paper` and `@rific/feedback-press` — none of Skia,
+`@tastic/core`, `@tastic/profile`, `@tastic/split-screen`, `@tastic/achievements` or `@rific/updater`
+(all marked optional in `peerDependenciesMeta`), so an app that has none of them can use it. A test
+(`src/__tests__/guideImports.test.ts`) fails if any file under `src/guide/` ever imports one.
+
+```tsx
+import { createGuideSlice, GuideProvider, SeatDiagram, SwipeHint, useAutoShowGuide, useGuide } from '@tastic/hud/guide'
+
+// 1. A persisted "seen" version — its own slice, mounted under `guide` in your root reducer.
+const guide = createGuideSlice({ currentVersion: 1 }) // { actions.markSeen, reducer, selectVersionSeen }
+
+// 2. Once, near the root, wrapping your screens (inside PersistGate + your theme/Paper providers).
+//    `rotation` is your game's live fake-landscape rotation (useRotation / getViewRotation).
+<GuideProvider
+  steps={[{ title: 'Steer Your Cycle', body: 'Swipe up, down, left or right.', art: <SwipeHint direction='up' /> }]}
+  currentVersion={1}
+  seenVersion={useSelector(guide.selectVersionSeen)}
+  onSeen={(v) => dispatch(guide.actions.markSeen(v))}
+  rotation={rotation}
+>
+  <Screens />
+</GuideProvider>
+
+// 3. On the Home screen, and nowhere else: opens it once per session for a player who hasn't seen it.
+useAutoShowGuide()
+
+// 4. Replay from Settings — BaseSettingsDialog renders a "How to Play" row when this is passed.
+const { open } = useGuide()
+<BaseSettingsDialog {...props} onShowHowToPlay={open} />
+```
+
+- **Existing players are grandfathered.** On a fresh install redux-persist's `REHYDRATE` has no payload;
+  an existing player has a payload that simply predates the `guide` key. `createGuideSlice` stamps the
+  second with `currentVersion` instead of `0`, so an OTA update never greets them with a tutorial (they
+  can still replay it). Only finishing or skipping writes; a replay never does. Bump `currentVersion`
+  only for a real controls/rules change — everyone sees it again.
+- **If your last shipped build predates your redux-persist store, you also need the migrate.** Those
+  players have no root store yet, which looks exactly like a fresh install. Pass the AsyncStorage keys the
+  shipped build wrote (read them from the last shipped commit, not today's source):
+
+  ```ts
+  const persistConfig = {
+    key: 'root',
+    storage: AsyncStorage,
+    migrate: createReturningPlayerMigrate(AsyncStorage, ['pong.settings', 'pong.stats', 'pong.achievements'])
+  }
+  ```
+
+  No root store but any of those keys present means "played an earlier build": that launch rehydrates
+  with an empty payload, which the slice grandfathers. An existing root store passes through untouched.
+- **Home only.** Call `useAutoShowGuide()` from the Home screen — that placement is what keeps it from
+  firing over a live match or a two-seat loadout, where a single centered card can't be read right-way-up
+  by both players. Pass `false` to hold it back (e.g. while a deep link is being handled).
+- **Leave the row off during a live match.** Omit `onShowHowToPlay` on any screen where Settings pauses or
+  overlays a running game.
+- **Content is the app's.** A `GuideStep` is `{ title, body, art? }`; only the app knows its own controls
+  and win condition. Shared illustrations for the arcade games: `SwipeHint` (animated finger sweeping
+  toward an arrowhead; `pointer='mouse'` for a desktop seat that plays by dragging), `DirectionKeysHint`
+  (an inverted-T of key caps, its keyboard counterpart; pass the seat's real keys as `labels`, arrow
+  icons when omitted, `axis='vertical'` for up/down-only games), `SeatDiagram` (a phone split into two
+  seat-colored halves) and `SeatDevicesHint` (its desktop counterpart: a keyboard and/or mouse, each in
+  the color of the seat using it). All take their colors from the theme's primary/secondary by default. Give every
+  card an illustration: the pager sizes all pages to the tallest, so a card without one leaves a gap.
+- **Fleet copy conventions.** Title Case titles ("Last One Riding Wins"), one-word buttons. The action
+  row is ConfirmDialog's (`overlayActionStyles`): outlined Skip (first card only) or Back on the left,
+  contained Next on the right, `Ready` on the last card. None of that is configurable: every game gets the identical
+  dialog and supplies only its cards (Jay, 2026-09-24: "only their content should be different"). Short bodies,
+  and only say what's true in every mode ("your half" is only true in two-player).
+- **Not `onboarding`.** LightCycles and Snake already use that word for their 3-2-1-GO countdown.
 
 ## Install
 
@@ -423,13 +522,35 @@ self-reading rotation behavior on these four components (defaulting to `@tastic/
 npm install @tastic/hud
 ```
 
+## ContentGutter
+
+Caps a play area at `maxContentWidth` and splits the leftover width into two equal gutters
+(`leftGutter`/`rightGutter` decorations). The width it clamps against is `@tastic/core`'s
+`useRotatedWindowDimensions()`, so under a fake-landscape ancestor (`FakeLandscapeView`: OS window
+stays portrait, the screen is only visually rotated) it caps against the swapped, post-rotation width
+instead of the never-changing raw window width. It is an exact identity with `useWindowDimensions()`
+when no rotation applies.
+
 ## Peer dependencies
 
-`react`, `react-native`, `react-native-paper` (`Icon`, `IconButton`, `Text`), `@rific/auto-paper`
-(`defaultColors`, `getContrastColor`, `getBlendedColor`, `SeedColor`), `@rific/feedback-press`
-(`IconButton`, `TouchableRipple`), [`@tastic/core`](https://github.com/jayrdeaton/react-native-game-core)
-(>=0.1.0 — `useRotation()`, see Rotation above),
-[`@tastic/achievements`](https://github.com/jayrdeaton/react-native-game-achievements) (>=0.1.2 —
-`AchievementCatalogRow`, in `AchievementCatalogSection.tsx` only, and type-only: no value/runtime
-import, see Achievements catalog above) — none of these are bundled, so use whatever versions your
-app already has.
+None of these are bundled, so use whatever versions your app already has. Six are marked `optional` in
+`peerDependenciesMeta` only so that an app using just the `@tastic/hud/guide` subpath (Hangman) can
+install hud without them. **npm does not install optional peers for you**, so an app that imports the
+main `@tastic/hud` entry must list every peer that entry loads in its own `dependencies`, including
+the four optional ones marked "main entry" below. Without them, Metro fails to bundle with "Unable to
+resolve module".
+
+| Peer | Floor | Needed by |
+| --- | --- | --- |
+| `react`, `react-native` | >=19.0.0, >=0.76.0 | every entry |
+| `react-native-paper` | >=5.0.0 | main entry, `./guide` |
+| `react-native-reanimated` | >=3.0.0 | main entry (`StaggeredWord`), `./guide` |
+| `@rific/auto-paper` | >=0.9.4 | main entry (`AutoAppearancePicker` first shipped in 0.9.4), `./guide` |
+| `@rific/feedback-press` | >=0.10.2 | main entry (`useSoundSettings` first shipped in 0.10.2), `./guide` |
+| `react-native-safe-area-context` | >=5.0.0 | main entry (`useZoneClampedAlign`) |
+| `@tastic/core` | >=0.5.0, optional | main entry: `useRotation()` and most dialogs; `ContentGutter` needs `useRotatedWindowDimensions()`, first shipped in 0.5.0 |
+| `@rific/updater` | >=0.4.0, optional | main entry: `BaseSettingsDialog`, `UpdateDialog` |
+| `@tastic/profile` | >=0.4.0, optional | main entry: `PlayerSetupPanel`, `AchievementUnlockList` (`ProfileChip`) |
+| `@tastic/split-screen` | >=0.5.0, optional | main entry: `useZoneClampedAlign` |
+| `@shopify/react-native-skia` | >=1.5.0, optional | `TriggerGaugeHost`'s gauge (lazy-loaded behind `SkiaGate`) and `./skia-gate` |
+| `@tastic/achievements` | >=0.2.0, optional | `AchievementCatalogSection`, `AchievementUnlockList`, type-only (`AchievementCatalogRow`, first exported in 0.2.0; `AchievementTier`) |

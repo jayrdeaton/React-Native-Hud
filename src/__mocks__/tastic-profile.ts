@@ -8,3 +8,5 @@
 // this package's own components wire through to ProfilePicker, not exercise @tastic/profile's own
 // popover/list behavior (already covered by that package's own test suite).
 export const ProfilePicker = jest.fn(() => null)
+// AchievementUnlockList.test.tsx only asserts which profile each row hands ProfileChip.
+export const ProfileChip = jest.fn(() => null)

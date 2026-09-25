@@ -138,6 +138,28 @@ describe('BaseSettingsDialog', () => {
     unmount()
   })
 
+  it('omits the How to Play row when onShowHowToPlay is not passed', () => {
+    const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
+
+    expect(container.textContent).not.toContain('How to Play')
+    unmount()
+  })
+
+  it('shows a How to Play row that dismisses Settings first and then calls onShowHowToPlay', () => {
+    const calls: string[] = []
+    const onDismiss = jest.fn(() => calls.push('dismiss'))
+    const onShowHowToPlay = jest.fn(() => calls.push('show'))
+    const { container, unmount } = render(<BaseSettingsDialog {...baseProps} onDismiss={onDismiss} onShowHowToPlay={onShowHowToPlay} />)
+
+    expect(container.textContent).toContain('How to Play')
+    findRippleByLabel('How to Play').onPress()
+
+    // Order matters, not just that both fired: the guide's own overlay must never open on top of a
+    // still-visible Settings card.
+    expect(calls).toEqual(['dismiss', 'show'])
+    unmount()
+  })
+
   it('toggles Sound and fires the selection sound only when turning it on', () => {
     const set = jest.fn()
     ;(useSoundSettings as jest.Mock).mockReturnValue({ settings: { enabled: false }, set })

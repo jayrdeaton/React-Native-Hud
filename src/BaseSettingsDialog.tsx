@@ -67,6 +67,10 @@ export interface BaseSettingsDialogProps {
   // toast system wired up; the check itself still runs and still reports success/no-update through
   // the ordinary info overlay either way. Meaningless (never called) when hideUpdateCheck is set.
   onUpdateError?: (message: string) => void
+  // Omit to hide the row entirely (a game with no how-to-play flow, or a screen where replaying one
+  // would be disruptive — e.g. over a live match). Called AFTER this dialog's own onDismiss, so the
+  // two overlays never stack: wire it straight to @tastic/hud/guide's `useGuide().open`.
+  onShowHowToPlay?: () => void
   // App-specific extra settings sections (board options, CPU difficulty, stats backup, ...),
   // rendered between Appearance and Check for Updates — this component only owns the settings
   // every game shares, never anything about how a particular game plays.
@@ -80,7 +84,7 @@ export interface BaseSettingsDialogProps {
 // is the seam for whatever isn't shared: a game with its own board/difficulty settings (or a stats
 // backup flow, or anything else genuinely specific to it) renders those below Appearance, not by
 // forking this component.
-export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverride, version, lockOrientation, onLockOrientationChange, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, children }: BaseSettingsDialogProps) {
+export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverride, version, lockOrientation, onLockOrientationChange, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, onShowHowToPlay, children }: BaseSettingsDialogProps) {
   const { colors } = useAutoPaperTheme()
   const ambientRotation = useRotation()
   const rotation = rotationOverride ?? ambientRotation
@@ -234,6 +238,33 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
                     </TouchableRipple>
                   )}
                 </View>
+              )}
+
+              {/* Not a toggle, but it reads like one of the rows above and belongs with them rather than
+                down in `children` (which sits below Appearance) — this is the "replay the intro"
+                entry point every game's own how-to-play flow shares. Dismisses this dialog first so
+                the guide's own overlay never opens on top of a still-visible Settings card. */}
+              {onShowHowToPlay && (
+                <TouchableRipple
+                  onPress={() => {
+                    onDismiss()
+                    onShowHowToPlay()
+                  }}
+                  style={styles.toggleButton}
+                  accessibilityLabel='How to Play'
+                >
+                  <View style={styles.toggleContent}>
+                    <SettingIcon source='help-circle-outline' color={colors.secondary} containerColor={colors.secondaryContainer} />
+                    <View style={styles.flexShrink}>
+                      <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
+                        How to Play
+                      </Text>
+                      <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
+                        Replay the quick intro
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableRipple>
               )}
             </View>
 
