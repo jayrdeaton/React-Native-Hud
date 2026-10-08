@@ -1,12 +1,13 @@
 import { AutoAppearancePicker, Dialog, useAutoPaperTheme } from '@rific/auto-paper'
 import { Button, SoundContext, TouchableRipple, useHapticSettings, useSoundSettings, useVibration } from '@rific/feedback-press'
 import { useUpdater } from '@rific/updater'
-import { toRotationStyle, useIsTouchPrimaryDevice, useRotation, type ViewRotation } from '@tastic/core'
+import { useIsTouchPrimaryDevice, useRotation, type ViewRotation } from '@tastic/core'
 import { ReactNode, useContext, useState } from 'react'
 import { Platform, ScrollView, StyleSheet, View } from 'react-native'
-import { Icon, Text } from 'react-native-paper'
+import { Icon, Portal, Text } from 'react-native-paper'
 
 import { ConfirmDialog } from './ConfirmDialog'
+import { RotatedFrame } from './RotatedFrame'
 import { useUpdateConfirmBridge } from './useUpdateConfirmBridge'
 
 interface SettingIconProps {
@@ -29,11 +30,11 @@ function SettingIcon({ source, color, containerColor }: SettingIconProps) {
 export interface BaseSettingsDialogProps {
   visible: boolean
   onDismiss: () => void
-  // Explicit override for the live physical-hold rotation (see @tastic/core's useRotation) — this is
+  // Explicit override for the live physical-hold rotation (see @tastic/core's useRotation). This is
   // a centered, app-wide modal with no per-player zone to match (unlike an in-game round-over
-  // dialog), so it just rotates its own content in place. Defaults to a live ambient read via
-  // useRotation() when omitted; pass this only when a caller's own reading needs to differ from the
-  // ambient one (rare — most callers should simply omit it).
+  // dialog), so it lays itself out in its own frame turned by this angle (see the return below).
+  // Defaults to a live ambient read via useRotation() when omitted. Pass 0 when the dialog already
+  // renders under a Portal.Host inside a turned frame of the caller's own (Solitaire's screens).
   rotation?: ViewRotation
   // Each app's own OTA version (e.g. release.otaVersion) — not something this package can read
   // itself, since every consuming app tracks its own release.ts independently. Accepts a number too
@@ -130,175 +131,187 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   const showAppearance = !hideAppearance
   const showUpdateCheck = Platform.OS !== 'web' && !hideUpdateCheck
 
+  // Laid out in its own turned frame rather than rotated in place. Paper's Portal mounts at the app
+  // root, full screen and portrait-shaped, so a sheet that only rotated its card kept resolving its
+  // maxHeight against the PORTRAIT height: turned 90deg it ran past the ~402pt short edge, and the top
+  // row (Lock Orientation, the one you need to get back out of landscape) was clipped with no way to
+  // scroll to it. So the whole output goes through one Portal to the root, into a RotatedFrame sized
+  // to the turned footprint, with rotated safe-area insets and its own Portal.Host. The Dialog and the
+  // two ConfirmDialogs below portal into THAT host, so they lay out against the turned window with no
+  // transform of their own (hence rotation={0} on the ConfirmDialogs). The frame is pass-through at
+  // every level and stays mounted with this component, which keeps the Dialog's close fade; at
+  // rotation 0 it is an identity frame.
   return (
-    <>
-      <Dialog visible={visible} onDismiss={onDismiss} style={[styles.dialog, toRotationStyle(rotation)]}>
-        <Dialog.Title>Settings</Dialog.Title>
-        {/* react-native-paper's Dialog.ScrollArea has a fixed 24px marginBottom baked in (meant to
-          reserve room for a Dialog.Actions row below it) — overridden to 0 since this dialog has
-          no actions row, and that gap otherwise reads as unexplained empty footer space. */}
-        <Dialog.ScrollArea style={styles.scrollArea}>
-          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-            {/* Grouped tightly together (styles.toggleGroup's small internal gap, not the 24px gap
-              between sections below) — same bare-row shape for all of them, no segmented control
-              and no section heading (each row's own label already says what it is). Haptics only
-              joins on native — there's nothing for it to control on web. */}
-            <View style={styles.toggleGroup}>
-              {/* Omitted entirely for a portrait-only game (no lockOrientation/onLockOrientationChange
-                passed at all — nothing to lock), and hidden (not just disabled) on a desktop/laptop
-                browser even when they are — see isTouchPrimary's own doc above. Still shown on
-                native and on a touch-capable mobile browser, where a rotated window really does
-                reflect a rotated device. */}
-              {showLockOrientation && (
-                <TouchableRipple onPress={() => onLockOrientationChange!(!lockOrientation)} style={styles.toggleButton} accessibilityLabel={`Lock orientation ${lockOrientation ? 'on' : 'off'}`}>
-                  <View style={styles.toggleContent}>
-                    <SettingIcon source={lockOrientation ? 'lock' : 'lock-open-variant-outline'} color={lockOrientation ? colors.secondary : colors.onSurfaceVariant} containerColor={lockOrientation ? colors.secondaryContainer : colors.surfaceVariant} />
-                    <View style={styles.flexShrink}>
-                      <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
-                        Lock Orientation
-                      </Text>
-                      <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
-                        Pins the current layout
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableRipple>
-              )}
-
-              {/* iOS only — mirrors into UserDefaults for @tastic/edge-guard's own config plugin
-                swizzle to read. Guards both edges — the top (Notification Center/Control Center)
-                and the bottom (home-indicator swipe, incidentally Reachability too), per that
-                package's own doc. Off by default: a deliberate opt-in for whoever's actually hit an
-                accidental-swipe-near-an-edge problem mid-game and come looking for a fix, not a
-                surprise every player gets by default. */}
-              {showEdgeGuard && (
-                <TouchableRipple onPress={() => onDeferBottomEdgeGestures!(!deferBottomEdgeGestures)} style={styles.toggleButton} accessibilityLabel={`Edge guard ${deferBottomEdgeGestures ? 'on' : 'off'}`}>
-                  <View style={styles.toggleContent}>
-                    <SettingIcon source={deferBottomEdgeGestures ? 'shield-check-outline' : 'shield-off-outline'} color={deferBottomEdgeGestures ? colors.secondary : colors.onSurfaceVariant} containerColor={deferBottomEdgeGestures ? colors.secondaryContainer : colors.surfaceVariant} />
-                    <View style={styles.flexShrink}>
-                      <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
-                        Edge Guard
-                      </Text>
-                      <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
-                        Requires a second swipe
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableRipple>
-              )}
-
-              {/* Side by side, not stacked — neither needs a full row's width (single-line label,
-                no description under it the way Lock Orientation has), so sharing one row reads
-                just as clearly and takes half the vertical space. toggleRow carries the same
-                edge-alignment negative margin toggleButton normally carries itself; the buttons
-                inside it use toggleButtonInRow (flex: 1) instead so the two don't double up on it.
-                The row itself only renders when at least one of the two will — an empty flex row
-                still eats its own gap/margin otherwise. */}
-              {(showSound || showHaptics) && (
-                <View style={styles.toggleRow}>
-                  {showSound && (
-                    <TouchableRipple
-                      soundDisabled
-                      onPress={() => {
-                        const enabled = !soundSettings.enabled
-                        setSoundSettings({ enabled })
-                        if (enabled) sound.selection?.()
-                      }}
-                      style={styles.toggleButtonInRow}
-                      accessibilityLabel={`Sound ${soundSettings.enabled ? 'on' : 'off'}`}
-                    >
-                      <View style={styles.toggleContent}>
-                        <SettingIcon source={soundSettings.enabled ? 'volume-high' : 'volume-off'} color={soundSettings.enabled ? colors.tertiary : colors.onSurfaceVariant} containerColor={soundSettings.enabled ? colors.tertiaryContainer : colors.surfaceVariant} />
+    <Portal>
+      <RotatedFrame rotation={rotation} rotatedSafeArea portalHost passThrough>
+        <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
+          <Dialog.Title>Settings</Dialog.Title>
+          {/* react-native-paper's Dialog.ScrollArea has a fixed 24px marginBottom baked in (meant to
+            reserve room for a Dialog.Actions row below it) — overridden to 0 since this dialog has
+            no actions row, and that gap otherwise reads as unexplained empty footer space. */}
+          <Dialog.ScrollArea style={styles.scrollArea}>
+            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+              {/* Grouped tightly together (styles.toggleGroup's small internal gap, not the 24px gap
+                between sections below) — same bare-row shape for all of them, no segmented control
+                and no section heading (each row's own label already says what it is). Haptics only
+                joins on native — there's nothing for it to control on web. */}
+              <View style={styles.toggleGroup}>
+                {/* Omitted entirely for a portrait-only game (no lockOrientation/onLockOrientationChange
+                  passed at all — nothing to lock), and hidden (not just disabled) on a desktop/laptop
+                  browser even when they are — see isTouchPrimary's own doc above. Still shown on
+                  native and on a touch-capable mobile browser, where a rotated window really does
+                  reflect a rotated device. */}
+                {showLockOrientation && (
+                  <TouchableRipple onPress={() => onLockOrientationChange!(!lockOrientation)} style={styles.toggleButton} accessibilityLabel={`Lock orientation ${lockOrientation ? 'on' : 'off'}`}>
+                    <View style={styles.toggleContent}>
+                      <SettingIcon source={lockOrientation ? 'lock' : 'lock-open-variant-outline'} color={lockOrientation ? colors.secondary : colors.onSurfaceVariant} containerColor={lockOrientation ? colors.secondaryContainer : colors.surfaceVariant} />
+                      <View style={styles.flexShrink}>
                         <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
-                          Sound
+                          Lock Orientation
+                        </Text>
+                        <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
+                          Pins the current layout
                         </Text>
                       </View>
-                    </TouchableRipple>
-                  )}
+                    </View>
+                  </TouchableRipple>
+                )}
 
-                  {/* Already native-only (see showHaptics's own definition) — hideHaptics can hide
-                    it there too, for a game that's deliberately silent on vibration. */}
-                  {showHaptics && (
-                    <TouchableRipple
-                      hapticDisabled
-                      onPress={() => {
-                        const vibrate = !hapticSettings.vibrate
-                        setHapticSettings({ vibrate })
-                        if (vibrate) forceHapticFeedback()
-                      }}
-                      style={styles.toggleButtonInRow}
-                      accessibilityLabel={`Haptics ${hapticSettings.vibrate ? 'on' : 'off'}`}
-                    >
-                      <View style={styles.toggleContent}>
-                        <SettingIcon source={hapticSettings.vibrate ? 'vibrate' : 'vibrate-off'} color={hapticSettings.vibrate ? colors.tertiary : colors.onSurfaceVariant} containerColor={hapticSettings.vibrate ? colors.tertiaryContainer : colors.surfaceVariant} />
+                {/* iOS only — mirrors into UserDefaults for @tastic/edge-guard's own config plugin
+                  swizzle to read. Guards both edges — the top (Notification Center/Control Center)
+                  and the bottom (home-indicator swipe, incidentally Reachability too), per that
+                  package's own doc. Off by default: a deliberate opt-in for whoever's actually hit an
+                  accidental-swipe-near-an-edge problem mid-game and come looking for a fix, not a
+                  surprise every player gets by default. */}
+                {showEdgeGuard && (
+                  <TouchableRipple onPress={() => onDeferBottomEdgeGestures!(!deferBottomEdgeGestures)} style={styles.toggleButton} accessibilityLabel={`Edge guard ${deferBottomEdgeGestures ? 'on' : 'off'}`}>
+                    <View style={styles.toggleContent}>
+                      <SettingIcon source={deferBottomEdgeGestures ? 'shield-check-outline' : 'shield-off-outline'} color={deferBottomEdgeGestures ? colors.secondary : colors.onSurfaceVariant} containerColor={deferBottomEdgeGestures ? colors.secondaryContainer : colors.surfaceVariant} />
+                      <View style={styles.flexShrink}>
                         <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
-                          Haptics
+                          Edge Guard
+                        </Text>
+                        <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
+                          Requires a second swipe
                         </Text>
                       </View>
-                    </TouchableRipple>
-                  )}
+                    </View>
+                  </TouchableRipple>
+                )}
+
+                {/* Side by side, not stacked — neither needs a full row's width (single-line label,
+                  no description under it the way Lock Orientation has), so sharing one row reads
+                  just as clearly and takes half the vertical space. toggleRow carries the same
+                  edge-alignment negative margin toggleButton normally carries itself; the buttons
+                  inside it use toggleButtonInRow (flex: 1) instead so the two don't double up on it.
+                  The row itself only renders when at least one of the two will — an empty flex row
+                  still eats its own gap/margin otherwise. */}
+                {(showSound || showHaptics) && (
+                  <View style={styles.toggleRow}>
+                    {showSound && (
+                      <TouchableRipple
+                        soundDisabled
+                        onPress={() => {
+                          const enabled = !soundSettings.enabled
+                          setSoundSettings({ enabled })
+                          if (enabled) sound.selection?.()
+                        }}
+                        style={styles.toggleButtonInRow}
+                        accessibilityLabel={`Sound ${soundSettings.enabled ? 'on' : 'off'}`}
+                      >
+                        <View style={styles.toggleContent}>
+                          <SettingIcon source={soundSettings.enabled ? 'volume-high' : 'volume-off'} color={soundSettings.enabled ? colors.tertiary : colors.onSurfaceVariant} containerColor={soundSettings.enabled ? colors.tertiaryContainer : colors.surfaceVariant} />
+                          <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
+                            Sound
+                          </Text>
+                        </View>
+                      </TouchableRipple>
+                    )}
+
+                    {/* Already native-only (see showHaptics's own definition) — hideHaptics can hide
+                      it there too, for a game that's deliberately silent on vibration. */}
+                    {showHaptics && (
+                      <TouchableRipple
+                        hapticDisabled
+                        onPress={() => {
+                          const vibrate = !hapticSettings.vibrate
+                          setHapticSettings({ vibrate })
+                          if (vibrate) forceHapticFeedback()
+                        }}
+                        style={styles.toggleButtonInRow}
+                        accessibilityLabel={`Haptics ${hapticSettings.vibrate ? 'on' : 'off'}`}
+                      >
+                        <View style={styles.toggleContent}>
+                          <SettingIcon source={hapticSettings.vibrate ? 'vibrate' : 'vibrate-off'} color={hapticSettings.vibrate ? colors.tertiary : colors.onSurfaceVariant} containerColor={hapticSettings.vibrate ? colors.tertiaryContainer : colors.surfaceVariant} />
+                          <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
+                            Haptics
+                          </Text>
+                        </View>
+                      </TouchableRipple>
+                    )}
+                  </View>
+                )}
+
+                {/* Not a toggle, but it reads like one of the rows above and belongs with them rather than
+                  down in `children` (which sits below Appearance) — this is the "replay the intro"
+                  entry point every game's own how-to-play flow shares. Dismisses this dialog first so
+                  the guide's own overlay never opens on top of a still-visible Settings card. */}
+                {onShowHowToPlay && (
+                  <TouchableRipple
+                    onPress={() => {
+                      onDismiss()
+                      onShowHowToPlay()
+                    }}
+                    style={styles.toggleButton}
+                    accessibilityLabel='How to Play'
+                  >
+                    <View style={styles.toggleContent}>
+                      <SettingIcon source='help-circle-outline' color={colors.secondary} containerColor={colors.secondaryContainer} />
+                      <View style={styles.flexShrink}>
+                        <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
+                          How to Play
+                        </Text>
+                        <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
+                          Replay the quick intro
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableRipple>
+                )}
+              </View>
+
+              {showAppearance && (
+                <View style={styles.section}>
+                  <Text variant='labelMedium' style={[styles.sectionLabel, { color: colors.onSurfaceVariant }]}>
+                    APPEARANCE
+                  </Text>
+                  <AutoAppearancePicker showLabels={false} />
                 </View>
               )}
 
-              {/* Not a toggle, but it reads like one of the rows above and belongs with them rather than
-                down in `children` (which sits below Appearance) — this is the "replay the intro"
-                entry point every game's own how-to-play flow shares. Dismisses this dialog first so
-                the guide's own overlay never opens on top of a still-visible Settings card. */}
-              {onShowHowToPlay && (
-                <TouchableRipple
-                  onPress={() => {
-                    onDismiss()
-                    onShowHowToPlay()
-                  }}
-                  style={styles.toggleButton}
-                  accessibilityLabel='How to Play'
-                >
-                  <View style={styles.toggleContent}>
-                    <SettingIcon source='help-circle-outline' color={colors.secondary} containerColor={colors.secondaryContainer} />
-                    <View style={styles.flexShrink}>
-                      <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
-                        How to Play
-                      </Text>
-                      <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
-                        Replay the quick intro
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableRipple>
+              {children}
+
+              {/* Native only (a web build has no OTA update concept at all, desktop or mobile browser
+                alike) — hideUpdateCheck can hide it there too, for a native app that isn't wired up
+                for EAS/OTA updates at all. */}
+              {showUpdateCheck && (
+                <View style={styles.section}>
+                  <Text variant='labelSmall' style={[styles.sectionLabel, { color: colors.onSurfaceVariant }]}>
+                    VERSION {version}
+                    {updateReady ? ' · UPDATE READY' : ''}
+                  </Text>
+                  <Button mode='outlined' onPress={check} loading={checking} disabled={checking}>
+                    Check for Updates
+                  </Button>
+                </View>
               )}
-            </View>
-
-            {showAppearance && (
-              <View style={styles.section}>
-                <Text variant='labelMedium' style={[styles.sectionLabel, { color: colors.onSurfaceVariant }]}>
-                  APPEARANCE
-                </Text>
-                <AutoAppearancePicker showLabels={false} />
-              </View>
-            )}
-
-            {children}
-
-            {/* Native only (a web build has no OTA update concept at all, desktop or mobile browser
-              alike) — hideUpdateCheck can hide it there too, for a native app that isn't wired up
-              for EAS/OTA updates at all. */}
-            {showUpdateCheck && (
-              <View style={styles.section}>
-                <Text variant='labelSmall' style={[styles.sectionLabel, { color: colors.onSurfaceVariant }]}>
-                  VERSION {version}
-                  {updateReady ? ' · UPDATE READY' : ''}
-                </Text>
-                <Button mode='outlined' onPress={check} loading={checking} disabled={checking}>
-                  Check for Updates
-                </Button>
-              </View>
-            )}
-          </ScrollView>
-        </Dialog.ScrollArea>
-      </Dialog>
-      <ConfirmDialog visible={!!updateManifest} title='Update Available' message={updateManifestDate ? `Released ${updateManifestDate.toLocaleDateString()} at ${updateManifestDate.toLocaleTimeString()}` : ''} confirmLabel='Restart' cancelLabel='Later' icon='update' rotation={rotation} onConfirm={() => respondToUpdateConfirm(true)} onCancel={() => respondToUpdateConfirm(false)} />
-      <ConfirmDialog visible={!!infoMessage} title={infoMessage?.title ?? ''} message={infoMessage?.message ?? ''} confirmLabel='OK' icon='information-outline' rotation={rotation} onConfirm={() => setInfoMessage(null)} />
-    </>
+            </ScrollView>
+          </Dialog.ScrollArea>
+        </Dialog>
+        <ConfirmDialog visible={!!updateManifest} title='Update Available' message={updateManifestDate ? `Released ${updateManifestDate.toLocaleDateString()} at ${updateManifestDate.toLocaleTimeString()}` : ''} confirmLabel='Restart' cancelLabel='Later' icon='update' rotation={0} onConfirm={() => respondToUpdateConfirm(true)} onCancel={() => respondToUpdateConfirm(false)} />
+        <ConfirmDialog visible={!!infoMessage} title={infoMessage?.title ?? ''} message={infoMessage?.message ?? ''} confirmLabel='OK' icon='information-outline' rotation={0} onConfirm={() => setInfoMessage(null)} />
+      </RotatedFrame>
+    </Portal>
   )
 }
 

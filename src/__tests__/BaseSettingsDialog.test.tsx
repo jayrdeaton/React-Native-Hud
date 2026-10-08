@@ -1,7 +1,7 @@
 import { Dialog } from '@rific/auto-paper'
 import { Button, SoundContext, TouchableRipple, useHapticSettings, useSoundSettings } from '@rific/feedback-press'
 import { useUpdater } from '@rific/updater'
-import { useIsTouchPrimaryDevice, useRotation } from '@tastic/core'
+import { FakeLandscapeView, useIsTouchPrimaryDevice, useRotation } from '@tastic/core'
 import { act, render } from '@testing-library/react'
 import { Platform } from 'react-native'
 
@@ -312,12 +312,23 @@ describe('BaseSettingsDialog', () => {
   })
 
   describe('rotation', () => {
-    it('falls back to a live useRotation() read when the rotation prop is omitted', () => {
+    function lastFrameProps() {
+      const calls = (FakeLandscapeView as unknown as jest.Mock).mock.calls
+      return calls[calls.length - 1][0]
+    }
+
+    function lastDialogStyle() {
+      const calls = (Dialog as unknown as jest.Mock).mock.calls
+      return calls[calls.length - 1][0].style
+    }
+
+    it('lays the sheet out in a pass-through frame turned by the live rotation when the prop is omitted', () => {
       ;(useRotation as jest.Mock).mockReturnValue(180)
       const { unmount } = render(<BaseSettingsDialog {...baseProps} />)
 
-      const calls = (Dialog as unknown as jest.Mock).mock.calls
-      expect(calls[calls.length - 1][0].style).toEqual([{ maxHeight: '90%' }, { transform: [{ rotate: '180deg' }] }])
+      expect(lastFrameProps()).toMatchObject({ rotation: 180, passThrough: true })
+      // The frame does the turning, so the card itself carries no transform.
+      expect(lastDialogStyle()).toEqual({ maxHeight: '90%' })
       unmount()
     })
 
@@ -325,8 +336,16 @@ describe('BaseSettingsDialog', () => {
       ;(useRotation as jest.Mock).mockReturnValue(180)
       const { unmount } = render(<BaseSettingsDialog {...baseProps} rotation={90} />)
 
-      const calls = (Dialog as unknown as jest.Mock).mock.calls
-      expect(calls[calls.length - 1][0].style).toEqual([{ maxHeight: '90%' }, { transform: [{ rotate: '90deg' }] }])
+      expect(lastFrameProps()).toMatchObject({ rotation: 90, passThrough: true })
+      expect(lastDialogStyle()).toEqual({ maxHeight: '90%' })
+      unmount()
+    })
+
+    it('stays mounted while hidden, so the close fade is not cut short', () => {
+      ;(FakeLandscapeView as unknown as jest.Mock).mockClear()
+      const { unmount } = render(<BaseSettingsDialog {...baseProps} visible={false} />)
+
+      expect(FakeLandscapeView).toHaveBeenCalled()
       unmount()
     })
   })

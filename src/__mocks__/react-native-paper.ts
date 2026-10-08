@@ -11,4 +11,8 @@ export const Text = jest.fn(({ children }: { children?: React.ReactNode }) => ch
 // Real Portal renders into a separate root registered by react-native-paper's own Provider (no
 // such host exists under jsdom) — stubbed to render its children inline instead, which is enough
 // for a test asserting on content/visibility rather than actual layering.
-export const Portal = jest.fn(({ children }: { children?: React.ReactNode }) => children ?? null)
+// Portal.Host likewise just renders its children.
+export const Portal = Object.assign(
+  jest.fn(({ children }: { children?: React.ReactNode }) => children ?? null),
+  { Host: jest.fn(({ children }: { children?: React.ReactNode }) => children ?? null) }
+)

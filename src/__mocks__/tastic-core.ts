@@ -1,4 +1,6 @@
-import { useWindowDimensions } from './react-native'
+import React from 'react'
+
+import { useWindowDimensions, View } from './react-native'
 
 // Real @tastic/core's package.json "browser"/"react-native" export conditions point at its own
 // raw .ts source (so bundlers can inline it, worklet directive and all) rather than the compiled
@@ -42,3 +44,19 @@ export const useRotatedWindowDimensions = jest.fn((): { width: number; height: n
   const rotation = useRotation()
   return Math.abs(rotation) === 90 ? { width: height, height: width } : { width, height }
 })
+
+// Pure, dependency-free swaps, reimplemented for the same export-condition reason as clamp above.
+export function rotateDimensions(width: number, height: number, rotation: number): { width: number; height: number } {
+  return Math.abs(rotation) === 90 ? { width: height, height: width } : { width, height }
+}
+
+export function rotateInsets(insets: { top: number; right: number; bottom: number; left: number }, rotation: number): { top: number; right: number; bottom: number; left: number } {
+  const compass = ['top', 'right', 'bottom', 'left'] as const
+  const steps = (((rotation / 90) % 4) + 4) % 4
+  const edgeFor = (edge: (typeof compass)[number]) => insets[compass[(compass.indexOf(edge) + steps) % 4]]
+  return { top: edgeFor('top'), right: edgeFor('right'), bottom: edgeFor('bottom'), left: edgeFor('left') }
+}
+
+// The real component's layout math is core's own to test; here it is just a View carrying the props
+// a caller passed (rotation, passThrough, style), so a test reads them off the captured calls.
+export const FakeLandscapeView = jest.fn(({ children, ...props }: { children?: React.ReactNode } & Record<string, unknown>) => React.createElement(View, props, children))

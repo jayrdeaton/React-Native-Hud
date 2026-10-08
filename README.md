@@ -94,6 +94,43 @@ position can be nowhere near where the trigger actually is on screen, which is e
 rotation-awareness fixes: without it, a popover can pick an alignment for where its trigger *used to
 be* before rotating, clipping off the edge it's actually now near instead of the one it was near.
 
+### `BaseSettingsDialog` lays out in its own turned frame
+
+The settings sheet doesn't rotate its card in place. It renders through one Paper `Portal` into a
+`RotatedFrame` (below) turned by its `rotation`, sized to the turned footprint, with rotated safe-area
+insets and its own `Portal.Host`, and the Dialog portals into that host. So at +/-90 the sheet's
+`maxHeight: '90%'` is measured against the phone's short edge and the whole list scrolls, instead of
+running off the screen with its top row (Lock Orientation) out of reach. The frame is pass-through and
+an identity frame at 0, so nothing changes in portrait. Pass `rotation={0}` when the dialog already
+sits under a `Portal.Host` inside a turned frame of your own.
+
+This needs `@rific/auto-paper` 0.12.2 or later: the Dialog's own body now renders at the portal host,
+and only 0.12.2+ mounts that host inside auto-paper's own contexts (blur, Reanimated, defaults).
+
+### `RotatedFrame`
+
+The frame itself, exported for a screen or overlay that should follow the phone as one piece:
+
+```tsx
+import { RotatedFrame } from '@tastic/hud'
+
+<RotatedFrame portalHost rotatedSafeArea maxContentWidth={640}>
+  <StatsList />
+</RotatedFrame>
+```
+
+- `rotation`: the angle to turn by; defaults to the live `useRotation()`.
+- `rotatedSafeArea`: re-provide the safe-area insets remapped onto the frame's own edges, for content
+  that reads `useSafeAreaInsets()` itself. Leave it off for content that rotates insets on its own.
+- `portalHost`: mount a Paper `Portal.Host` inside the frame, so dialogs lay out and turn with it (tell
+  them `rotation={0}`). Must be static per call site: flipping it remounts the contents.
+- `passThrough`: let touches fall through the frame's own boxes, for a frame laid over other content.
+- `maxContentWidth`: cap the centred content column, in the wide (landscape) footprint only.
+
+The tree is identical at every angle, so turning the phone never remounts what's inside. Tap-driven
+content only: react-native-gesture-handler's deltas are untransformed, so never put a gesture-tracked
+board inside it.
+
 ## The press-away pattern (read this before wiring it up)
 
 A single full-screen `PressAwayOverlay` works fine for a one-player screen. It does **not** work
@@ -545,10 +582,10 @@ resolve module".
 | `react`, `react-native` | >=19.0.0, >=0.76.0 | every entry |
 | `react-native-paper` | >=5.0.0 | main entry, `./guide` |
 | `react-native-reanimated` | >=3.0.0 | main entry (`StaggeredWord`), `./guide` |
-| `@rific/auto-paper` | >=0.9.4 | main entry (`AutoAppearancePicker` first shipped in 0.9.4), `./guide` |
+| `@rific/auto-paper` | >=0.12.2 | main entry (`BaseSettingsDialog` needs the nested `Portal.Host` first shipped in 0.12.2), `./guide` |
 | `@rific/feedback-press` | >=0.10.2 | main entry (`useSoundSettings` first shipped in 0.10.2), `./guide` |
 | `react-native-safe-area-context` | >=5.0.0 | main entry (`useZoneClampedAlign`) |
-| `@tastic/core` | >=0.5.0, optional | main entry: `useRotation()` and most dialogs; `ContentGutter` needs `useRotatedWindowDimensions()`, first shipped in 0.5.0 |
+| `@tastic/core` | >=0.12.0, optional | main entry: `useRotation()` and most dialogs; `RotatedFrame` and `BaseSettingsDialog` need `FakeLandscapeView`'s `rotation`/`passThrough`, first shipped in 0.12.0 |
 | `@rific/updater` | >=0.4.0, optional | main entry: `BaseSettingsDialog`, `UpdateDialog` |
 | `@tastic/profile` | >=0.4.0, optional | main entry: `PlayerSetupPanel`, `AchievementUnlockList` (`ProfileChip`) |
 | `@tastic/split-screen` | >=0.5.0, optional | main entry: `useZoneClampedAlign` |

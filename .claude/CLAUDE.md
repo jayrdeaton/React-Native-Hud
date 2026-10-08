@@ -428,14 +428,14 @@ Real `peerDependencies` from `package.json`, with their actual version floors:
 - `@shopify/react-native-skia` — `>=1.5.0` (`Canvas`, `Path`, `Skia` in `TriggerGauge.tsx`; `LoadSkiaWeb` via its own `/src/web` subpath in `loadSkiaWeb.web.ts`)
 
 **Internal fleet:**
-- `@rific/auto-paper` — `>=0.9.4`, the first release with `AutoAppearancePicker` (`AutoAppearancePicker`, `defaultColors`, `getContrastColor`, `getBlendedColor`, `getColorRoles`, `SeedColor`)
+- `@rific/auto-paper` — `>=0.12.2`, the first release whose Provider mounts a nested `Portal.Host` inside its own contexts, which `BaseSettingsDialog`'s outer Portal relies on (see "BaseSettingsDialog lays out in a turned frame" above). Uses `AutoAppearancePicker`, `defaultColors`, `getContrastColor`, `getBlendedColor`, `getColorRoles`, `SeedColor`
 - `@rific/feedback-press` — `>=0.10.2`, the first release with `useSoundSettings` (`IconButton`, `TouchableRipple`, `useSoundSettings`)
 - `@tastic/achievements` — `>=0.2.0` (`AchievementCatalogRow` type, in `AchievementCatalogSection.tsx`
   only — type-only, no value/runtime import; see "AchievementCatalogSection + ActivityStatSection"
   above). The newest peer here (added in the same 2026-09-18 pass as that component) and currently
   resolved via yalc (`file:.yalc/@tastic/achievements` in `devDependencies`) rather than a real
   npm-published version.
-- `@tastic/core` — `>=0.1.0` (`clamp`, `useIsTouchPrimaryDevice`)
+- `@tastic/core` — `>=0.12.0`, the first release with `FakeLandscapeView`'s `rotation`/`passThrough` (`RotatedFrame`, `BaseSettingsDialog`; also `clamp`, `useIsTouchPrimaryDevice`, `useRotation`, `useRotatedWindowDimensions`)
 
 None of these are bundled — consumers use whatever versions their app already has. This repo also
 declares each of the nine peers above as a `devDependency` (own dev/test/build, at or above the
@@ -486,6 +486,37 @@ overrides) and its bundled Prettier config (`package.json`'s `"prettier"` field 
 - `package-json/order-properties`, `package-json/sort-collections` — warn, on `package.json` itself
 - Test/mock files (`__tests__/`, `__mocks__/`) are linted like any other source, except
   `@typescript-eslint/no-explicit-any` is off there
+
+## BaseSettingsDialog lays out in a turned frame; `RotatedFrame` (2026-10-08)
+
+Audit F190: turned 90deg, the settings sheet ran off the phone's short edge and its top row (Lock
+Orientation, the way back out of landscape) was clipped with no way to scroll to it. It used to rotate
+its card in place with `toRotationStyle`, but Paper's Portal mounts outside every turned frame, so the
+card's `maxHeight: '90%'` was still resolved against the PORTRAIT window. Now `BaseSettingsDialog`
+returns `<Portal><RotatedFrame rotation rotatedSafeArea portalHost passThrough>` around the Dialog and
+both ConfirmDialogs (which get `rotation={0}`): the frame is sized to the turned footprint and the
+Dialog portals into the frame's own host. At rotation 0 it is an identity frame, so Solitaire (which
+passes `rotation={0}` from inside its own in-frame host) and web are unchanged.
+
+`RotatedFrame` (`src/RotatedFrame.tsx`) is Solitaire's `components/RotatedScreen.tsx` frame, lifted and
+given a `rotation` override: `FakeLandscapeView(rotation, passThrough) > SafeAreaInsetsContext.Provider
+> [Portal.Host] > column`. It needs `@tastic/core` 0.12.0's `FakeLandscapeView` `rotation` and
+`passThrough` props, so the core peer floor is `>=0.12.0`. Below that, the always-mounted frame's inner
+view would NOT be box-none and would swallow every touch beneath it, not just look wrong.
+
+**The outer Portal moves the Dialog's own BODY to the portal host, not just its output.** Paper's
+Portal re-provides only Paper's theme and settings, so anything the auto-paper Dialog reads from
+auto-paper's context (expo-blur, Reanimated, `defaults`) has to exist at the host. auto-paper 0.12.2+
+mounts a nested `Portal.Host` inside those contexts (its ThemeProvider), which is the nearest host for
+every flagship (their `FeedbackPressProvider` host sits ABOVE auto-paper). So the auto-paper peer floor
+is `>=0.12.2`; on an older auto-paper the sheet would silently lose its blur and its pop-in. Other
+contexts are lost at the host too (orientation, profiles, navigation), which is fine: the app's
+`children` sections were already rendered at that host by the Dialog's own Portal, and the
+frame's `FakeLandscapeView` gets an explicit `rotation` (core's orientation context has a default).
+
+Not verified on a device yet: the sheet at +/-90 (both end rows reachable, scrolling, safe-area edges),
+the close fade, How to Play opening from Settings, and above all that board touches and gestures are
+unaffected while Settings is CLOSED (the pass-through frame stays mounted with the dialog).
 
 ## ContentGutter reads the rotated footprint (2026-09-19)
 

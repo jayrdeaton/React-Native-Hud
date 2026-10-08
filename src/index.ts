@@ -18,6 +18,7 @@ export { getColorPopoverId, getCpuDifficultyPopoverId, PlayerSetupPanel, type Pl
 export { PopoverBody } from './PopoverBody'
 export { PressAwayOverlay } from './PressAwayOverlay'
 export { ReadyButton } from './ReadyButton'
+export { RotatedFrame, type RotatedFrameProps } from './RotatedFrame'
 export { type MenuOption, type MenuSection, type MultiSelectSection, SectionedDropdown, type SingleSelectSection } from './SectionedDropdown'
 export { SharedActionBand } from './SharedActionBand'
 export { SkiaGate, type SkiaGateProps } from './SkiaGate'
