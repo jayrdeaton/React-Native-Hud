@@ -341,11 +341,23 @@ describe('BaseSettingsDialog', () => {
       unmount()
     })
 
-    it('stays mounted while hidden, so the close fade is not cut short', () => {
+    it('mounts no frame before the first open', () => {
       ;(FakeLandscapeView as unknown as jest.Mock).mockClear()
       const { unmount } = render(<BaseSettingsDialog {...baseProps} visible={false} />)
 
+      expect(FakeLandscapeView).not.toHaveBeenCalled()
+      unmount()
+    })
+
+    it('keeps the frame mounted after closing, so the close fade is not cut short', () => {
+      const { rerender, unmount } = render(<BaseSettingsDialog {...baseProps} visible={false} />)
+      rerender(<BaseSettingsDialog {...baseProps} visible />)
+      ;(FakeLandscapeView as unknown as jest.Mock).mockClear()
+      rerender(<BaseSettingsDialog {...baseProps} visible={false} />)
+
       expect(FakeLandscapeView).toHaveBeenCalled()
+      const dialogCalls = (Dialog as unknown as jest.Mock).mock.calls
+      expect(dialogCalls[dialogCalls.length - 1][0].visible).toBe(false)
       unmount()
     })
   })

@@ -498,6 +498,13 @@ both ConfirmDialogs (which get `rotation={0}`): the frame is sized to the turned
 Dialog portals into the frame's own host. At rotation 0 it is an identity frame, so Solitaire (which
 passes `rotation={0}` from inside its own in-frame host) and web are unchanged.
 
+The frame is mounted from the FIRST OPEN on and then kept (0.14.1; `opened` state set during render).
+Kept, so the Dialog's close fade still plays after `visible` turns false. Not before: 0.14.0 mounted
+the Portal on every render, which threw in any consumer test rendering a screen without a Paper
+Provider (Snake's Home test) and put a pass-through layer on every screen that never opens Settings.
+Mounting at open time is also when the Dialog's own Portal always mounted, so the z-order against
+other portals is what it was.
+
 `RotatedFrame` (`src/RotatedFrame.tsx`) is Solitaire's `components/RotatedScreen.tsx` frame, lifted and
 given a `rotation` override: `FakeLandscapeView(rotation, passThrough) > SafeAreaInsetsContext.Provider
 > [Portal.Host] > column`. It needs `@tastic/core` 0.12.0's `FakeLandscapeView` `rotation` and

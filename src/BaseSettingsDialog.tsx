@@ -123,6 +123,14 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
     onInfo: (title, message) => setInfoMessage({ title, message })
   })
   const updateManifestDate = updateManifest ? new Date(updateManifest.createdAt) : null
+  // The frame below is mounted from the first open on and then kept, so the Dialog's close fade
+  // still plays after `visible` turns false. Never mounting it before that keeps a screen that never
+  // opens Settings free of the extra (pass-through) layer, mounts the Portal at open time like the
+  // Dialog's own Portal always was (so it lands above portals mounted earlier), and means nothing
+  // here needs a Paper Portal.Host until the sheet is actually opened. The update and info cards are
+  // only reachable from inside the sheet, so they never need it earlier either.
+  const [opened, setOpened] = useState(visible)
+  if (visible && !opened) setOpened(true)
 
   const showLockOrientation = isTouchPrimary && lockOrientation !== undefined && onLockOrientationChange !== undefined
   const showEdgeGuard = Platform.OS === 'ios' && deferBottomEdgeGestures !== undefined && onDeferBottomEdgeGestures !== undefined
@@ -139,8 +147,9 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   // to the turned footprint, with rotated safe-area insets and its own Portal.Host. The Dialog and the
   // two ConfirmDialogs below portal into THAT host, so they lay out against the turned window with no
   // transform of their own (hence rotation={0} on the ConfirmDialogs). The frame is pass-through at
-  // every level and stays mounted with this component, which keeps the Dialog's close fade; at
+  // every level and stays mounted once the sheet has opened, which keeps the Dialog's close fade; at
   // rotation 0 it is an identity frame.
+  if (!opened) return null
   return (
     <Portal>
       <RotatedFrame rotation={rotation} rotatedSafeArea portalHost passThrough>
