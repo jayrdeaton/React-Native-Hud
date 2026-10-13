@@ -18,7 +18,9 @@ interface SettingIconProps {
 
 // Small colored badge per row (icon tinted on its own MD3 container color) — echoes the
 // primary/secondary/tertiary triad that's already each consuming app's own identity, so the
-// settings list picks up that same palette instead of introducing new colors of its own.
+// settings list picks up that same palette instead of introducing new colors of its own. Every
+// on/off row (Lock Orientation, Edge Guard, Sound, Haptics) is tertiary while on, and an app adding
+// its own toggle rows should match; secondary is for the always-on action row (How to Play).
 function SettingIcon({ source, color, containerColor }: SettingIconProps) {
   return (
     <View style={[styles.iconBadge, { backgroundColor: containerColor }]}>
@@ -173,7 +175,7 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
                 {showLockOrientation && (
                   <TouchableRipple onPress={() => onLockOrientationChange!(!lockOrientation)} style={styles.toggleButton} accessibilityLabel={`Lock orientation ${lockOrientation ? 'on' : 'off'}`}>
                     <View style={styles.toggleContent}>
-                      <SettingIcon source={lockOrientation ? 'lock' : 'lock-open-variant-outline'} color={lockOrientation ? colors.secondary : colors.onSurfaceVariant} containerColor={lockOrientation ? colors.secondaryContainer : colors.surfaceVariant} />
+                      <SettingIcon source={lockOrientation ? 'lock' : 'lock-open-variant-outline'} color={lockOrientation ? colors.tertiary : colors.onSurfaceVariant} containerColor={lockOrientation ? colors.tertiaryContainer : colors.surfaceVariant} />
                       <View style={styles.flexShrink}>
                         <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
                           Lock Orientation
@@ -195,7 +197,7 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
                 {showEdgeGuard && (
                   <TouchableRipple onPress={() => onDeferBottomEdgeGestures!(!deferBottomEdgeGestures)} style={styles.toggleButton} accessibilityLabel={`Edge guard ${deferBottomEdgeGestures ? 'on' : 'off'}`}>
                     <View style={styles.toggleContent}>
-                      <SettingIcon source={deferBottomEdgeGestures ? 'shield-check-outline' : 'shield-off-outline'} color={deferBottomEdgeGestures ? colors.secondary : colors.onSurfaceVariant} containerColor={deferBottomEdgeGestures ? colors.secondaryContainer : colors.surfaceVariant} />
+                      <SettingIcon source={deferBottomEdgeGestures ? 'shield-check-outline' : 'shield-off-outline'} color={deferBottomEdgeGestures ? colors.tertiary : colors.onSurfaceVariant} containerColor={deferBottomEdgeGestures ? colors.tertiaryContainer : colors.surfaceVariant} />
                       <View style={styles.flexShrink}>
                         <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
                           Edge Guard

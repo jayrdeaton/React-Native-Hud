@@ -4,6 +4,7 @@ import { useUpdater } from '@rific/updater'
 import { FakeLandscapeView, useIsTouchPrimaryDevice, useRotation } from '@tastic/core'
 import { act, render } from '@testing-library/react'
 import { Platform } from 'react-native'
+import { Icon } from 'react-native-paper'
 
 import { BaseSettingsDialog } from '../BaseSettingsDialog'
 
@@ -191,6 +192,21 @@ describe('BaseSettingsDialog', () => {
     const webRender = render(<BaseSettingsDialog {...baseProps} />)
     expect(webRender.container.textContent).not.toContain('Haptics')
     webRender.unmount()
+  })
+
+  // Lock Orientation and Edge Guard used to light up in secondary while Sound/Haptics (and every
+  // toggle the apps add) used tertiary, so one row read as a different accent from the rest.
+  it('gives every on/off row the same tertiary accent while on', () => {
+    Platform.OS = 'ios'
+    ;(useSoundSettings as jest.Mock).mockReturnValue({ settings: { enabled: true }, set: jest.fn() })
+    ;(useHapticSettings as jest.Mock).mockReturnValue({ settings: { vibrate: true }, set: jest.fn() })
+    ;(Icon as jest.Mock).mockClear()
+    const { unmount } = render(<BaseSettingsDialog {...baseProps} lockOrientation deferBottomEdgeGestures onDeferBottomEdgeGestures={jest.fn()} />)
+
+    // '#000008' is the rific-auto-paper mock's tertiary (its secondary is '#000005').
+    const iconColor = (source: string) => (Icon as jest.Mock).mock.calls.find(([props]) => props.source === source)?.[0].color
+    expect(['lock', 'shield-check-outline', 'volume-high', 'vibrate'].map(iconColor)).toEqual(Array(4).fill('#000008'))
+    unmount()
   })
 
   it('surfaces a failed update check via onUpdateError, and a successful info result via the OK overlay', () => {
