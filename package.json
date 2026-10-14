@@ -34,6 +34,13 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
     },
+    "./chrome": {
+      "react-native": "./src/chrome/index.ts",
+      "browser": "./src/chrome/index.ts",
+      "types": "./dist/chrome/index.d.ts",
+      "import": "./dist/chrome/index.mjs",
+      "require": "./dist/chrome/index.js"
+    },
     "./guide": {
       "react-native": "./src/guide/index.ts",
       "browser": "./src/guide/index.ts",

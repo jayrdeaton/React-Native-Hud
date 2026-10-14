@@ -315,11 +315,12 @@ left); native's momentum-end event clears a target an interrupted animation neve
 **Why it's here and not in `@tastic/core` or a new package:** `@tastic/core` is the base layer the headless
 packages (`input`, `physics`) peer on and has no UI peers today; dialogs need paper, reanimated, auto-paper and
 feedback-press. This package is already the shared-dialog home and 6 of the 7 games depend on it. The one app
-without it, Hangman (no Skia, no `@tastic/core`), is exactly why the subpath must stay light.
+without it, Hangman (no Skia, no `@tastic/profile`, no `@tastic/split-screen`; it has had `@tastic/core` for
+its Expo config plugin since 2026-10-08), is exactly why hud's light subpaths must stay light.
 
 **The import boundary is load-bearing.** Nothing under `src/guide/` may import `@tastic/core`,
 `@tastic/profile`, `@tastic/split-screen`, `@tastic/achievements`, `@rific/updater`, Skia, or the main barrel.
-Those six are `optional` in `peerDependenciesMeta` (that's what lets Hangman install hud without them), and
+Those six are `optional` in `peerDependenciesMeta` (that's what lets a light app install hud without them), and
 `src/__tests__/guideImports.test.ts` asserts the source-level boundary - the unit tests above it mock every
 peer and would never catch a regression here; it would surface as a broken Hangman bundle. The one borrowed
 module, `src/overlayCard.ts`, imports only `react-native` (also asserted). Because it can't import
@@ -372,12 +373,45 @@ Gotchas worth knowing:
   store for this package (`~/.yalc/installations.json`), rewriting their `package.json` to `file:.yalc/...`.
   Use `yalc publish` here and `yalc link @tastic/hud` (no `package.json` change) in the one app you're testing.
 
+### The chrome subpath - `@tastic/hud/chrome` (2026-10-14)
+
+`src/chrome/index.ts` re-exports the fleet's shared chrome from the existing files in `src/`:
+`BaseSettingsDialog`, `ConfirmDialog`, `UpdateDialog`, `RotatedFrame`, `BaseStatsScreen`, `StatSection`,
+`StatRow`, `AchievementRow`, `LOCKED_BADGE_COLOR`, `AchievementCatalogSection`, `ActivityStatSection`,
+`CornerActionButtons`, `ContentGutter`, `StaggeredWord`, `getStaggeredWordDuration`, `getOverlayCardColors`,
+`overlayStyles`, `overlayActionStyles` and `MONO_FONT`, with their props types. Built like `./guide`: its own
+tsup entry (`dist/chrome/index.*`), and `react-native` and `browser` both point at the source entry.
+
+**Why it exists:** Hangman is moving onto the fleet's settings dialog, confirm and update dialogs, stats
+screen and corner buttons, but importing anything from the main barrel would make it install
+`@tastic/profile`, `@tastic/split-screen` and Skia (the barrel also re-exports `PlayerSetupPanel`,
+`AchievementUnlockList`, `useZoneClampedAlign` and `TriggerGaugeHost`/`loadSkiaWeb`). Hangman already has
+`@tastic/core` and `@rific/updater`, so unlike `./guide` this entry may use those two.
+
+**The import boundary is load-bearing, and it's a graph, not a folder.** These modules sit in `src/` beside
+barrel-only ones, so `src/__tests__/chromeImports.test.ts` walks the relative-import graph from
+`src/chrome/index.ts` (static imports and re-exports, bare imports, dynamic `import()`, `require()`). Every
+package it reaches must be `react`, `react-native`, `react-native-paper`, `react-native-reanimated`,
+`react-native-safe-area-context`, `@rific/auto-paper`, `@rific/feedback-press`, `@rific/updater` or
+`@tastic/core`, plus `@tastic/achievements` as `import type` only. It also fails if the walk reaches
+`src/index.ts` or `AchievementUnlockList.tsx` (it renders `@tastic/profile`'s `ProfileChip`), or a module
+with a `.web` twin (one source target serves both platforms; a `.web` twin would need its own `browser`
+target, the way `./skia-gate` has one). Checked 2026-10-14 by planting `import '@tastic/profile'` in
+`StatRow.tsx`, a value import of `@tastic/achievements`, and a dynamic Skia import: each one failed it. So
+before adding an import to any shared file this entry reaches, check it against that list.
+
+**`@tastic/achievements` is type-only, but a consumer still needs it installed.** Nothing loads it at runtime.
+But `@infinitetoken/tsconfig`'s `/react-native` and `/expo` presets set `customConditions: ["react-native"]`,
+so a fleet app's tsc resolves `@tastic/hud/chrome` to this package's raw source and type-checks
+`AchievementCatalogSection`'s type import too.
+
 ## Public API
 
 The complete `src/index.ts` export barrel, reachable at the package's main `"."` entry point.
-`package.json`'s `exports` map also has one subpath, `"./skia-gate"` - the standalone `SkiaGate`
-build, with none of this barrel's peer-dependency surface (see "Why SkiaGate exists" above for why
-that's a real, not cosmetic, difference). Prefer `import { SkiaGate } from '@tastic/hud/skia-gate'`
+`package.json`'s `exports` map also has three subpaths, each a standalone build with less of this
+barrel's peer-dependency surface: `"./skia-gate"` (the `SkiaGate` build; see "Why SkiaGate exists"
+above for why that's a real, not cosmetic, difference), `"./guide"` and `"./chrome"` (see their own
+sections above). Prefer `import { SkiaGate } from '@tastic/hud/skia-gate'`
 over pulling it from the bare `'@tastic/hud'` barrel below, even in an app that already has every
 peer this kit needs.
 

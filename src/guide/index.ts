@@ -2,8 +2,9 @@
 // touching the main barrel, the same reason `@tastic/hud/skia-gate` is. This file and everything it
 // imports must stay free of @tastic/core, @tastic/profile, @tastic/split-screen, @tastic/achievements,
 // @rific/updater and Skia: those are optional peers of this package (see package.json's
-// peerDependenciesMeta) precisely so an app like Hangman, which has none of them, can install
-// @tastic/hud and use only this. src/__tests__/guideImports.test.ts enforces it.
+// peerDependenciesMeta) precisely so an app with none of them can install @tastic/hud and use only
+// this. src/__tests__/guideImports.test.ts enforces it. (src/chrome/index.ts is the other light entry,
+// for an app that has @tastic/core and @rific/updater but not the rest; Hangman is that app.)
 export { type DirectionKeyLabels, type DirectionKeysAxis, DirectionKeysHint, type DirectionKeysHintProps } from './DirectionKeysHint'
 export { GuideProvider, type GuideProviderProps, useAutoShowGuide, useGuide } from './GuideProvider'
 export { createGuideSlice, createReturningPlayerMigrate, type GuideAction, type GuidePersistedState, type GuideSlice, type GuideSliceOptions, type GuideState, type GuideStorageReader } from './guideSlice'

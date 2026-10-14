@@ -549,6 +549,36 @@ const { open } = useGuide()
   and only say what's true in every mode ("your half" is only true in two-player).
 - **Not `onboarding`.** LightCycles and Snake already use that word for their 3-2-1-GO countdown.
 
+## Fleet chrome without the heavy peers (`@tastic/hud/chrome`)
+
+The shared dialogs, stats screen pieces, corner buttons and style tokens, from a standalone entry that never
+touches the main barrel. It's for an app that has `@tastic/core` and `@rific/updater` but none of Skia,
+`@tastic/profile` or `@tastic/split-screen` (Hangman). It exports, with their props types:
+
+- Dialogs: `BaseSettingsDialog`, `ConfirmDialog`, `UpdateDialog`, `RotatedFrame`
+- Stats: `BaseStatsScreen`, `StatSection`, `StatRow`, `AchievementRow`, `LOCKED_BADGE_COLOR`,
+  `AchievementCatalogSection`, `ActivityStatSection`
+- Chrome: `CornerActionButtons`, `ContentGutter`, `StaggeredWord`, `getStaggeredWordDuration`
+- Style tokens: `getOverlayCardColors`, `overlayStyles`, `overlayActionStyles`, `MONO_FONT`
+
+Each is the same component the main entry exports and is documented above. Only the import path changes:
+
+```tsx
+import { BaseSettingsDialog, ConfirmDialog, CornerActionButtons } from '@tastic/hud/chrome'
+```
+
+It pulls in only `react`, `react-native`, `react-native-paper`, `react-native-reanimated`,
+`react-native-safe-area-context`, `@rific/auto-paper`, `@rific/feedback-press`, `@rific/updater` and
+`@tastic/core`. `AchievementCatalogSection` uses `@tastic/achievements` for types only, so nothing loads it at
+runtime, but an app whose TypeScript resolves the `react-native` export condition (the fleet's tsconfig does)
+type-checks hud's source and needs it installed. `AchievementUnlockList` isn't here because it renders
+`@tastic/profile`'s `ProfileChip`. A test (`src/__tests__/chromeImports.test.ts`) walks the import graph from
+`src/chrome/index.ts` and fails if anything it reaches imports another package, value-imports
+`@tastic/achievements`, reaches the main barrel, or has a `.web` twin.
+
+Metro resolves both entries to the same source files, so an app that imports some components from here and
+others from `@tastic/hud` still bundles each module once.
+
 ## Install
 
 Published to the public npm registry as `@tastic/hud`. Everything described above, including the
@@ -571,8 +601,9 @@ when no rotation applies.
 ## Peer dependencies
 
 None of these are bundled, so use whatever versions your app already has. Six are marked `optional` in
-`peerDependenciesMeta` only so that an app using just the `@tastic/hud/guide` subpath (Hangman) can
-install hud without them. **npm does not install optional peers for you**, so an app that imports the
+`peerDependenciesMeta` so a light app can install hud without the ones it doesn't use: `./guide` needs
+none of the six, and `./chrome` needs only `@tastic/core` and `@rific/updater` (plus
+`@tastic/achievements` to type-check, see above). **npm does not install optional peers for you**, so an app that imports the
 main `@tastic/hud` entry must list every peer that entry loads in its own `dependencies`, including
 the four optional ones marked "main entry" below. Without them, Metro fails to bundle with "Unable to
 resolve module".
@@ -580,14 +611,14 @@ resolve module".
 | Peer | Floor | Needed by |
 | --- | --- | --- |
 | `react`, `react-native` | >=19.0.0, >=0.76.0 | every entry |
-| `react-native-paper` | >=5.0.0 | main entry, `./guide` |
-| `react-native-reanimated` | >=3.0.0 | main entry (`StaggeredWord`), `./guide` |
-| `@rific/auto-paper` | >=0.12.2 | main entry (`BaseSettingsDialog` needs the nested `Portal.Host` first shipped in 0.12.2), `./guide` |
-| `@rific/feedback-press` | >=0.10.2 | main entry (`useSoundSettings` first shipped in 0.10.2), `./guide` |
-| `react-native-safe-area-context` | >=5.0.0 | main entry (`useZoneClampedAlign`) |
-| `@tastic/core` | >=0.12.0, optional | main entry: `useRotation()` and most dialogs; `RotatedFrame` and `BaseSettingsDialog` need `FakeLandscapeView`'s `rotation`/`passThrough`, first shipped in 0.12.0 |
-| `@rific/updater` | >=0.4.0, optional | main entry: `BaseSettingsDialog`, `UpdateDialog` |
+| `react-native-paper` | >=5.0.0 | main entry, `./guide`, `./chrome` |
+| `react-native-reanimated` | >=3.0.0 | main entry (`StaggeredWord`), `./guide`, `./chrome` (`StaggeredWord`) |
+| `@rific/auto-paper` | >=0.12.2 | main entry (`BaseSettingsDialog` needs the nested `Portal.Host` first shipped in 0.12.2), `./guide`, `./chrome` |
+| `@rific/feedback-press` | >=0.10.2 | main entry (`useSoundSettings` first shipped in 0.10.2), `./guide`, `./chrome` |
+| `react-native-safe-area-context` | >=5.0.0 | main entry (`useZoneClampedAlign`), `./chrome` (`RotatedFrame`, `BaseSettingsDialog`) |
+| `@tastic/core` | >=0.12.0, optional | main entry: `useRotation()` and most dialogs; `RotatedFrame` and `BaseSettingsDialog` need `FakeLandscapeView`'s `rotation`/`passThrough`, first shipped in 0.12.0; `./chrome` (the same dialogs) |
+| `@rific/updater` | >=0.4.0, optional | main entry and `./chrome`: `BaseSettingsDialog`, `UpdateDialog` |
 | `@tastic/profile` | >=0.4.0, optional | main entry: `PlayerSetupPanel`, `AchievementUnlockList` (`ProfileChip`) |
 | `@tastic/split-screen` | >=0.5.0, optional | main entry: `useZoneClampedAlign` |
 | `@shopify/react-native-skia` | >=1.5.0, optional | `TriggerGaugeHost`'s gauge (lazy-loaded behind `SkiaGate`) and `./skia-gate` |
-| `@tastic/achievements` | >=0.2.0, optional | `AchievementCatalogSection`, `AchievementUnlockList`, type-only (`AchievementCatalogRow`, first exported in 0.2.0; `AchievementTier`) |
+| `@tastic/achievements` | >=0.2.0, optional | `AchievementCatalogSection`, `AchievementUnlockList`, type-only (`AchievementCatalogRow`, first exported in 0.2.0; `AchievementTier`); `./chrome` needs it installed only to type-check |
