@@ -16,7 +16,7 @@ interface SettingIconProps {
   containerColor: string
 }
 
-// Small colored badge per row (icon tinted on its own MD3 container color) — echoes the
+// Small colored badge per row (icon tinted on its own MD3 container color) - echoes the
 // primary/secondary/tertiary triad that's already each consuming app's own identity, so the
 // settings list picks up that same palette instead of introducing new colors of its own. Every
 // on/off row (Lock Orientation, Edge Guard, Sound, Haptics) is tertiary while on, and an app adding
@@ -38,50 +38,50 @@ export interface BaseSettingsDialogProps {
   // Defaults to a live ambient read via useRotation() when omitted. Pass 0 when the dialog already
   // renders under a Portal.Host inside a turned frame of the caller's own (Solitaire's screens).
   rotation?: ViewRotation
-  // Each app's own OTA version (e.g. release.otaVersion) — not something this package can read
+  // Each app's own OTA version (e.g. release.otaVersion) - not something this package can read
   // itself, since every consuming app tracks its own release.ts independently. Accepts a number too
   // since that's what release.otaVersion actually is in most apps (a bare incrementing counter, not
-  // a formatted string) — this just interpolates it into the VERSION label same as the original
+  // a formatted string) - this just interpolates it into the VERSION label same as the original
   // inline JSX did.
   version: string | number
-  // Optional, and always passed as a pair — omit both entirely for a game that's portrait-only (or
+  // Optional, and always passed as a pair - omit both entirely for a game that's portrait-only (or
   // otherwise has no orientation-based reflow at all), where there's nothing to lock against.
   lockOrientation?: boolean
   onLockOrientationChange?: (value: boolean) => void
-  // Optional, and always passed as a pair — omit both entirely for a game with no full-screen edge-
+  // Optional, and always passed as a pair - omit both entirely for a game with no full-screen edge-
   // anchored swipe controls (nothing to guard). iOS-only regardless of whether the pair is passed:
   // @tastic/edge-guard's own swizzle is a no-op on every other platform.
   deferBottomEdgeGestures?: boolean
   onDeferBottomEdgeGestures?: (value: boolean) => void
   // Explicit opt-outs for the rows that pull their own state straight from @rific/feedback-press,
   // @rific/auto-paper, and @rific/updater's own shared contexts/hooks rather than from anything the
-  // caller passes in — unlike Lock Orientation/Edge Guard above, there's no "value" to omit for
+  // caller passes in - unlike Lock Orientation/Edge Guard above, there's no "value" to omit for
   // these, so hiding one takes its own explicit flag instead. All default to shown, matching every
   // app's existing behavior before this prop existed.
   hideSound?: boolean
-  // Haptics is already native-only (see the row's own Platform.OS check) — this hides it even
+  // Haptics is already native-only (see the row's own Platform.OS check) - this hides it even
   // there, for a game that's deliberately silent on vibration.
   hideHaptics?: boolean
   hideAppearance?: boolean
-  // Check for Updates is already native-only (a web build has no OTA update concept at all) — this
+  // Check for Updates is already native-only (a web build has no OTA update concept at all) - this
   // hides it even there, for a native app that isn't wired up for EAS/OTA updates at all.
   hideUpdateCheck?: boolean
-  // Surfaces a failed update check (e.g. via @rific/toaster's error()) — omit for an app with no
+  // Surfaces a failed update check (e.g. via @rific/toaster's error()) - omit for an app with no
   // toast system wired up; the check itself still runs and still reports success/no-update through
   // the ordinary info overlay either way. Meaningless (never called) when hideUpdateCheck is set.
   onUpdateError?: (message: string) => void
   // Omit to hide the row entirely (a game with no how-to-play flow, or a screen where replaying one
-  // would be disruptive — e.g. over a live match). Called AFTER this dialog's own onDismiss, so the
+  // would be disruptive - e.g. over a live match). Called AFTER this dialog's own onDismiss, so the
   // two overlays never stack: wire it straight to @tastic/hud/guide's `useGuide().open`.
   onShowHowToPlay?: () => void
   // App-specific extra settings sections (board options, CPU difficulty, stats backup, ...),
-  // rendered between Appearance and Check for Updates — this component only owns the settings
+  // rendered between Appearance and Check for Updates - this component only owns the settings
   // every game shares, never anything about how a particular game plays.
   children?: ReactNode
 }
 
-// The settings shell every @tastic game shares — orientation lock, the optional edge-guard toggle,
-// sound/haptics, appearance, and update checking — extracted after the same six rows were
+// The settings shell every @tastic game shares - orientation lock, the optional edge-guard toggle,
+// sound/haptics, appearance, and update checking - extracted after the same six rows were
 // independently copied into LightCycles, AirHockey, BoxHockey, Pong, and Snake and then needed
 // hand-editing in every one of them, twice, for what were meant to be identical fixes. `children`
 // is the seam for whatever isn't shared: a game with its own board/difficulty settings (or a stats
@@ -91,7 +91,7 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   const { colors } = useAutoPaperTheme()
   const ambientRotation = useRotation()
   const rotation = rotationOverride ?? ambientRotation
-  // Also gates the Lock Orientation row below (alongside showLockOrientation itself) — true
+  // Also gates the Lock Orientation row below (alongside showLockOrientation itself) - true
   // unconditionally on native (see the hook's own doc), so this only actually excludes a
   // desktop/laptop browser, where a mouse-driven window has no physical orientation to lock
   // against; a resize there would just make the setting silently stop reflowing the layout instead
@@ -100,21 +100,21 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   const { settings: hapticSettings, set: setHapticSettings } = useHapticSettings()
   const { settings: soundSettings, set: setSoundSettings } = useSoundSettings()
   // Sound/Haptics toggle themselves: the ripple's automatic press feedback fires on onPressIn,
-  // before onPress applies the toggle, so it reflects the OLD enabled value — backwards from what
+  // before onPress applies the toggle, so it reflects the OLD enabled value - backwards from what
   // a settings toggle should confirm (turning off would click/buzz, turning on would go silent).
   // Both rows disable their own automatic channel below (soundDisabled/hapticDisabled) and fire it
   // manually here instead, gated on the NEW value so it only plays when switching that channel on.
   const sound = useContext(SoundContext)
   const { forceShort: forceHapticFeedback } = useVibration()
   // Covers check()'s three purely-informational cases (dev-mode disabled, web unsupported, no
-  // update found) via onInfo below — a retro card overlay instead of the native Alert.alert those
+  // update found) via onInfo below - a retro card overlay instead of the native Alert.alert those
   // cases fall back to by default.
   const [infoMessage, setInfoMessage] = useState<{ title: string; message: string } | null>(null)
-  // autoCheck: false — every consuming app's own root layout already runs the background check via
+  // autoCheck: false - every consuming app's own root layout already runs the background check via
   // its own useUpdater() instance; a second instance with autoCheck's default (true) would set up a
   // second AppState listener and double every foreground-resume update check. This instance only
   // ever checks on an explicit tap of the button below. Deliberately its own useUpdater() instance
-  // rather than rendering UpdateDialog directly here, for the same reason — UpdateDialog owns a
+  // rather than rendering UpdateDialog directly here, for the same reason - UpdateDialog owns a
   // second AppState listener of its own.
   const { manifest: updateManifest, onConfirm: onUpdateConfirm, respond: respondToUpdateConfirm } = useUpdateConfirmBridge()
   const { check, checking, updateReady } = useUpdater({
@@ -158,18 +158,18 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
         <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
           <Dialog.Title>Settings</Dialog.Title>
           {/* react-native-paper's Dialog.ScrollArea has a fixed 24px marginBottom baked in (meant to
-            reserve room for a Dialog.Actions row below it) — overridden to 0 since this dialog has
+            reserve room for a Dialog.Actions row below it) - overridden to 0 since this dialog has
             no actions row, and that gap otherwise reads as unexplained empty footer space. */}
           <Dialog.ScrollArea style={styles.scrollArea}>
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
               {/* Grouped tightly together (styles.toggleGroup's small internal gap, not the 24px gap
-                between sections below) — same bare-row shape for all of them, no segmented control
+                between sections below) - same bare-row shape for all of them, no segmented control
                 and no section heading (each row's own label already says what it is). Haptics only
-                joins on native — there's nothing for it to control on web. */}
+                joins on native - there's nothing for it to control on web. */}
               <View style={styles.toggleGroup}>
                 {/* Omitted entirely for a portrait-only game (no lockOrientation/onLockOrientationChange
-                  passed at all — nothing to lock), and hidden (not just disabled) on a desktop/laptop
-                  browser even when they are — see isTouchPrimary's own doc above. Still shown on
+                  passed at all - nothing to lock), and hidden (not just disabled) on a desktop/laptop
+                  browser even when they are - see isTouchPrimary's own doc above. Still shown on
                   native and on a touch-capable mobile browser, where a rotated window really does
                   reflect a rotated device. */}
                 {showLockOrientation && (
@@ -188,8 +188,8 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
                   </TouchableRipple>
                 )}
 
-                {/* iOS only — mirrors into UserDefaults for @tastic/edge-guard's own config plugin
-                  swizzle to read. Guards both edges — the top (Notification Center/Control Center)
+                {/* iOS only - mirrors into UserDefaults for @tastic/edge-guard's own config plugin
+                  swizzle to read. Guards both edges - the top (Notification Center/Control Center)
                   and the bottom (home-indicator swipe, incidentally Reachability too), per that
                   package's own doc. Off by default: a deliberate opt-in for whoever's actually hit an
                   accidental-swipe-near-an-edge problem mid-game and come looking for a fix, not a
@@ -210,12 +210,12 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
                   </TouchableRipple>
                 )}
 
-                {/* Side by side, not stacked — neither needs a full row's width (single-line label,
+                {/* Side by side, not stacked - neither needs a full row's width (single-line label,
                   no description under it the way Lock Orientation has), so sharing one row reads
                   just as clearly and takes half the vertical space. toggleRow carries the same
                   edge-alignment negative margin toggleButton normally carries itself; the buttons
                   inside it use toggleButtonInRow (flex: 1) instead so the two don't double up on it.
-                  The row itself only renders when at least one of the two will — an empty flex row
+                  The row itself only renders when at least one of the two will - an empty flex row
                   still eats its own gap/margin otherwise. */}
                 {(showSound || showHaptics) && (
                   <View style={styles.toggleRow}>
@@ -239,7 +239,7 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
                       </TouchableRipple>
                     )}
 
-                    {/* Already native-only (see showHaptics's own definition) — hideHaptics can hide
+                    {/* Already native-only (see showHaptics's own definition) - hideHaptics can hide
                       it there too, for a game that's deliberately silent on vibration. */}
                     {showHaptics && (
                       <TouchableRipple
@@ -264,7 +264,7 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
                 )}
 
                 {/* Not a toggle, but it reads like one of the rows above and belongs with them rather than
-                  down in `children` (which sits below Appearance) — this is the "replay the intro"
+                  down in `children` (which sits below Appearance) - this is the "replay the intro"
                   entry point every game's own how-to-play flow shares. Dismisses this dialog first so
                   the guide's own overlay never opens on top of a still-visible Settings card. */}
                 {onShowHowToPlay && (
@@ -303,7 +303,7 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
               {children}
 
               {/* Native only (a web build has no OTA update concept at all, desktop or mobile browser
-                alike) — hideUpdateCheck can hide it there too, for a native app that isn't wired up
+                alike) - hideUpdateCheck can hide it there too, for a native app that isn't wired up
                 for EAS/OTA updates at all. */}
               {showUpdateCheck && (
                 <View style={styles.section}>
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     gap: 24,
     paddingVertical: 20
   },
-  // Caps the card so it never grows past the screen — without this the dialog just keeps
+  // Caps the card so it never grows past the screen - without this the dialog just keeps
   // growing to fit its content and the overflow gets clipped by the screen edge, which is
   // what happened in landscape where there's less height to work with. Dialog.ScrollArea +
   // ScrollView below then take over and let the content scroll within that bound.

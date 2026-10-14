@@ -10,15 +10,15 @@ interface Props {
   onToggleReady: () => void
   // Lets a caller fade/hide a standalone Ready button (e.g. while a popover is open elsewhere on
   // screen, so it doesn't visually collide with the popover's own positioning) without reflowing
-  // layout around it — pass `{ opacity: 0, pointerEvents: 'none' }` rather than conditionally
+  // layout around it - pass `{ opacity: 0, pointerEvents: 'none' }` rather than conditionally
   // unmounting.
   style?: StyleProp<ViewStyle>
-  // Defaults to the system monospace font — pass your own game's registered font to match its UI.
+  // Defaults to the system monospace font - pass your own game's registered font to match its UI.
   labelFontFamily?: string
 }
 
 // Standalone toggle so it can render either embedded in a per-player panel or centered on its own
-// below a shared row — e.g. a vs-CPU mode with only one human player needs just one Ready toggle,
+// below a shared row - e.g. a vs-CPU mode with only one human player needs just one Ready toggle,
 // not one tucked under each slot.
 export function ReadyButton({ color, ready, onToggleReady, style, labelFontFamily = MONO_FONT }: Props) {
   const readyButtonStyle = [styles.readyButton, { borderColor: color }, ready && { backgroundColor: color }, style]

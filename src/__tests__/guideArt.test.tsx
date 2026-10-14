@@ -12,7 +12,7 @@ function labelledView(label: string) {
   return mockViewRender.mock.calls.find(([props]) => props.accessibilityLabel === label)
 }
 
-// react-native-paper's Text mock is a bare jest.fn — every rendered label is a captured call, and its
+// react-native-paper's Text mock is a bare jest.fn - every rendered label is a captured call, and its
 // `style` array is where the seat color lands (the last entry, the dynamic one).
 function colorOfLabel(label: string): string | undefined {
   const call = (Text as jest.Mock).mock.calls.find(([props]) => props.children === label)

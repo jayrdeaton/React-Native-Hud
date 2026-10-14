@@ -12,7 +12,7 @@ export interface DirectionKeyLabels {
 export type DirectionKeysAxis = 'both' | 'vertical'
 
 export interface DirectionKeysHintProps {
-  // What's printed on each cap — e.g. { up: 'W', left: 'A', down: 'S', right: 'D' }. Omit for the
+  // What's printed on each cap - e.g. { up: 'W', left: 'A', down: 'S', right: 'D' }. Omit for the
   // arrow keys themselves, drawn as arrow icons (so does any single cap left out). Pass whatever the
   // seat's own key scheme actually is, not a guess: the fleet games let each seat pick WASD, arrows,
   // IJKL and so on.
@@ -20,7 +20,7 @@ export interface DirectionKeysHintProps {
   // 'both' (default) draws the four-key inverted T. 'vertical' draws only up above down, for a game
   // whose controls only ever read those two (Pong's paddles).
   axis?: DirectionKeysAxis
-  // Defaults to the theme's own primary — i.e. player 1's seat color in the fleet games.
+  // Defaults to the theme's own primary - i.e. player 1's seat color in the fleet games.
   color?: string
 }
 
@@ -42,7 +42,7 @@ function KeyCap({ label, icon, color }: { label?: string; icon: string; color: s
   )
 }
 
-// Key caps in the inverted-T every keyboard player already knows (or just up over down, see `axis`) —
+// Key caps in the inverted-T every keyboard player already knows (or just up over down, see `axis`) -
 // the desktop counterpart to SwipeHint for the "how do I steer" card, since a desktop browser steers by
 // key, not by swipe. Plain Views, no animation, so there's nothing for reduced motion to switch off.
 export function DirectionKeysHint({ labels, axis = 'both', color }: DirectionKeysHintProps) {

@@ -2,7 +2,7 @@ import { useAutoPaperTheme } from '@rific/auto-paper'
 import { StyleSheet, View } from 'react-native'
 import { Icon, ProgressBar, Text } from 'react-native-paper'
 
-// A neutral gray for a locked badge's own background — exported so a caller computing its own
+// A neutral gray for a locked badge's own background - exported so a caller computing its own
 // badge color (unlocked ? tierColor : LOCKED_BADGE_COLOR, matching LightCycles' own achievements.tsx)
 // doesn't need to invent or duplicate this exact tone.
 export const LOCKED_BADGE_COLOR = 'rgba(128,128,128,0.3)'
@@ -11,28 +11,28 @@ interface Props {
   icon: string
   title: string
   description: string
-  // The badge's own background — pass the achievement's tier color when unlocked, or
+  // The badge's own background - pass the achievement's tier color when unlocked, or
   // LOCKED_BADGE_COLOR (this package's own export, above) when it isn't; this component doesn't
   // infer that from unlockedLabel itself, since a locked-vs-unlocked badge color scheme is a
   // caller-level design choice (see checkColor below for the identical reasoning on the status
   // icon's own color).
   badgeColor: string
   // undefined = locked. A precomputed display string (e.g. "Unlocked 2 days ago"), not a raw
-  // timestamp — this component has no opinion on date formatting or streak conventions, which vary
+  // timestamp - this component has no opinion on date formatting or streak conventions, which vary
   // per app (see LightCycles' own calendar-day-difference convention in its achievements.tsx).
   unlockedLabel?: string
-  // Color for the unlocked check-circle icon/badge glyph — typically the same tier color passed to
+  // Color for the unlocked check-circle icon/badge glyph - typically the same tier color passed to
   // badgeColor, kept as its own prop rather than reused internally so a caller can special-case it
   // independently if its own tier scheme ever needs to (matching LightCycles' own call site, which
   // does pass the identical value to both today).
   checkColor?: string
-  // Only rendered while locked (unlockedLabel is undefined) — 0..1.
+  // Only rendered while locked (unlockedLabel is undefined) - 0..1.
   progress?: number
   // The "Same for every profile" note LightCycles shows for a device-scoped achievement viewed
-  // from a specific profile's own tab — optional since only an app with per-profile stat views has
+  // from a specific profile's own tab - optional since only an app with per-profile stat views has
   // this concept at all.
   deviceMarker?: boolean
-  // Independently optional overrides for this row's own text/background colors — each defaults to
+  // Independently optional overrides for this row's own text/background colors - each defaults to
   // the same dark-mode-derived formula as StatRow/StatSection/BaseStatsScreen (see that component's
   // own doc for why) when omitted, so every existing caller renders identically to before. A caller
   // with its own app-wide chrome palette passes whichever of the three it needs.
@@ -41,14 +41,14 @@ interface Props {
   sectionBg?: string
 }
 
-// One row per achievement — a tier-colored (or locked-gray) badge, title/description, an optional
+// One row per achievement - a tier-colored (or locked-gray) badge, title/description, an optional
 // progress bar while locked, and either an unlocked check-mark+label or a lock icon. Extracted
 // verbatim from LightCycles' own achievements.tsx, where this exact row shape backed its entire
 // "ALL ACHIEVEMENTS" list. fg/fgMuted/its own section background default to the same
 // useAutoPaperTheme()-derived formula as StatRow/StatSection/BaseStatsScreen (see BaseStatsScreen's
 // own doc for why), each independently overridable via the matching prop for a caller with its own
 // chrome palette. Has no opinion on what an achievement actually IS (id, unlock predicate, catalog)
-// — that stays entirely app-local; this is purely the presentational row.
+// - that stays entirely app-local; this is purely the presentational row.
 export function AchievementRow({ icon, title, description, badgeColor, unlockedLabel, checkColor, progress, deviceMarker, fg: fgOverride, fgMuted: fgMutedOverride, sectionBg: sectionBgOverride }: Props) {
   const { dark } = useAutoPaperTheme()
   const fg = fgOverride ?? (dark ? '#FFFFFF' : '#000000')

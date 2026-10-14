@@ -5,7 +5,7 @@ import { mockViewRender } from '../__mocks__/react-native'
 import { AchievementRow, LOCKED_BADGE_COLOR } from '../AchievementRow'
 
 // See StatRow.test.tsx's own header comment for why this inspects the Text mock directly rather
-// than screen.getByText — this package's own View/Text mocks leave no per-Text DOM boundary once
+// than screen.getByText - this package's own View/Text mocks leave no per-Text DOM boundary once
 // more than one Text renders as siblings (title + description + status label, here).
 function renderedTexts() {
   return (Text as jest.Mock).mock.calls.map((c) => c[0].children)

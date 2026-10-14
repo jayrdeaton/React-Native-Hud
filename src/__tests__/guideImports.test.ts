@@ -3,7 +3,7 @@ import { join } from 'path'
 
 // `@tastic/hud/guide` exists so an app that has none of hud's heavy peers (Hangman: no Skia, no
 // @tastic/core, no split-screen) can still use the how-to-play flow. That only holds while nothing
-// under src/guide/ ever imports one of them, directly or through the main barrel — a regression here
+// under src/guide/ ever imports one of them, directly or through the main barrel - a regression here
 // wouldn't fail a single unit test above (they mock every peer), it would fail Hangman's Metro bundle
 // or install. So the boundary is asserted from the source itself.
 

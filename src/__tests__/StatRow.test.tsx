@@ -5,7 +5,7 @@ import { StatRow } from '../StatRow'
 
 // getByText isn't reliable here: this package's own View/Text mocks render no wrapping DOM
 // element, so two sibling Text children merge into one text node with no per-Text boundary to
-// query — see SharedActionBand.test.tsx's own single-Text case for why that one gets away with
+// query - see SharedActionBand.test.tsx's own single-Text case for why that one gets away with
 // getByText and this multi-Text one doesn't. Inspecting the Text mock's own calls directly sidesteps
 // that entirely.
 describe('StatRow', () => {

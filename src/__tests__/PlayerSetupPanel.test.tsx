@@ -10,7 +10,7 @@ import { useAutoAlign } from '../useAutoAlign'
 import { PopoverHost, usePopoverHost } from '../usePopoverHost'
 
 // Only this file's own "alignment passthrough" describe block below asserts against useAutoAlign's
-// call args — every other test here never depends on its real alignment output, so replacing it
+// call args - every other test here never depends on its real alignment output, so replacing it
 // with a jest.fn() (real implementation preserved for anything not overridden per-test) doesn't
 // change any existing test's behavior. Mocking this module (rather than InlineColorPicker/
 // LabeledDropdown themselves, both of which render for real elsewhere in this file) is what lets
@@ -59,13 +59,13 @@ const flatten = (style: unknown): Record<string, unknown>[] =>
     .flat(Infinity)
     .filter(Boolean) as Record<string, unknown>[]
 
-// panel's own style object is exactly {alignItems, gap} — no flexDirection key — so this is enough
+// panel's own style object is exactly {alignItems, gap} - no flexDirection key - so this is enough
 // to tell it apart from pickerRow's own {alignItems, flexDirection, gap} below, and from any View
 // InlineColorPicker/LabeledDropdown render internally (neither uses this exact key combination).
 const isPanelStyle = (o: Record<string, unknown>) => o.gap === 12 && !('flexDirection' in o)
 const isPickerRowStyle = (o: Record<string, unknown>) => o.flexDirection === 'row' && o.gap === 12
 
-// Scans from the most recent call backward — mockViewRender's calls accumulate across every
+// Scans from the most recent call backward - mockViewRender's calls accumulate across every
 // render within a single test (mocks are only cleared between tests, see jest.config.cjs'
 // clearMocks), so after an act()-wrapped popover toggle the matching call for a still-elevated
 // or now-elevated View is whichever one fired last, not the first (pre-toggle) one with that
@@ -262,7 +262,7 @@ describe('PlayerSetupPanel', () => {
       renderPanel({ colorAlignOverride: ALIGN_OVERRIDE })
 
       // InlineColorPicker itself still renders (its trigger is always present regardless of open
-      // state) — this exercises the pass-through path without needing to also assert on
+      // state) - this exercises the pass-through path without needing to also assert on
       // InlineColorPicker's own internal placement logic, which is that component's own test's job.
       expect(mockViewRender).toHaveBeenCalled()
       expect(useAutoAlign).toHaveBeenCalled()
@@ -271,7 +271,7 @@ describe('PlayerSetupPanel', () => {
     it('forwards colorRotation to the internal InlineColorPicker, overriding its default ambient useRotation() read', () => {
       renderPanel({ colorRotation: 180 })
 
-      // InlineColorPicker's own useAutoAlign call takes rotation as its 4th argument — see that
+      // InlineColorPicker's own useAutoAlign call takes rotation as its 4th argument - see that
       // component's own test file for the identical assertion shape.
       const calls = (useAutoAlign as jest.Mock).mock.calls
       expect(calls[calls.length - 1][3]).toBe(180)
@@ -298,7 +298,7 @@ describe('PlayerSetupPanel', () => {
 
       // Confirms the derived id is the REAL one this panel's own internal InlineColorPicker/
       // LabeledDropdown open under, not just a string this test happens to also hardcode the same
-      // way — toggling the derived id and observing the same elevation behavior the two tests above
+      // way - toggling the derived id and observing the same elevation behavior the two tests above
       // already establish for the hardcoded literal is what actually ties them together.
       const { hostBoxRef } = renderPanel({ isHuman: false, cpuDifficulty: 'easy', cpuDifficultyOptions: DIFFICULTY_OPTIONS, onCpuDifficultyChange: jest.fn() })
       act(() => hostBoxRef.current!.toggle(getColorPopoverId('p1')))

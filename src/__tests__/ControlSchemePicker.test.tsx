@@ -10,7 +10,7 @@ import { useAutoAlign } from '../useAutoAlign'
 import { PopoverHost, usePopoverHost } from '../usePopoverHost'
 
 // Only this file's own "alignment passthrough" describe block below asserts against useAutoAlign's
-// call args — every other test here never depends on its real alignment output, so replacing it
+// call args - every other test here never depends on its real alignment output, so replacing it
 // with a jest.fn() (real implementation preserved for anything not overridden per-test) doesn't
 // change any existing test's behavior. Mocking this module (rather than SectionedDropdown itself)
 // is what lets this file verify ControlSchemePicker actually forwards rotation/alignOverride
@@ -50,7 +50,7 @@ function Harness({ hostBoxRef, ...overrides }: { hostBoxRef: HostBox } & Partial
   return <ControlSchemePicker {...baseProps} {...overrides} host={host} />
 }
 
-// Same two-microtask-hop flush SectionedDropdown.test.tsx needs — see that file's own `settle` doc:
+// Same two-microtask-hop flush SectionedDropdown.test.tsx needs - see that file's own `settle` doc:
 // TriggerGaugeHost's lazy(() => import('./TriggerGauge')) mounts on every render this component
 // actually reaches SectionedDropdown for, not just while a popover is open.
 async function settle() {

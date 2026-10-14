@@ -76,14 +76,14 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   // Additive on top of overlayCard's own shared `card` shape (borderRadius/borderWidth/gap/maxWidth/
-  // padding) — claims its full allowance instead of just maxWidth alone, which only caps how wide the
+  // padding) - claims its full allowance instead of just maxWidth alone, which only caps how wide the
   // card is allowed to get - without an explicit width, a flex-centered child sizes to its own content
   // instead of stretching, so the card (and therefore actions below) can end up narrower than the
   // screen actually has room for, needlessly forcing the action row to wrap sooner than it has to.
   card: {
     width: '100%'
   },
-  // Additive on top of overlayCard's own shared `overlay` backdrop — gives the card room to breathe
+  // Additive on top of overlayCard's own shared `overlay` backdrop - gives the card room to breathe
   // from the screen edges now that it reliably stretches to fill its full width allowance (see
   // card's own width comment) - without this, width: '100%' would run the card edge-to-edge on a
   // screen narrower than maxWidth's own 360.

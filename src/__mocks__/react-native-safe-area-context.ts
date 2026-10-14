@@ -1,4 +1,4 @@
-// Real useSafeAreaInsets reads live device inset measurements from native — no jsdom equivalent, so
+// Real useSafeAreaInsets reads live device inset measurements from native - no jsdom equivalent, so
 // this mock returns deterministic zeros instead, same treatment as every other native-backed peer
 // in this directory. RotatedFrame also re-provides insets through the real context object, so that is
 // a plain React context here.

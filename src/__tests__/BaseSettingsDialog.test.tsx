@@ -16,7 +16,7 @@ const baseProps = {
   onLockOrientationChange: jest.fn()
 }
 
-// TouchableRipple is a bare stub (see rific-feedback-press mock) — it never touches
+// TouchableRipple is a bare stub (see rific-feedback-press mock) - it never touches
 // accessibilityLabel/onPress itself, so the only way to find "the row this test cares about" among
 // however many TouchableRipples rendered is to inspect the mock's own captured calls, same pattern
 // ReadyButton.test.tsx already uses.
@@ -27,7 +27,7 @@ function findRippleByLabel(label: string) {
 }
 
 // Same technique, for the ConfirmDialog-rendered Button rows (update-confirm's Restart/Later, and
-// the info-overlay's OK) — see ConfirmDialog.test.tsx's own findButtonByLabel for the original.
+// the info-overlay's OK) - see ConfirmDialog.test.tsx's own findButtonByLabel for the original.
 function findButtonByLabel(label: string) {
   const call = (Button as jest.Mock).mock.calls.find(([props]) => props.children === label)
   if (!call) throw new Error(`No Button rendered with label "${label}"`)
@@ -132,7 +132,7 @@ describe('BaseSettingsDialog', () => {
 
     const text = container.textContent ?? ''
     expect(text).toContain('Board settings go here')
-    // Position, not just presence — this is the one contract that actually matters for `children`:
+    // Position, not just presence - this is the one contract that actually matters for `children`:
     // it has to land between Appearance and Check for Updates, not just anywhere in the tree.
     expect(text.indexOf('APPEARANCE')).toBeLessThan(text.indexOf('Board settings go here'))
     expect(text.indexOf('Board settings go here')).toBeLessThan(text.indexOf('Check for Updates'))
@@ -214,7 +214,7 @@ describe('BaseSettingsDialog', () => {
     const onUpdateError = jest.fn()
     const { container, unmount } = render(<BaseSettingsDialog {...baseProps} onUpdateError={onUpdateError} />)
 
-    // useUpdater is a jest.fn() — the options object BaseSettingsDialog constructed is right there
+    // useUpdater is a jest.fn() - the options object BaseSettingsDialog constructed is right there
     // in its last call, including the onError/onInfo/onConfirm callbacks it wired up internally.
     const calls = (useUpdater as jest.Mock).mock.calls
     const updaterOptions = calls[calls.length - 1][0]
@@ -238,7 +238,7 @@ describe('BaseSettingsDialog', () => {
     Platform.OS = 'ios'
     const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
 
-    // Same lookup as the test above — the onConfirm callback passed through to useUpdater() is
+    // Same lookup as the test above - the onConfirm callback passed through to useUpdater() is
     // what a real (unmocked) useUpdater would call instead of falling back to its own Alert-based
     // getUpdateConfirmation default, since onConfirm is no longer left undefined here.
     const calls = (useUpdater as jest.Mock).mock.calls

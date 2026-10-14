@@ -16,7 +16,7 @@ const steps: GuideStep[] = [
 const baseProps = { visible: true, steps, onFinish: jest.fn(), onSkip: jest.fn() }
 
 // Button is a bare stub (see rific-feedback-press mock) that renders its own `children`, so the label
-// itself identifies which button a captured onPress belongs to — same technique ConfirmDialog.test.tsx
+// itself identifies which button a captured onPress belongs to - same technique ConfirmDialog.test.tsx
 // uses. Always takes the MOST RECENT render's props: a button's onPress closes over the page index it
 // rendered with, so after a state change the earlier calls hold stale closures.
 function findButton(label: string) {
@@ -25,14 +25,14 @@ function findButton(label: string) {
   return matches[matches.length - 1][0]
 }
 
-// Whether a button is CURRENTLY on screen — read from the rendered text, not the captured calls: the
+// Whether a button is CURRENTLY on screen - read from the rendered text, not the captured calls: the
 // Button mock's call list accumulates across every re-render within a test, so a button that has
 // since disappeared (Skip, once on the last card) would still be "found" there.
 function has(container: HTMLElement, label: string) {
   return (container.textContent ?? '').includes(label)
 }
 
-// The dots row carries its own accessibilityLabel ("Step 2 of 3") — the View mock renders only its
+// The dots row carries its own accessibilityLabel ("Step 2 of 3") - the View mock renders only its
 // children (no DOM element), so the label is only observable through the captured props.
 function currentStepLabel() {
   const labels = mockViewRender.mock.calls.map(([props]) => props.accessibilityLabel as string | undefined).filter((label): label is string => !!label?.startsWith('Step '))
@@ -40,7 +40,7 @@ function currentStepLabel() {
 }
 
 // The paging ScrollView's own props from its latest render (the horizontal one: each page is a
-// vertical ScrollView of its own) — onMomentumScrollEnd is what syncs the page index after a swipe.
+// vertical ScrollView of its own) - onMomentumScrollEnd is what syncs the page index after a swipe.
 type ScrollHandler = (e: { nativeEvent: { contentOffset: { x: number } } }) => void
 function scrollViewProps() {
   const calls = (ScrollView as jest.Mock).mock.calls.filter(([props]) => props.horizontal)
@@ -202,7 +202,7 @@ describe('HowToPlayDialog', () => {
     unmount()
   })
 
-  it('a single-step guide has no dots, no Skip, and no Back — just the finish button', () => {
+  it('a single-step guide has no dots, no Skip, and no Back - just the finish button', () => {
     const { container, unmount } = render(<HowToPlayDialog {...baseProps} steps={[steps[0]]} />)
 
     expect(currentStepLabel()).toBeUndefined()

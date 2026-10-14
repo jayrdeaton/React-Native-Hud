@@ -5,7 +5,7 @@ import { Text } from 'react-native-paper'
 
 interface Props {
   label: string
-  // Independently optional overrides for this section's own label color/background — default to
+  // Independently optional overrides for this section's own label color/background - default to
   // the same useAutoPaperTheme()-derived formula as StatRow/BaseStatsScreen (see BaseStatsScreen's
   // own doc for why) when omitted, so every existing caller renders identically to before.
   fg?: string
@@ -13,7 +13,7 @@ interface Props {
   children: ReactNode
 }
 
-// A labeled, tinted-background grouping box — the "OVERALL"/"VS CPU"/"ACTIVITY"-style section
+// A labeled, tinted-background grouping box - the "OVERALL"/"VS CPU"/"ACTIVITY"-style section
 // shape from LightCycles' own achievements.tsx, generalized to any content (typically a stack of
 // StatRow). fg/sectionBg default to the same useAutoPaperTheme()-derived formula as
 // StatRow/BaseStatsScreen (see BaseStatsScreen's own doc for why), each independently overridable
@@ -36,7 +36,7 @@ export function StatSection({ label, fg: fgOverride, sectionBg: sectionBgOverrid
 }
 
 const styles = StyleSheet.create({
-  // Bold and full-contrast (fg), not the original fontless/fgMuted treatment — that read at the
+  // Bold and full-contrast (fg), not the original fontless/fgMuted treatment - that read at the
   // same visual weight as StatRow's own row labels below it (both used the identical muted color;
   // letterSpacing/variant alone didn't separate them enough to read as "this is the group header"
   // at a glance). Matches AchievementRow's own title styling (bold + fg) below it in the same list.

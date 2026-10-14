@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 
 export interface SeatDiagramProps {
-  // Default to the theme's own secondary/primary — in the fleet games those ARE the two players'
+  // Default to the theme's own secondary/primary - in the fleet games those ARE the two players'
   // live seat colors, so the picture always matches whatever colors they've picked.
   topColor?: string
   bottomColor?: string
@@ -17,7 +17,7 @@ const DEVICE_HEIGHT = 120
 // "Two players, one phone": a portrait phone split into a top half and a bottom half, each tinted in
 // its own seat color, with the top label upside down the way that player actually reads it. The
 // seating card every face-to-face game (LightCycles, Snake, AirHockey, BoxHockey, Pong) needs, drawn
-// once. Plain Views, no animation — nothing here needs reduced-motion handling.
+// once. Plain Views, no animation - nothing here needs reduced-motion handling.
 export function SeatDiagram({ topColor, bottomColor, topLabel = 'P2', bottomLabel = 'P1' }: SeatDiagramProps) {
   const { colors } = useAutoPaperTheme()
   const top = topColor ?? colors.secondary
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   label: {
     fontWeight: 'bold'
   },
-  // A wash of the seat color behind its own label rather than an rgba() fill — the theme's colors
+  // A wash of the seat color behind its own label rather than an rgba() fill - the theme's colors
   // aren't guaranteed to be 6-digit hex, so an opacity layer is the only alpha that always works.
   tint: {
     opacity: 0.2

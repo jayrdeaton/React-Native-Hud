@@ -8,7 +8,7 @@ import { PopoverHost, usePopoverHost } from '../usePopoverHost'
 
 // Locally mocked (unlike every other popover component's test in this package) so this file can
 // assert on exactly which align/verticalAlign/maxHeight/measured values LabeledDropdown hands off
-// — PopoverBody's own mapping of those into actual position styling is PopoverBody's own test's
+// - PopoverBody's own mapping of those into actual position styling is PopoverBody's own test's
 // job (see PopoverBody.test.tsx), not this component's.
 jest.mock('../PopoverBody', () => ({
   PopoverBody: jest.fn(({ visible, children }: { visible: boolean; children: React.ReactNode }) => (visible ? children : null))
@@ -111,7 +111,7 @@ describe('LabeledDropdown', () => {
     openTrigger()
 
     // 'menu-down' is the trigger's own chevron, rendered on every render pass (including ones
-    // before/independent of opening) — excluded here since this test is only about the row icons.
+    // before/independent of opening) - excluded here since this test is only about the row icons.
     const rowIconSources = (Icon as jest.Mock).mock.calls.map((c) => c[0].source).filter((s) => s !== 'menu-down')
     // Only Easy's row declares an icon; Hard's row renders no Icon at all, on every render pass.
     expect(new Set(rowIconSources)).toEqual(new Set(['emoticon-happy-outline']))
@@ -131,7 +131,7 @@ describe('LabeledDropdown', () => {
 
     openTrigger()
 
-    // The mock's default measureInWindow reports the trigger at (0,0) with zero size — against a
+    // The mock's default measureInWindow reports the trigger at (0,0) with zero size - against a
     // 180px-wide popover that overflows the left edge from there, useAutoAlign's own math (see that
     // hook's own test/doc) picks 'left', not 'center'; this is exercising the real hook, not a
     // stubbed one, so this asserts its actual output rather than an idealized one.

@@ -11,7 +11,7 @@ const twoSteps: GuideStep[] = [
 ]
 const oneStep: GuideStep[] = [twoSteps[0]]
 
-// Same "latest captured onPress" technique HowToPlayDialog.test.tsx uses — the Button mock's call
+// Same "latest captured onPress" technique HowToPlayDialog.test.tsx uses - the Button mock's call
 // list accumulates within a test, and a button's onPress closes over the render it came from.
 function pressButton(label: string) {
   const matches = (Button as jest.Mock).mock.calls.filter(([props]) => props.children === label)
@@ -74,7 +74,7 @@ describe('GuideProvider', () => {
       unmount()
     })
 
-    it('reopens for a version bump — an older seen version is unseen again', () => {
+    it('reopens for a version bump - an older seen version is unseen again', () => {
       const { container, unmount } = render(
         <GuideProvider {...baseProps} currentVersion={2} seenVersion={1}>
           <AutoShow />
@@ -104,7 +104,7 @@ describe('GuideProvider', () => {
 
     it('fires at most once per session, even when Home remounts', () => {
       const onSeen = jest.fn()
-      // seenVersion deliberately never updates here (a parent that hadn't written it back yet) —
+      // seenVersion deliberately never updates here (a parent that hadn't written it back yet) -
       // the once-per-session guard must hold on its own, not lean on the persisted flag.
       const tree = (showHome: boolean) => (
         <GuideProvider {...baseProps} onSeen={onSeen}>
@@ -187,7 +187,7 @@ describe('GuideProvider', () => {
       act(() => guide.close())
       act(() => guide.open())
 
-      // Both pages are always in the tree (paging ScrollView), so page text can't tell them apart —
+      // Both pages are always in the tree (paging ScrollView), so page text can't tell them apart -
       // Skip can: it's only ever offered on the first card.
       expect(container.textContent).toContain('Skip')
       unmount()
@@ -209,7 +209,7 @@ describe('GuideProvider', () => {
       unmount()
     })
 
-    it('is a harmless no-op with no provider above it — an app test rendering Settings or Home on its own', () => {
+    it('is a harmless no-op with no provider above it - an app test rendering Settings or Home on its own', () => {
       let guide!: ReturnType<typeof useGuide>
       const { unmount } = render(<Probe capture={(g) => (guide = g)} />)
 

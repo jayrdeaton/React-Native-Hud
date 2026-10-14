@@ -8,7 +8,7 @@ export interface OverlayCardColors {
 }
 
 // The literal-black/white-by-appearance "retro" formula this package's own BaseSettingsDialog and
-// ConfirmDialog each independently re-derived — deliberately NOT auto-paper's own (seed-color-tinted)
+// ConfirmDialog each independently re-derived - deliberately NOT auto-paper's own (seed-color-tinted)
 // background role, see either component's own "High-contrast retro look" comment for why. Every
 // fleet app's own Game-Over/Round-Over/Match-Over/Quit-confirmation overlay re-derives this same
 // three-or-four-line formula again, which is what this export exists to replace.
@@ -21,7 +21,7 @@ export function getOverlayCardColors(dark: boolean): OverlayCardColors {
   }
 }
 
-// Only the shell shape every overlay card shares (backdrop + card geometry) — deliberately not the
+// Only the shell shape every overlay card shares (backdrop + card geometry) - deliberately not the
 // title/body styling, which already legitimately varies by consumer (each app's own score/badge/zone
 // content). A consumer applies `{backgroundColor: cardBg, borderColor: cardBorder}` from
 // getOverlayCardColors on top of `card` itself, same as every existing call site already does. The
@@ -51,7 +51,7 @@ export const overlayStyles = StyleSheet.create({
 // Back) on the left, a contained primary on the right, each growing to split the row but never
 // narrower than 128. Moved here from ConfirmDialog when the how-to-play card needed the identical
 // row, so the two can't drift into different button shapes (the guide briefly shipped text-mode
-// Skip/Back — the only text buttons in the fleet).
+// Skip/Back - the only text buttons in the fleet).
 export const overlayActionStyles = StyleSheet.create({
   // minWidth (not flexBasis) is each button's real floor - whenever both fit side by side, flexGrow
   // still splits any leftover width evenly beyond that floor, same visual result as a plain flex: 1

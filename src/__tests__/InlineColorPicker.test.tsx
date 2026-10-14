@@ -10,7 +10,7 @@ import { useAutoAlign } from '../useAutoAlign'
 import { PopoverHost, usePopoverHost } from '../usePopoverHost'
 
 // Only this file's own "rotation" describe block below actually asserts against useAutoAlign's call
-// args — every other test here never depends on its real alignment output, so replacing it with a
+// args - every other test here never depends on its real alignment output, so replacing it with a
 // jest.fn() (real implementation preserved for anything not overridden per-test) doesn't change any
 // existing test's behavior.
 jest.mock('../useAutoAlign', () => ({
@@ -19,11 +19,11 @@ jest.mock('../useAutoAlign', () => ({
 }))
 
 // A real usePopoverHost, wired into the SAME render tree as the component under test (rather than
-// a separately-rendered renderHook() instance) — this is what lets clicking the trigger inside this
+// a separately-rendered renderHook() instance) - this is what lets clicking the trigger inside this
 // tree actually re-render InlineColorPicker with the updated openId, instead of mutating a host
 // object nothing downstream ever observes. `onHost` is called on every render with the latest host
 // so a test can read the latest openId right after an interaction (via the `hostBox` its own
-// callback closes over — Harness itself only ever calls the prop, never mutates one, so this stays
+// callback closes over - Harness itself only ever calls the prop, never mutates one, so this stays
 // clean under the no-mutating-props/hook-purity lint rules).
 interface HostBox {
   host: PopoverHost | null
@@ -54,7 +54,7 @@ function newHostBox(): HostBox {
   return { host: null }
 }
 
-// The trigger's own onPress is always TouchableRipple call index 0 on first mount — swatch
+// The trigger's own onPress is always TouchableRipple call index 0 on first mount - swatch
 // TouchableRipples don't exist until the popover is open.
 function triggerOnPress() {
   return (TouchableRipple as jest.Mock).mock.calls[0][0].onPress
@@ -62,7 +62,7 @@ function triggerOnPress() {
 
 // Each TouchableRipple's `style` prop is an array; for both the trigger and every swatch, exactly
 // one element in that array is a plain `{ backgroundColor }` object (see InlineColorPicker's own
-// style arrays) — every other element (styles.trigger / styles.swatch / conditional selected/taken
+// style arrays) - every other element (styles.trigger / styles.swatch / conditional selected/taken
 // styles) never carries that key. That makes backgroundColor a reliable way to find "the
 // TouchableRipple currently rendering this particular color", independent of how many render
 // passes useAutoAlign's measurement causes (confirmed empirically: opening causes 2 extra render
@@ -82,7 +82,7 @@ function lastRippleWithColor(color: string) {
 }
 
 // The swatch grid's own ScrollView carries { width, maxHeight } inline (see InlineColorPicker's
-// own render) — the only element of its style array with a `width` key, same "find the one style
+// own render) - the only element of its style array with a `width` key, same "find the one style
 // object with this particular key" approach as styleBackgroundColor above.
 function lastScrollViewSize(): { width?: number; maxHeight?: number } {
   const calls = (ScrollView as jest.Mock).mock.calls

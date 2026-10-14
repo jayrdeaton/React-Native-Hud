@@ -46,7 +46,7 @@ export interface HowToPlayDialogProps {
   steps: GuideStep[]
   // Last card's primary button.
   onFinish: () => void
-  // Skip (first card only — see the action row), and Android's hardware back button — both mean "I don't need this", so a caller persisting
+  // Skip (first card only - see the action row), and Android's hardware back button - both mean "I don't need this", so a caller persisting
   // "seen" should treat them exactly like onFinish.
   onSkip: () => void
   // The app's live fake-landscape rotation (see GuideRotation). Portal content escapes any rotated
@@ -147,8 +147,8 @@ function HowToPlayCard({ steps, onFinish, onSkip, rotation = 0 }: CardProps) {
           )}
 
           {/* ConfirmDialog's exact row (see overlayActionStyles): outlined secondary on the left,
-            contained primary on the right. Skip and Back share the one secondary slot — three
-            full-size buttons don't fit side by side at the row's 128 minimum — so Skip is only
+            contained primary on the right. Skip and Back share the one secondary slot - three
+            full-size buttons don't fit side by side at the row's 128 minimum - so Skip is only
             offered on the first card; after that the way out is Next to the end (a short flow) or
             Android's hardware back, which skips from anywhere. */}
           <View style={overlayActionStyles.actions}>
@@ -167,15 +167,15 @@ function HowToPlayCard({ steps, onFinish, onSkip, rotation = 0 }: CardProps) {
   )
 }
 
-// A short, skippable, paged "how to play" card — the one shared shape every fleet game's intro takes,
+// A short, skippable, paged "how to play" card - the one shared shape every fleet game's intro takes,
 // built on the same retro overlay-card look as ConfirmDialog (see overlayCard.ts) so it reads as
 // part of the same family. Controlled and presentational: whether it's visible, and what happens on
-// finish/skip (persisting "seen", mostly), is the caller's — see GuideProvider for the wiring nearly
+// finish/skip (persisting "seen", mostly), is the caller's - see GuideProvider for the wiring nearly
 // every app wants. Buttons are the primary way through; the paging ScrollView underneath is what
 // makes a swipe work too, with no gesture-handler dependency.
 //
 // Split into an outer visibility gate and an inner card so the card's own page index is created
-// fresh every time it opens — a replay from Settings always starts on the first card, with no
+// fresh every time it opens - a replay from Settings always starts on the first card, with no
 // effect needed to reset it.
 export function HowToPlayDialog({ visible, steps, ...rest }: HowToPlayDialogProps) {
   if (!visible || steps.length === 0) return null
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   body: {
     textAlign: 'center'
   },
-  // Additive on top of overlayCard's own shared `card` shape — its default 32px padding is tighter
+  // Additive on top of overlayCard's own shared `card` shape - its default 32px padding is tighter
   // here (a paged card wants more width for its art) and the shared 16px gap is right.
   card: {
     padding: CARD_PADDING

@@ -13,7 +13,7 @@ export interface SwipeHintProps {
   // plays by dragging). The mouse variant also relabels itself "Drag" for screen readers, since a
   // desktop player should never be told to swipe.
   pointer?: SwipePointer
-  // Defaults to the theme's own primary — i.e. the player's own seat color in the fleet games.
+  // Defaults to the theme's own primary - i.e. the player's own seat color in the fleet games.
   color?: string
   // Length of the dotted path in points, arrowhead excluded.
   length?: number
@@ -28,7 +28,7 @@ const PAUSE_MS = 500
 const ARROW_ICON: Record<SwipeDirection, string> = { up: 'arrow-up', down: 'arrow-down', left: 'arrow-left', right: 'arrow-right' }
 
 // A finger-sized ring (or, with pointer='mouse', a mouse) sweeping along a dotted path toward an
-// arrowhead, on a loop — the "swipe this way" illustration the arcade games (LightCycles, Snake, Pong,
+// arrowhead, on a loop - the "swipe this way" illustration the arcade games (LightCycles, Snake, Pong,
 // AirHockey, BoxHockey) each need for their first card, so it lives here once rather than being
 // redrawn per app. The mouse variant is the same card on desktop web for a seat that plays by
 // dragging; Snake and AirHockey each drew their own before it existed. Plain Views plus Reanimated:
@@ -40,7 +40,7 @@ export function SwipeHint({ direction = 'right', pointer = 'finger', color, leng
   const reducedMotion = useReducedMotion()
   const progress = useSharedValue(0.5)
   const horizontal = direction === 'left' || direction === 'right'
-  // Which way the finger travels along its own axis — left/up run against the positive x/y axes.
+  // Which way the finger travels along its own axis - left/up run against the positive x/y axes.
   const sign = direction === 'right' || direction === 'down' ? 1 : -1
 
   useEffect(() => {
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between'
   },
   // Centered on the whole path (not on the dots row alone) by the container's own alignItems/
-  // justifyContent, then pushed along the axis by its own animated translate — absolute so it never
+  // justifyContent, then pushed along the axis by its own animated translate - absolute so it never
   // takes space from the dots and arrowhead it's drawn over.
   finger: {
     borderRadius: FINGER_SIZE / 2,

@@ -68,8 +68,8 @@ describe('SharedActionBand', () => {
   })
 
   it('elevates the column only when popoverOpen is true', () => {
-    // The outer column View always carries the base { alignItems:'center', gap:8 } style — a
-    // stable object reference, since this mock's StyleSheet.create is the identity function —
+    // The outer column View always carries the base { alignItems:'center', gap:8 } style - a
+    // stable object reference, since this mock's StyleSheet.create is the identity function -
     // making it findable regardless of how many other Views the render tree also mocks.
     const isColumnCall = (call: unknown[]) => flatten((call[0] as { style?: unknown }).style).some((s) => s.alignItems === 'center' && s.gap === 8)
 

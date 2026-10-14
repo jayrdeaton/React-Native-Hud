@@ -6,7 +6,7 @@ import { UpdateDialog } from '../UpdateDialog'
 
 const manifest = { createdAt: '2026-01-01T12:00:00.000Z' }
 
-// Button is a bare stub (see rific-feedback-press mock) that renders its own `children` — same
+// Button is a bare stub (see rific-feedback-press mock) that renders its own `children` - same
 // label-based lookup ConfirmDialog.test.tsx already uses, since both of ConfirmDialog's own
 // buttons render a plain string label.
 function findButtonByLabel(label: string) {
@@ -15,7 +15,7 @@ function findButtonByLabel(label: string) {
   return call[0]
 }
 
-// useUpdater is a jest.fn() (see rific-updater mock) — the options object UpdateDialog
+// useUpdater is a jest.fn() (see rific-updater mock) - the options object UpdateDialog
 // constructed, onConfirm included, is right there in its last call, same technique
 // BaseSettingsDialog.test.tsx already uses for its own useUpdater assertions.
 function latestOnConfirm() {

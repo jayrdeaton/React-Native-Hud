@@ -13,7 +13,7 @@ describe('SkiaGate', () => {
 
     const { container } = render(<SkiaGate getComponent={getComponent} componentProps={{ label: 'hi' }} />)
 
-    // Nothing has resolved yet — the default fallback (null) is what's on screen.
+    // Nothing has resolved yet - the default fallback (null) is what's on screen.
     expect(container.textContent).toBe('')
     expect(getComponent).toHaveBeenCalledTimes(1)
 
@@ -40,7 +40,7 @@ describe('SkiaGate', () => {
     unmount()
 
     // Resolving after unmount must not throw React's "state update on an unmounted component"
-    // warning-turned-error — the effect's cleanup flips a `cancelled` flag the resolved .then()
+    // warning-turned-error - the effect's cleanup flips a `cancelled` flag the resolved .then()
     // checks before calling setState.
     await expect(
       act(async () => {

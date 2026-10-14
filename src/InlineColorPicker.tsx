@@ -9,7 +9,7 @@ import { PopoverBody } from './PopoverBody'
 import { AlignResult, PopoverRotation, useAutoAlign } from './useAutoAlign'
 import { PopoverHost } from './usePopoverHost'
 
-// Presence check, not a full-string "is this exactly one emoji" validation — this only decides a
+// Presence check, not a full-string "is this exactly one emoji" validation - this only decides a
 // font-size ratio for the trigger's own `tag`, so it doesn't need that precision, just "does this
 // tag contain a pictograph at all."
 const EMOJI_PATTERN = /\p{Extended_Pictographic}/u
@@ -19,14 +19,14 @@ const SWATCH_SIZE = 28
 const SWATCHES_PADDING = 8
 const SWATCHES_GAP = 6
 const SWATCHES_BORDER_WIDTH = 2
-// Clamped to exactly 4 or 5, not a wider 3-6 range — `defaultColors` (this component's own default
+// Clamped to exactly 4 or 5, not a wider 3-6 range - `defaultColors` (this component's own default
 // `swatches`, and what every consumer actually ends up passing) is exactly 20 colors, so 4 or 5
 // columns are the only counts that fill every row completely (4x5 or 5x4) instead of leaving a
 // ragged, off-center last row. A caller passing a custom, non-20-length `swatches` list still gets
-// a reasonable grid either way — just not guaranteed to be a full rectangle.
+// a reasonable grid either way - just not guaranteed to be a full rectangle.
 const MIN_COLUMNS = 4
 const MAX_COLUMNS = 5
-// How much screen width the grid leaves alone on either side when computing how many columns fit —
+// How much screen width the grid leaves alone on either side when computing how many columns fit -
 // this trigger can sit anywhere (including flush against a player's own screen edge in split-screen
 // mode), so the budget is against the whole window, not this trigger's own local space.
 const SCREEN_MARGIN = 40
@@ -35,13 +35,13 @@ function widthForColumns(columns: number) {
   return SWATCHES_BORDER_WIDTH * 2 + SWATCHES_PADDING * 2 + SWATCH_SIZE * columns + SWATCHES_GAP * (columns - 1)
 }
 
-// Exported so a caller that needs to independently compute this popover's own content size — to
+// Exported so a caller that needs to independently compute this popover's own content size - to
 // feed useZoneClampedAlign's contentWidth/contentHeight params with, ahead of producing a
-// colorAlignOverride for a picker living inside a @tastic/split-screen zone — can match this
+// colorAlignOverride for a picker living inside a @tastic/split-screen zone - can match this
 // component's real rendered size exactly, rather than re-deriving or hardcoding its internal
 // column/row math. Same job as LabeledDropdown's own getLabeledDropdownContentHeight, but this
 // picker's size also depends on window width (via the auto-column clamp below), so windowWidth is
-// a required parameter here rather than an ambient useWindowDimensions() read — a caller computing
+// a required parameter here rather than an ambient useWindowDimensions() read - a caller computing
 // this ahead of render (to decide alignment before the picker itself has even mounted) has no
 // component instance to read that hook from, so it has to pass the value in instead. The component
 // below calls this same function with its own live useWindowDimensions() read, so there is exactly
@@ -60,20 +60,20 @@ interface Props {
   host: PopoverHost
   value: string
   onChange: (hex: string) => void
-  // Transforms only what's *rendered* — trigger fill, swatch fill, and the contrast/caret/border
-  // colors derived from them — leaving `value`/`swatch.value` themselves untouched for `selected`/
+  // Transforms only what's *rendered* - trigger fill, swatch fill, and the contrast/caret/border
+  // colors derived from them - leaving `value`/`swatch.value` themselves untouched for `selected`/
   // `taken` matching and for what onChange actually commits. For a host whose own theme mutes or
   // tints a raw seed color before it's actually used elsewhere (e.g. blending it toward a base
   // palette for a card-back tint), so the picker can preview that real result per-swatch instead of
   // the too-vibrant seed hue, without changing what gets stored.
   previewValue?: (hex: string) => string
   swatches?: SeedColor[]
-  // The other player's current color, if any — stays visible in the grid (so the full palette
+  // The other player's current color, if any - stays visible in the grid (so the full palette
   // reads consistently for both players) but renders disabled with an X, rather than being
-  // silently removed from the list. Unless allowSwapTaken is set — see that prop.
+  // silently removed from the list. Unless allowSwapTaken is set - see that prop.
   takenValue?: string
   // Lets a tap on the taken swatch swap the two colors (this picker takes it, the other slot takes
-  // this picker's old color) instead of being disabled — useful when the "other" slot is CPU-
+  // this picker's old color) instead of being disabled - useful when the "other" slot is CPU-
   // controlled, not a second real person's choice to step on. Leave unset when the other slot is a
   // human player: swapping their color out from under them without their input isn't the same
   // tradeoff.
@@ -83,41 +83,41 @@ interface Props {
   // (see alignOverride below) decide.
   align?: 'left' | 'right' | 'center'
   // Substitutes this package's own plain useAutoAlign-based placement wholesale (align,
-  // verticalAlign, maxHeight, measured, triggerRef) with a caller-supplied one — e.g.
+  // verticalAlign, maxHeight, measured, triggerRef) with a caller-supplied one - e.g.
   // useZoneClampedAlign's result, for a picker living inside a @tastic/split-screen zone, where the
   // plain window-relative decision can pick a direction that overflows into the shared row instead
   // of the zone's own boundary. Same shape LabeledDropdown's/SectionedDropdown's own alignOverride
   // takes; omit for the ordinary case (a popover with nothing but the screen edge to avoid).
   alignOverride?: AlignResult
   // Explicit override for the rotation a @tastic/split-screen-style FakeLandscapeView (or
-  // equivalent) ancestor is currently applying — see SectionedDropdown's identical prop for the
+  // equivalent) ancestor is currently applying - see SectionedDropdown's identical prop for the
   // full reasoning. Defaults to a live ambient read via @tastic/core's useRotation() when omitted.
   rotation?: PopoverRotation
-  // Trigger glyph — defaults to a plain palette. Pass a distinct icon per slot (e.g. a face for a
+  // Trigger glyph - defaults to a plain palette. Pass a distinct icon per slot (e.g. a face for a
   // human, a robot for CPU) to convey identity through the icon itself. Overridden by `tag` below
   // when present.
   icon?: string
   // A short identity mark (an initial, an emoji, a couple of characters) shown as text on the
-  // trigger instead of `icon` — e.g. a saved player profile's own tag. Falls back to `icon` when
+  // trigger instead of `icon` - e.g. a saved player profile's own tag. Falls back to `icon` when
   // empty/omitted, same as a seat with no such identity selected.
   tag?: string
-  // Same convention as SectionedDropdown/ReadyButton's identical prop — defaults to this package's
+  // Same convention as SectionedDropdown/ReadyButton's identical prop - defaults to this package's
   // own MONO_FONT rather than inheriting whatever font the host app's theme happens to be using,
   // so this trigger's tag reads consistently with the rest of this package's own chrome text.
   labelFontFamily?: string
-  // Whether picking a swatch closes the popover. Defaults to true — a color pick is a single,
+  // Whether picking a swatch closes the popover. Defaults to true - a color pick is a single,
   // complete choice the same way a single-select dropdown row is (see SectionedDropdown's identical
   // prop), so press-away isn't the only way out, but doesn't have to be either.
   autoDismiss?: boolean
   // Overrides the auto-computed column count (see MIN_COLUMNS/MAX_COLUMNS/SCREEN_MARGIN above).
   columns?: number
-  // Trigger circle's diameter — defaults to DEFAULT_SIZE. Overridable so a caller sharing a row
+  // Trigger circle's diameter - defaults to DEFAULT_SIZE. Overridable so a caller sharing a row
   // with other fixed-size elements can line this trigger up with them instead of standing out at a
   // mismatched size.
   size?: number
 }
 
-// Renders inline rather than as a full-screen modal, scoped to its own panel — a modal color
+// Renders inline rather than as a full-screen modal, scoped to its own panel - a modal color
 // picker would block the whole screen for one player while another can't touch their own panel at
 // the same time, which defeats the point of a split-screen lobby.
 export function InlineColorPicker({ id, host, value, onChange, previewValue, swatches = defaultColors, takenValue, allowSwapTaken, dark, align: forcedAlign, alignOverride, rotation: rotationOverride, icon = 'palette', tag, labelFontFamily = MONO_FONT, autoDismiss = true, columns, size = DEFAULT_SIZE }: Props) {
@@ -128,7 +128,7 @@ export function InlineColorPicker({ id, host, value, onChange, previewValue, swa
   const { width: swatchesWidth, height: swatchesHeight } = getInlineColorPickerContentSize(swatches.length, windowWidth, columns)
 
   const open = host.openId === id
-  // Always called, even when alignOverride is supplied and this result goes unused — hooks can't be
+  // Always called, even when alignOverride is supplied and this result goes unused - hooks can't be
   // called conditionally. See LabeledDropdown's identical comment for the same tradeoff.
   const auto = useAutoAlign(open, swatchesWidth, swatchesHeight, rotation)
   const placement = alignOverride ?? auto
@@ -139,7 +139,7 @@ export function InlineColorPicker({ id, host, value, onChange, previewValue, swa
   const contrastColor = getContrastColor(displayValue)
   // An emoji glyph reads visually smaller than a bold letter at the same fontSize (the system emoji
   // font leaves more of its own em-box empty), so a plain-text ratio that looks right for an initial
-  // still looks small for an emoji tag at the identical size — this bumps emoji up to the icon's own
+  // still looks small for an emoji tag at the identical size - this bumps emoji up to the icon's own
   // ratio instead, since a single emoji is closer in visual weight to an icon glyph than to text.
   const tagFontSize = size * (tag && EMOJI_PATTERN.test(tag) ? 0.6 : 0.4)
 
@@ -160,14 +160,14 @@ export function InlineColorPicker({ id, host, value, onChange, previewValue, swa
         </View>
       </TouchableRipple>
 
-      {/* Gated on `measured`, not just `open` — see useAutoAlign's own comment and
+      {/* Gated on `measured`, not just `open` - see useAutoAlign's own comment and
       SectionedDropdown's identical fix: without it, the popover mounts for one frame at a stale or
       guessed alignment and visibly jumps once this open's own measurement lands. */}
       <PopoverBody visible={open && measured} align={align} verticalAlign={verticalAlign} caretColor={menuBg} caretBorderColor={displayValue} caretBorderWidth={SWATCHES_BORDER_WIDTH} triggerSize={size}>
-        {/* Border matches this trigger's own current color (not a neutral gray) — two triggers can
+        {/* Border matches this trigger's own current color (not a neutral gray) - two triggers can
         sit close together, so the popover needs a clear visual tie back to which one opened it,
         not just its screen position. maxHeight (see useAutoAlign) only actually clamps on a screen
-        short enough that the full grid can't fit above or below the trigger either way — a short
+        short enough that the full grid can't fit above or below the trigger either way - a short
         landscape screen with the trigger row near the top, same case SectionedDropdown's own
         ScrollView exists for. */}
         <ScrollView style={[styles.swatches, { backgroundColor: menuBg, borderColor: displayValue, width: swatchesWidth, maxHeight }]} contentContainerStyle={styles.swatchesContent} showsVerticalScrollIndicator={false}>
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   anchor: {
     position: 'relative'
   },
-  // See SectionedDropdown's identical comment — React Native Web gives every position:'relative' view
+  // See SectionedDropdown's identical comment - React Native Web gives every position:'relative' view
   // its own stacking context, so the elevation has to live on the anchor itself, not just the
   // popover content nested inside it, to correctly paint above this anchor's own later siblings.
   anchorOpen: {
@@ -229,12 +229,12 @@ const styles = StyleSheet.create({
     shadowOffset: { height: 2, width: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 8
-    // width is set inline above — border-box sizing means it has to include the border too
+    // width is set inline above - border-box sizing means it has to include the border too
     // (2*SWATCHES_BORDER_WIDTH), not just padding+content, or exactly enough room goes missing that
     // the last column silently wraps to a new row. Anything wider than the exact sum just shows as
     // dead space on the right edge of each row instead.
   },
-  // Separate from `swatches` itself — see SectionedDropdown's identical menu/menuContent split.
+  // Separate from `swatches` itself - see SectionedDropdown's identical menu/menuContent split.
   // The scroll frame's own bounds (including maxHeight) live on the ScrollView; the actual grid
   // wrapping belongs to its contentContainerStyle, which sizes to the unclamped content instead.
   swatchesContent: {
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5
   },
-  // borderRadius/height/width come from the `size` prop instead (see render-site override) — no
+  // borderRadius/height/width come from the `size` prop instead (see render-site override) - no
   // fixed default here, since this style object is shared by every caller regardless of size.
   trigger: {
     alignItems: 'center',
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   // Wraps just the icon/tag, inside the TouchableRipple, purely so useAutoAlign has a plain View
-  // to attach its measurement ref to — TouchableRipple itself doesn't forward a ref to a
+  // to attach its measurement ref to - TouchableRipple itself doesn't forward a ref to a
   // measurable native node. Padded horizontally so a multi-character tag doesn't butt right up
   // against the trigger's own circular edge (an icon alone doesn't need it, but this style is
   // shared by both).

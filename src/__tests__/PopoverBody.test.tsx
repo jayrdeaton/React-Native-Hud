@@ -10,7 +10,7 @@ const flatten = (style: unknown): Record<string, unknown>[] =>
     .flat(Infinity)
     .filter(Boolean) as Record<string, unknown>[]
 
-// Every <View> rendered anywhere in the tree, as its flattened style-entry list — the outer content
+// Every <View> rendered anywhere in the tree, as its flattened style-entry list - the outer content
 // View carries zIndex: 50 (styles.content), while either caret View carries zIndex: 1 (styles.caret),
 // so callers can tell them apart without depending on call order.
 const viewStyles = (): Record<string, unknown>[][] => (mockViewRender as jest.Mock).mock.calls.map((call) => flatten((call[0] as { style?: unknown }).style))

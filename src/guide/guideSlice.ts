@@ -1,18 +1,18 @@
 // redux-persist's own REHYDRATE action-type constant, inlined as a literal rather than taking a
-// dependency on the package itself — same reasoning as @tastic/profile's createSeatColorsSlice, whose
+// dependency on the package itself - same reasoning as @tastic/profile's createSeatColorsSlice, whose
 // factory shape this follows: this file has no opinion on whether the consuming app uses
 // redux-persist at all, and the string is a long-stable part of its public contract.
 const REHYDRATE = 'persist/REHYDRATE'
 
 export interface GuideState {
-  // The highest guide version this player has finished or skipped — 0 means "never". Compared
+  // The highest guide version this player has finished or skipped - 0 means "never". Compared
   // against the app's own `currentVersion`, so bumping that later re-prompts everyone (only worth
   // doing for a genuine controls/rules change, not a copy tweak).
   versionSeen: number
 }
 
 // A `type` alias, not an `interface`, on purpose: redux's UnknownAction has a string index signature,
-// and only an object-literal type alias (never an interface) is implicitly assignable to one — with an
+// and only an object-literal type alias (never an interface) is implicitly assignable to one - with an
 // interface here `configureStore` rejects the reducer at the consuming app's own typecheck.
 export type GuideAction = {
   type: string
@@ -24,7 +24,7 @@ export type GuideAction = {
 export interface GuideSliceOptions {
   // What a player who has already seen (or been grandfathered past) the guide is stamped with.
   currentVersion: number
-  // The key the reducer is mounted under in the app's own combineReducers({...}) — redux-persist's
+  // The key the reducer is mounted under in the app's own combineReducers({...}) - redux-persist's
   // REHYDRATE payload is keyed by it, and a reducer has no way to see its own mount key.
   mountKey?: string
   // The persistConfig `key` of the store this reducer lives in. A REHYDRATE for any OTHER persisted
@@ -40,7 +40,7 @@ export interface GuideSlice {
 }
 
 // The persisted "has this player seen the how-to-play flow" flag, as its own slice rather than a
-// field on any app's settings blob — every fleet app already has a redux-persist root store behind a
+// field on any app's settings blob - every fleet app already has a redux-persist root store behind a
 // PersistGate, and a dedicated key survives 'Reset stats'/'Reset match settings' (neither touches
 // Redux) without needing any of the four strict per-app settings validators to learn a new field.
 //
@@ -49,7 +49,7 @@ export interface GuideSlice {
 // fresh install redux-persist's getStoredState finds nothing under the persistConfig key and
 // REHYDRATE arrives with `payload === undefined`; an existing player has a payload object that
 // simply predates this slice and so has no `[mountKey]` entry. The first shows the guide; the
-// second is grandfathered — stamped as already having seen `currentVersion` — so nobody who has been
+// second is grandfathered - stamped as already having seen `currentVersion` - so nobody who has been
 // playing gets a "how to play" screen after an over-the-air update. Both can still replay it from
 // Settings.
 //
@@ -68,7 +68,7 @@ export function createGuideSlice({ currentVersion, mountKey = 'guide', persistKe
     if (action.type === REHYDRATE) {
       if (action.key !== undefined && action.key !== persistKey) return state
       const payload = action.payload as Record<string, Partial<GuideState> | undefined> | undefined
-      // Nothing persisted at all (fresh install) — or the read failed, which shows the guide once
+      // Nothing persisted at all (fresh install) - or the read failed, which shows the guide once
       // more rather than silently skipping it.
       if (!payload) return state
       const persisted = payload[mountKey]

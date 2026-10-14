@@ -9,13 +9,13 @@ import { BaseStatsScreen } from '../BaseStatsScreen'
 const INSETS = { top: 0, left: 0, bottom: 0, right: 0 }
 
 // See StatRow.test.tsx's own header comment for why this inspects the Text mock directly rather
-// than screen.getByText — this package's own View/Text mocks leave no per-Text DOM boundary once
+// than screen.getByText - this package's own View/Text mocks leave no per-Text DOM boundary once
 // more than one Text renders as siblings (title + children content here).
 function renderedTexts() {
   return (Text as jest.Mock).mock.calls.map((c) => c[0].children)
 }
 
-// Same flatten/viewStyles pattern as PopoverBody.test.tsx's own header comment — every <View>
+// Same flatten/viewStyles pattern as PopoverBody.test.tsx's own header comment - every <View>
 // rendered anywhere in the tree, as its flattened style-entry list, so a backgroundColor override
 // can be asserted without depending on which View call index carries it.
 const flatten = (style: unknown): Record<string, unknown>[] =>
@@ -85,7 +85,7 @@ describe('BaseStatsScreen', () => {
     expect(renderedTexts()).toContain('Reset Everything?')
 
     // Cleared right before the closing action so the check below reflects only THIS render pass
-    // — mock.calls accumulates across the whole test otherwise, and the dialog's now-stale
+    // - mock.calls accumulates across the whole test otherwise, and the dialog's now-stale
     // "Reset Everything?" call from the open state would still show up in the history.
     ;(Text as jest.Mock).mockClear()
     const confirmButton = (Button as jest.Mock).mock.calls.find((c) => c[0].children === 'Reset')![0]
@@ -124,7 +124,7 @@ describe('BaseStatsScreen', () => {
 
     // The reset button's own label is a Button child (Button's mock renders its bare string
     // children directly, never through the Text mock), so this is asserted via Button's own mock
-    // calls, not renderedTexts() — see that helper's own header comment.
+    // calls, not renderedTexts() - see that helper's own header comment.
     const resetTrigger = (Button as jest.Mock).mock.calls.find((c) => c[0].children === 'Reset High Scores')![0]
     act(() => resetTrigger.onPress())
     expect(renderedTexts()).toContain('Clear scores?')

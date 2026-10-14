@@ -5,7 +5,7 @@ import { mockViewRender } from '../__mocks__/react-native'
 import { StatSection } from '../StatSection'
 
 // See StatRow.test.tsx's own header comment for why this inspects the Text mock directly rather
-// than screen.getByText — this package's own View/Text mocks leave no per-Text DOM boundary once
+// than screen.getByText - this package's own View/Text mocks leave no per-Text DOM boundary once
 // more than one Text renders as siblings.
 // Same flatten/viewStyles pattern as PopoverBody.test.tsx's own header comment.
 const flatten = (style: unknown): Record<string, unknown>[] =>

@@ -12,8 +12,8 @@ const POPOVER_WIDTH = 180
 const ROW_HEIGHT = 36
 const LIST_PADDING = 8
 
-// Exported so a caller that needs to independently compute this popover's own placement — to feed
-// alignOverride with, say, a @tastic/split-screen-zone-aware hook's result — can match its real
+// Exported so a caller that needs to independently compute this popover's own placement - to feed
+// alignOverride with, say, a @tastic/split-screen-zone-aware hook's result - can match its real
 // content dimensions exactly, rather than hardcoding or re-deriving this component's own internal
 // sizing (which alignOverride itself deliberately doesn't take a dependency on any particular
 // zone-awareness package to compute).
@@ -40,7 +40,7 @@ interface Props<T extends string> {
   // (see alignOverride below) decide. Matches PopoverBody's own align prop meaning.
   align?: 'left' | 'right' | 'center'
   // Substitutes this package's own plain useAutoAlign-based placement wholesale (align,
-  // verticalAlign, maxHeight, measured, triggerRef) with a caller-supplied one — e.g. a popover
+  // verticalAlign, maxHeight, measured, triggerRef) with a caller-supplied one - e.g. a popover
   // living inside a @tastic/split-screen zone, where the plain window-relative decision can pick a
   // direction that overflows into the shared row instead of the actual zone boundary. Omit for the
   // ordinary case (a popover with nothing but the screen edge to avoid).
@@ -48,8 +48,8 @@ interface Props<T extends string> {
 }
 
 // A name-trigger + selection popover in the same visual style as @tastic/profile's own
-// ProfilePicker trigger — an uppercase text label + chevron, opening a list whose selected row
-// fills entirely with the seat's own accent color — rather than this package's own
+// ProfilePicker trigger - an uppercase text label + chevron, opening a list whose selected row
+// fills entirely with the seat's own accent color - rather than this package's own
 // SectionedDropdown, whose trigger is a fixed icon with a gauge ring around it. For a choice that
 // reads more like "who/what you're playing" than "a game setting" (a CPU seat's own difficulty,
 // occupying the same slot a human seat's ProfilePicker would), the always-visible text label
@@ -61,7 +61,7 @@ export function LabeledDropdown<T extends string>({ id, host, options, value, on
   const open = host.openId === id
   const selected = options.find((o) => o.value === value) ?? null
   const contentHeight = LIST_PADDING * 2 + options.length * ROW_HEIGHT
-  // Always called, even when alignOverride is supplied and this result goes unused — hooks can't be
+  // Always called, even when alignOverride is supplied and this result goes unused - hooks can't be
   // called conditionally. A caller passing alignOverride (e.g. this package's own
   // useZoneClampedAlign, which already wraps this same hook) does end up measuring the trigger
   // twice; an acceptable tradeoff for keeping this component's own hook usage unconditional and
@@ -87,7 +87,7 @@ export function LabeledDropdown<T extends string>({ id, host, options, value, on
         </View>
       </TouchableRipple>
 
-      {/* Gated on `measured`, not just `open` — see InlineColorPicker's identical fix. */}
+      {/* Gated on `measured`, not just `open` - see InlineColorPicker's identical fix. */}
       <PopoverBody visible={open && measured} align={align} verticalAlign={verticalAlign} caretColor={menuBg} caretBorderColor={color} caretBorderWidth={2} triggerSize={TRIGGER_HEIGHT}>
         <ScrollView style={[styles.menu, { backgroundColor: menuBg, borderColor: color, width: POPOVER_WIDTH, maxHeight }]} contentContainerStyle={styles.menuContent} showsVerticalScrollIndicator={false}>
           {options.map((option) => {
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     position: 'relative'
   },
   // React Native Web gives every position:'relative' view its own stacking context, so the
-  // elevation has to live on the anchor itself — see PopoverBody's own stacking-context notes.
+  // elevation has to live on the anchor itself - see PopoverBody's own stacking-context notes.
   anchorOpen: {
     zIndex: 100
   },

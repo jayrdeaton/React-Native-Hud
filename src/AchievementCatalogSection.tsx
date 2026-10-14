@@ -8,7 +8,7 @@ import { AchievementRow, LOCKED_BADGE_COLOR } from './AchievementRow'
 import { MONO_FONT } from './fonts'
 
 // AchievementCatalogRow now comes straight from @tastic/achievements' own getAchievementCatalogRows
-// (added in the same 2026-09-18 achievements-scaffolding pass this component belongs to) — no
+// (added in the same 2026-09-18 achievements-scaffolding pass this component belongs to) - no
 // longer duplicated locally now that package has actually published the export (confirmed the two
 // shapes match exactly before wiring this real, type-only peer dependency).
 

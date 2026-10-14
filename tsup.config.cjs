@@ -1,5 +1,5 @@
 // Three entries: the full barrel (src/index.ts), a standalone SkiaGate bundle for the ./skia-gate
-// subpath export, and a standalone how-to-play bundle for ./guide — see package.json's "exports" and
+// subpath export, and a standalone how-to-play bundle for ./guide - see package.json's "exports" and
 // CLAUDE.md's "Why SkiaGate exists" / "The guide subpath" for why each subpath needs its own build
 // output rather than just being reachable through the barrel (the barrel's own peer-dependency
 // surface is exactly what a lightweight consumer is trying to avoid). src/guide/index.ts builds to

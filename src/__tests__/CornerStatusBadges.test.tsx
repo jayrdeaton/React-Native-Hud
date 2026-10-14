@@ -10,8 +10,8 @@ const flatten = (style: unknown): Record<string, unknown>[] =>
     .flat(Infinity)
     .filter(Boolean) as Record<string, unknown>[]
 
-// The wrapping per-seat View (pointerEvents='none', one of the four corner styles) — distinct from
-// each badge's own inner View (no pointerEvents, the shared circular `badge` style) — so a test can
+// The wrapping per-seat View (pointerEvents='none', one of the four corner styles) - distinct from
+// each badge's own inner View (no pointerEvents, the shared circular `badge` style) - so a test can
 // count/inspect just the positioning wrapper regardless of how many other Views also rendered.
 const cornerViewCalls = () => (mockViewRender as jest.Mock).mock.calls.filter((c) => (c[0] as { pointerEvents?: string }).pointerEvents === 'none')
 const cornerStyles = (call: unknown[]) => flatten((call[0] as { style?: unknown }).style)

@@ -7,12 +7,12 @@ const LETTER_DURATION_MS = 320
 
 // The one formula every consumer's own follow-on animation (a paddle rally, a bouncing puck, a
 // looping trail) needs in order to time its own entrance off "once the letters have mostly
-// landed" — five apps (AirHockey, BoxHockey, Pong, LightCycles, Snake) had each independently
+// landed" - five apps (AirHockey, BoxHockey, Pong, LightCycles, Snake) had each independently
 // re-derived `(letterCount - 1) * STAGGER_MS + LETTER_DURATION_MS` locally as their own
 // `TOTAL_STAGGER_MS` constant. Exported as a pure function, not a component return value, so a
 // caller can compute it once, outside render, the same way every one of those apps already did.
 // `letterCount` is the TOTAL number of letters actually animated, not necessarily a single
-// StaggeredWord's own `word.length` — see `startIndex` below for a multi-word wordmark, where a
+// StaggeredWord's own `word.length` - see `startIndex` below for a multi-word wordmark, where a
 // second word's letters continue the same overall stagger sequence.
 export function getStaggeredWordDuration(letterCount: number): number {
   return (letterCount - 1) * STAGGER_MS + LETTER_DURATION_MS
@@ -57,13 +57,13 @@ export interface StaggeredWordProps {
   fontFamily: string
   fontSize: number
   lineHeight: number
-  // Whether to skip the stagger entirely and render every letter already fully settled — wire
+  // Whether to skip the stagger entirely and render every letter already fully settled - wire
   // straight from react-native-reanimated's own useReducedMotion() at the call site rather than
   // this component calling it internally, so a caller composing several StaggeredWords (see
   // `startIndex` below) only needs the one hook call, not one per word.
   reducedMotion: boolean
   // Continues the stagger sequence from a larger overall wordmark this word is only one line/part
-  // of — this word's own first letter animates at index `startIndex`, its second at
+  // of - this word's own first letter animates at index `startIndex`, its second at
   // `startIndex + 1`, and so on. Defaults to 0 for a standalone single-word wordmark (Snake's
   // "SNAKE", Pong's "PONG"); a caller stacking multiple words (AirHockey's "AIR"/"HOCKEY",
   // BoxHockey's "BOX"/"HOCKEY", LightCycles' "Light"/"Cycles") passes the running total of letters
@@ -71,15 +71,15 @@ export interface StaggeredWordProps {
   // instead of each word restarting its own stagger from zero.
   startIndex?: number
   // Every consumer this component was extracted from hardcoded bold letters (baked into a fixed
-  // StyleSheet entry, not a prop) — kept as the default here rather than a fixed style, so the one
+  // StyleSheet entry, not a prop) - kept as the default here rather than a fixed style, so the one
   // consumer that doesn't want it (LightCycles, whose own registered display font is already
   // sufficiently bold on its own) can opt out with `fontWeight='normal'` instead of this component
   // forcing it unconditionally.
   fontWeight?: TextStyle['fontWeight']
-  // Unset by default — only AirHockey/BoxHockey/Pong's shared MONO_FONT-based letter style actually
+  // Unset by default - only AirHockey/BoxHockey/Pong's shared MONO_FONT-based letter style actually
   // wants extra tracking; Snake's/LightCycles' own theme fonts don't.
   letterSpacing?: number
-  // The wrapping row's own style — e.g. LightCycles' own vertical offset for its second word
+  // The wrapping row's own style - e.g. LightCycles' own vertical offset for its second word
   // beneath its first.
   style?: StyleProp<ViewStyle>
   // Lets a caller measure this word's own rendered box (e.g. to size/position a follow-on canvas
@@ -89,11 +89,11 @@ export interface StaggeredWordProps {
 }
 
 // One row of letters staggering in on mount (or rendered already fully settled under reduced
-// motion) — the "AnimatedLetter" building block five apps' own hero-title screens
+// motion) - the "AnimatedLetter" building block five apps' own hero-title screens
 // (AirHockey/BoxHockey/Pong/LightCycles/Snake's own HeroTitle.tsx/AnimatedHeroTitle.tsx) had each
 // hand-rolled independently, identical down to the same 45ms stagger, 320ms per-letter duration,
 // and back-ease overshoot. A single word/line on its own, or one of several stacked/side-by-side
-// words sharing one overall stagger sequence via `startIndex` — this component only ever renders
+// words sharing one overall stagger sequence via `startIndex` - this component only ever renders
 // one row of letters; a caller composing more than one word renders more than one StaggeredWord
 // (see `startIndex`'s own doc), the same way every one of those five apps' own `Word` helper
 // already did internally.

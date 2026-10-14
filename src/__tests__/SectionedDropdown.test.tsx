@@ -10,7 +10,7 @@ import { useAutoAlign } from '../useAutoAlign'
 import { PopoverHost, usePopoverHost } from '../usePopoverHost'
 
 // Only this file's own "rotation" describe block below actually asserts against useAutoAlign's call
-// args — every other test here either uses an explicit align override or never opens the popover at
+// args - every other test here either uses an explicit align override or never opens the popover at
 // all, so replacing it with a jest.fn() (real implementation preserved for anything not overridden
 // per-test) doesn't change any existing test's behavior.
 jest.mock('../useAutoAlign', () => ({
@@ -77,7 +77,7 @@ function Harness({ hostBoxRef, sections, ...overrides }: { hostBoxRef: HostBox; 
 }
 
 // TriggerGaugeHost (and its lazy(() => import('./TriggerGauge'))) mounts unconditionally on every
-// render of SectionedDropdown, regardless of whether the popover itself is open — so every render,
+// render of SectionedDropdown, regardless of whether the popover itself is open - so every render,
 // not just an `open()`, needs the same settle step below or React warns about a Suspense resource
 // resolving outside act().
 async function renderDropdown(sections: MenuSection[], overrides: Partial<Parameters<typeof SectionedDropdown>[0]> = {}) {
@@ -88,7 +88,7 @@ async function renderDropdown(sections: MenuSection[], overrides: Partial<Parame
 }
 
 // Flushes the loadSkiaWeb().then(() => import(...).then(...)) chain behind TriggerGaugeHost's lazy
-// import — two chained microtask hops, so a bare `await act(async () => {})` (which only drains
+// import - two chained microtask hops, so a bare `await act(async () => {})` (which only drains
 // microtasks already queued when it starts) isn't reliably enough; a macrotask flush via setTimeout
 // guarantees every microtask queued along the way has drained first.
 async function settle() {
@@ -98,7 +98,7 @@ async function settle() {
 }
 
 // Grabs the trigger's own IconButton call (identified by accessibilityLabel, since a test may render
-// more than one dropdown/trigger) rather than assuming call order — the mock's call list accumulates
+// more than one dropdown/trigger) rather than assuming call order - the mock's call list accumulates
 // across every re-render within the test.
 function triggerProps(label = TRIGGER_LABEL) {
   const calls = (IconButton as jest.Mock).mock.calls
@@ -116,7 +116,7 @@ async function open(label = TRIGGER_LABEL) {
 }
 
 // Recursively searches a React element tree (as captured in a mock's props.children) for a string
-// child equal to `label` — this is how we locate a specific row's onPress, since every option row
+// child equal to `label` - this is how we locate a specific row's onPress, since every option row
 // renders via the TouchableRipple mock (a stub that only passes children through, so it isn't
 // clickable through the DOM) and carries no prop identifying which option it is other than its
 // rendered content.
@@ -148,10 +148,10 @@ function pick(label: string) {
 }
 
 // None of the mocked primitives (View/ScrollView/Pressable/TouchableRipple all just pass their
-// `children` straight through, and Text does the same) ever render an actual host DOM element —
+// `children` straight through, and Text does the same) ever render an actual host DOM element -
 // only the plain strings survive, as bare text nodes with no wrapping tag. That means
 // getByText/queryByText (which only ever match real elements) can't isolate one label once more
-// than one Text sibling is on screen — they'd all collapse into one shared parent's concatenated
+// than one Text sibling is on screen - they'd all collapse into one shared parent's concatenated
 // textContent. Asserting directly against the rendered text is the reliable substitute.
 function bodyText(): string {
   return document.body.textContent ?? ''
@@ -359,7 +359,7 @@ describe('SectionedDropdown', () => {
   })
 
   it('renders successfully with a full alignOverride, ignoring its own useAutoAlign result entirely', async () => {
-    // A deliberately "wrong" measured rect (would naturally overflow every edge) — if alignOverride
+    // A deliberately "wrong" measured rect (would naturally overflow every edge) - if alignOverride
     // weren't actually substituted wholesale, this would still be exercised and could throw/mis-render.
     mockMeasureInWindow.mockImplementationOnce((cb) => cb(-500, -500, 44, 44))
     await renderDropdown([makeSingle()], { alignOverride: { align: 'right', verticalAlign: 'above', maxHeight: 123, measured: true, triggerRef: { current: null } } })
@@ -369,7 +369,7 @@ describe('SectionedDropdown', () => {
     expect(bodyText()).toContain('Alpha')
   })
 
-  it('the align prop forces horizontal alignment even when alignOverride supplies its own — same precedence as LabeledDropdown', async () => {
+  it('the align prop forces horizontal alignment even when alignOverride supplies its own - same precedence as LabeledDropdown', async () => {
     await renderDropdown([makeSingle()], { align: 'left', alignOverride: { align: 'right', verticalAlign: 'above', maxHeight: 123, measured: true, triggerRef: { current: null } } })
 
     await open()

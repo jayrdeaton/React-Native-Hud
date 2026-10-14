@@ -17,14 +17,14 @@ const baseProps: StaggeredWordProps = {
 }
 
 // The mock's own doc (react-native-reanimated.ts) says as much: it resolves every animation
-// synchronously, so a plain re-render is enough to observe the settled end state — the initial
+// synchronously, so a plain re-render is enough to observe the settled end state - the initial
 // render still captures the pre-effect (opacity 0) frame, since useEffect fires only after that
 // first commit. Re-rendering with the exact same props forces a second pass that reads the
 // by-then-mutated shared value.
 function renderSettled(overrides: Partial<StaggeredWordProps> = {}) {
   const props = { ...baseProps, ...overrides }
   const result = render(<StaggeredWord {...props} />)
-  // Drop the pre-effect (opacity 0) render's own Animated.Text calls — only the rerender below,
+  // Drop the pre-effect (opacity 0) render's own Animated.Text calls - only the rerender below,
   // taken after the mount effect has already mutated every letter's shared value, reflects the
   // settled state these tests actually care about.
   ;(Animated.Text as jest.Mock).mockClear()
@@ -94,7 +94,7 @@ describe('StaggeredWord', () => {
   })
 
   it('renders already fully settled on the very first render when reducedMotion is true (no stagger to observe)', () => {
-    // No rerender-to-settle here on purpose — reducedMotion skips the animated effect entirely
+    // No rerender-to-settle here on purpose - reducedMotion skips the animated effect entirely
     // (see AnimatedLetter's own guard clause), so the very first render already reads progress===1.
     render(<StaggeredWord {...baseProps} reducedMotion />)
 
@@ -107,7 +107,7 @@ describe('StaggeredWord', () => {
   it("offsets each letter's stagger index by startIndex, for a multi-word wordmark sharing one sequence", () => {
     // Both words render identically settled under this mock regardless of startIndex (see
     // react-native-reanimated.ts's own doc: withDelay ignores its delay and resolves immediately)
-    // — what this test actually protects is that a non-zero startIndex doesn't change which
+    // - what this test actually protects is that a non-zero startIndex doesn't change which
     // characters render or throw, since real timing behavior isn't observable through this mock.
     renderSettled({ word: 'CD', startIndex: 2 })
 

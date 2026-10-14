@@ -2,7 +2,7 @@ import React from 'react'
 
 export type SeedColor = { label: string; value: string }
 
-// Real @rific/auto-paper ships exactly 20 (see its own source) — InlineColorPicker's column-count
+// Real @rific/auto-paper ships exactly 20 (see its own source) - InlineColorPicker's column-count
 // clamping (4x5 vs 5x4) is tuned specifically against that length, so the mock matches it rather
 // than an arbitrary count.
 export const defaultColors: SeedColor[] = Array.from({ length: 20 }, (_, i) => ({
@@ -14,7 +14,7 @@ export const getContrastColor = jest.fn((_hex: string) => '#000000')
 export const getBlendedColor = jest.fn((a: string, _b: string, _t: number) => a)
 export const getColorRoles = jest.fn((_accent: string, _bg: string) => ({ onColor: '#ffffff' }))
 
-// Only the color keys BaseSettingsDialog.tsx/ConfirmDialog.tsx actually read — real
+// Only the color keys BaseSettingsDialog.tsx/ConfirmDialog.tsx actually read - real
 // MD3Theme['colors'] carries many more, but a test double only needs to cover what's exercised,
 // same reasoning as every other stub in this file.
 export const useAutoPaperTheme = jest.fn(() => ({
@@ -35,7 +35,7 @@ export const useAutoPaperTheme = jest.fn(() => ({
   }
 }))
 
-// react-native-paper's real Dialog renders through a Portal (no jsdom modal host) — this stub keeps
+// react-native-paper's real Dialog renders through a Portal (no jsdom modal host) - this stub keeps
 // BaseSettingsDialog's own conditional (`visible`) so tests can assert the dialog's presence/absence
 // like the real thing would render it, without an actual Portal/Modal underneath.
 export const Dialog = Object.assign(

@@ -7,14 +7,14 @@ import { ConfirmDialog } from '../ConfirmDialog'
 const baseProps = {
   visible: true,
   title: 'Start a new game?',
-  message: 'This game is still in progress — starting a new one will count it as a loss.',
+  message: 'This game is still in progress - starting a new one will count it as a loss.',
   confirmLabel: 'New Game',
   cancelLabel: 'Cancel',
   onConfirm: jest.fn(),
   onCancel: jest.fn()
 }
 
-// Button is a bare stub (see rific-feedback-press mock) that renders its own `children` — since
+// Button is a bare stub (see rific-feedback-press mock) that renders its own `children` - since
 // both buttons here are passed a plain string label, the label text itself is what distinguishes
 // the two rendered calls, same technique BaseSettingsDialog.test.tsx uses for TouchableRipple via
 // accessibilityLabel.
@@ -34,7 +34,7 @@ describe('ConfirmDialog', () => {
   it('renders the title and message while visible', () => {
     const { container, unmount } = render(<ConfirmDialog {...baseProps} />)
     expect(container.textContent).toContain('Start a new game?')
-    expect(container.textContent).toContain('This game is still in progress — starting a new one will count it as a loss.')
+    expect(container.textContent).toContain('This game is still in progress - starting a new one will count it as a loss.')
     unmount()
   })
 
