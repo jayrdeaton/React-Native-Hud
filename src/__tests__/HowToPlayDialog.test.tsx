@@ -1,11 +1,14 @@
+import { BlurView } from '@rific/auto-paper'
 import { Button } from '@rific/feedback-press'
 import { act, render } from '@testing-library/react'
 import { ScrollView } from 'react-native'
+import { Text } from 'react-native-paper'
 import { useReducedMotion } from 'react-native-reanimated'
 
 import { mockBackHandlerAdd, mockBackHandlerRemove, mockScrollTo, mockViewRender } from '../__mocks__/react-native'
 import { getGuideCardSize, HowToPlayDialog } from '../guide/HowToPlayDialog'
 import type { GuideStep } from '../guide/types'
+import { overlayStyles } from '../overlayCard'
 
 const steps: GuideStep[] = [
   { title: 'Swipe to steer', body: 'Swipe in any direction.' },
@@ -268,7 +271,8 @@ describe('HowToPlayDialog', () => {
   })
 
   it('rotates the card itself for the fake-landscape rotation, and not at all at 0', () => {
-    const cardStyle = () => mockViewRender.mock.calls.filter(([props]) => props.accessibilityViewIsModal).pop()![0].style as unknown[]
+    // Flattened: OverlayCard nests the caller's style array inside its own.
+    const cardStyle = () => [mockViewRender.mock.calls.filter(([props]) => props.accessibilityViewIsModal).pop()![0].style].flat(Infinity) as unknown[]
 
     const upright = render(<HowToPlayDialog {...baseProps} />)
     expect(cardStyle()).not.toContainEqual(expect.objectContaining({ transform: expect.anything() }))
@@ -286,6 +290,33 @@ describe('HowToPlayDialog', () => {
 
     // 874 (mocked window height, the sideways width) - 2 * 24 = 826, capped at 520, minus 2 * 24 padding.
     expect(mockScrollTo).toHaveBeenLastCalledWith({ x: 472, animated: true })
+    unmount()
+  })
+
+  it("draws the theme's raised, blur-aware card over the theme's backdrop, with themed text", () => {
+    const { unmount } = render(<HowToPlayDialog {...baseProps} />)
+
+    const blurCalls = (BlurView as unknown as jest.Mock).mock.calls
+    expect(blurCalls[blurCalls.length - 1][0]).toMatchObject({ blur: true, elevation: 3, accessibilityViewIsModal: true })
+    const titleCalls = (Text as jest.Mock).mock.calls.filter(([props]) => props.variant === 'headlineSmall')
+    expect([titleCalls[titleCalls.length - 1][0].style].flat(Infinity)).toContainEqual({ color: '#000002' }) // colors.onSurface
+    const backdrop = mockViewRender.mock.calls.map(([props]) => [props.style].flat(Infinity)).filter((style) => style.includes(overlayStyles.overlay))
+    expect(backdrop[backdrop.length - 1]).toContainEqual({ backgroundColor: '#00000e' }) // colors.backdrop
+    unmount()
+  })
+
+  it('dims the inactive page dots to half so the active primary dot stands out', () => {
+    const { unmount } = render(<HowToPlayDialog {...baseProps} />)
+
+    // Three steps open on the first: one active dot, then two inactive ones.
+    const dotStyles = mockViewRender.mock.calls.map(([props]) => [props.style].flat(Infinity)).filter((style) => style.some((s) => typeof s === 'object' && s !== null && 'borderRadius' in s && (s as { borderRadius: number }).borderRadius === 4))
+    const [active, ...inactive] = dotStyles.slice(-3)
+    expect(active).toContainEqual({ backgroundColor: '#000004' }) // colors.primary
+    expect(active).not.toContainEqual({ opacity: 0.5 })
+    for (const dot of inactive) {
+      expect(dot).toContainEqual({ opacity: 0.5 })
+      expect(dot).toContainEqual({ backgroundColor: '#000003' }) // colors.onSurfaceVariant
+    }
     unmount()
   })
 

@@ -25,6 +25,8 @@ export const useAutoPaperTheme = jest.fn(() => ({
     onPrimary: '#000001',
     onSurface: '#000002',
     onSurfaceVariant: '#000003',
+    outlineVariant: '#00000d',
+    backdrop: '#00000e',
     primary: '#000004',
     secondary: '#000005',
     secondaryContainer: '#000006',
@@ -47,3 +49,17 @@ export const Dialog = Object.assign(
 )
 
 export const AutoAppearancePicker = jest.fn(() => null)
+
+// OverlayCard renders on BlurView; the mock is a plain View so tests can find the card and its children.
+export const BlurView = jest.fn(({ children, style, ...rest }: { children?: React.ReactNode; style?: unknown; [key: string]: unknown }) => {
+  const { View } = jest.requireActual('react-native')
+  return React.createElement(View, { style, ...rest }, children)
+})
+
+// BaseSettingsDialog's Blur row reads and writes auto-paper's own theme settings, and only shows when
+// an expo-blur module was handed to auto-paper (useBlurModule). Defaults: blur on, no module, which
+// real auto-paper reports as undefined (its BlurModuleContext default), never null.
+export const useThemeSettings = jest.fn(() => ({ settings: { appearance: 'system', blur: true, blurTint: 0.2, color: '#000004', harmony: 'split-complementary' }, set: jest.fn() }))
+export const useBlurModule = jest.fn((): unknown => undefined)
+// OverlayCard reads the player's Blur setting through this, the same hook auto-paper's Dialog uses.
+export const useBlur = jest.fn((override?: boolean) => override ?? true)

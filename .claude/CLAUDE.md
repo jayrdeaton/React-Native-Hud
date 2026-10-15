@@ -293,6 +293,44 @@ slop leaves a 4pt gap, though the Hint pill's own `hitSlop={8}` already reaches 
 slops overlap (4pt, only when the pill row fills the width), the corner button wins because Main.tsx draws the corners
 above the game.
 
+### Overlay cards follow the theme and the Blur setting (2026-10-15)
+
+`src/OverlaySurface.tsx` is the card every overlay draws: `OverlayBackdrop` (the full-screen dim),
+`OverlayCard` (the card) and `useOverlayCardColors()` (`fg`, `fgMuted`, `cardBorder`, `backdrop`).
+`ConfirmDialog` and `HowToPlayDialog` use them, and the games' own result cards are meant to.
+
+**Jay's calls (2026-10-15):** tint the cards upstream for everyone instead of per app, make the card
+the theme's raised surface (MD3 elevation 3), and "I'd like blur to be a setting available in all modes,
+if not blur then surface color, automatically, across the fleet". So:
+
+- Colors are theme roles, never literals: `onSurface`, `onSurfaceVariant`, `outlineVariant`, and the
+  theme's `backdrop` (auto-paper's Dialog scrim) instead of the old solid `rgba(0,0,0,0.72)`.
+- The card is auto-paper's `BlurView` with `elevation={3}` and `blur={useBlur()}`. **`BlurView` does not
+  read the setting itself**: its `blur` prop defaults to true, and auto-paper's Dialog and Menu each call
+  `useBlur()` and pass it in. Without the explicit prop the Settings toggle would never reach the card
+  (caught before release; `OverlaySurface.test.tsx` now checks `blur: false` gets through). When blur
+  can't happen, `BlurView` paints the raised surface on its own: Android with no `blurTarget`, an app
+  that never passed `expoBlur` to auto-paper's Provider, or Blur off. `overflow: 'hidden'` keeps a
+  native blur inside the rounded corners.
+- `BaseSettingsDialog` has a Blur row in APPEARANCE (under `AutoAppearancePicker`) that flips
+  auto-paper's own `blur` theme setting through `useThemeSettings().set`, so it persists wherever the
+  app persists auto-paper's settings. It shows only where blur can happen: not on Android, not when
+  `useBlurModule()` returns undefined (the app never passed `expoBlur` to auto-paper's Provider; the
+  mock uses undefined too, since real auto-paper never returns null), and not with `hideAppearance`.
+  No prop turns it off; it's uniform. Only Hangman and Snake pass `expoBlur` today, so the other five
+  games get the solid raised card and no row until they add `expo-blur` (a native build).
+- `getOverlayCardColors(dark)` (`overlayCard.ts`) is `@deprecated` but kept: Solitaire's win and loss
+  banners still call it, and the five arcade games hand-copy the same `#F2F2F2`/`#111111` card and 72%
+  scrim in their own game-over cards. Moving them onto `OverlayCard` is a separate task. Delete it once
+  nothing uses it.
+- The file is `OverlaySurface.tsx`, not `OverlayCard.tsx`. The two files could sit side by side (their
+  extensions differ), but the import specifiers `./OverlayCard` and `./overlayCard` differ only in case,
+  and on macOS's case-insensitive filesystem a resolver that tries `.ts` before `.tsx` (tsc, Metro,
+  chromeImports.test.ts) finds `overlayCard.ts` for both. Linux CI would resolve them correctly, so the
+  bug would only show on a Mac.
+- `HowToPlayDialog.test.tsx` flattens the card's style before matching: `OverlayCard` nests the caller's
+  style array inside its own, and the RN mock's `StyleSheet.flatten` is the identity.
+
 ### The press-away pattern for split-screen (no component for this - it's a wiring pattern)
 
 A single full-screen `PressAwayOverlay` works for one player. For two players sharing a screen, the
@@ -348,7 +386,9 @@ its Expo config plugin since 2026-10-08), is exactly why hud's light subpaths mu
 Those six are `optional` in `peerDependenciesMeta` (that's what lets a light app install hud without them), and
 `src/__tests__/guideImports.test.ts` asserts the source-level boundary - the unit tests above it mock every
 peer and would never catch a regression here; it would surface as a broken Hangman bundle. The one borrowed
-module, `src/overlayCard.ts`, imports only `react-native` (also asserted). Because it can't import
+module, `src/overlayCard.ts`, imports only `react-native` (also asserted). The guide also borrows
+`src/OverlaySurface.tsx` (2026-10-15), which may import only `react`, `react-native`, `@rific/auto-paper`
+and `./overlayCard` (asserted the same way). Because it can't import
 `@tastic/core`, rotation is `GuideRotation` (a structural copy of core's `ViewRotation`) and the card builds
 its own `rotate` transform.
 
@@ -403,8 +443,9 @@ Gotchas worth knowing:
 `src/chrome/index.ts` re-exports the fleet's shared chrome from the existing files in `src/`:
 `BaseSettingsDialog`, `ConfirmDialog`, `UpdateDialog`, `RotatedFrame`, `BaseStatsScreen`, `StatSection`,
 `StatRow`, `AchievementRow`, `LOCKED_BADGE_COLOR`, `AchievementCatalogSection`, `ActivityStatSection`,
-`CornerActionButtons`, `ContentGutter`, `StaggeredWord`, `getStaggeredWordDuration`, `getOverlayCardColors`,
-`overlayStyles`, `overlayActionStyles` and `MONO_FONT`, with their props types. Built like `./guide`: its own
+`CornerActionButtons`, `ContentGutter`, `StaggeredWord`, `getStaggeredWordDuration`, `OverlayCard`,
+`OverlayBackdrop`, `useOverlayCardColors`, `getOverlayCardColors` (deprecated), `overlayStyles`,
+`overlayActionStyles` and `MONO_FONT`, with their props types. Built like `./guide`: its own
 tsup entry (`dist/chrome/index.*`), and `react-native` and `browser` both point at the source entry.
 
 **Why it exists:** Hangman is moving onto the fleet's settings dialog, confirm and update dialogs, stats
@@ -487,7 +528,7 @@ Real `peerDependencies` from `package.json`, with their actual version floors:
 - `@shopify/react-native-skia` - `>=1.5.0` (`Canvas`, `Path`, `Skia` in `TriggerGauge.tsx`; `LoadSkiaWeb` via its own `/src/web` subpath in `loadSkiaWeb.web.ts`)
 
 **Internal fleet:**
-- `@rific/auto-paper` - `>=0.12.2`, the first release whose Provider mounts a nested `Portal.Host` inside its own contexts, which `BaseSettingsDialog`'s outer Portal relies on (see "BaseSettingsDialog lays out in a turned frame" above). Uses `AutoAppearancePicker`, `defaultColors`, `getContrastColor`, `getBlendedColor`, `getColorRoles`, `SeedColor`
+- `@rific/auto-paper` - `>=0.12.2`, the first release whose Provider mounts a nested `Portal.Host` inside its own contexts, which `BaseSettingsDialog`'s outer Portal relies on (see "BaseSettingsDialog lays out in a turned frame" above). Uses `AutoAppearancePicker`, `BlurView`, `useBlur`, `useBlurModule`, `useThemeSettings` (all in 0.12.2, for `OverlayCard` and the Blur row), `defaultColors`, `getContrastColor`, `getBlendedColor`, `getColorRoles`, `SeedColor`
 - `@rific/feedback-press` - `>=0.10.2`, the first release with `useSoundSettings` (`IconButton`, `TouchableRipple`, `useSoundSettings`)
 - `@tastic/achievements` - `>=0.2.0` (`AchievementCatalogRow` type, in `AchievementCatalogSection.tsx`
   only - type-only, no value/runtime import; see "AchievementCatalogSection + ActivityStatSection"

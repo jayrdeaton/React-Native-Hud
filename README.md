@@ -76,6 +76,9 @@ corner of the screen.
   out after being independently copied into several games. See Rotation below for how each of these
   (plus `SectionedDropdown`/`InlineColorPicker`) handles rotating inside a `@tastic/split-screen`
   zone.
+- **`OverlayCard`** / **`OverlayBackdrop`** / **`useOverlayCardColors`** - the card and dim behind
+  `ConfirmDialog` and the how-to-play guide, in the app's own theme colors and blurred when the
+  player's Blur setting allows it. See Overlay cards below.
 
 ## Rotation
 
@@ -234,6 +237,45 @@ export function SettingsDialog({ visible, onDismiss, rotation = 0, settings, set
   )
 }
 ```
+
+## Overlay cards (`OverlayCard`, `OverlayBackdrop`, `useOverlayCardColors`)
+
+`ConfirmDialog` and `HowToPlayDialog` draw their card and the dim behind it with these, and a game's
+own overlay (a result banner, a game-over card) should too, so every card in the fleet looks the same:
+
+```tsx
+import { OverlayBackdrop, OverlayCard, overlayActionStyles, useOverlayCardColors } from '@tastic/hud'
+
+function GameOverCard({ onRestart }: { onRestart: () => void }) {
+  const { fg, fgMuted } = useOverlayCardColors()
+  return (
+    <OverlayBackdrop>
+      <OverlayCard accessibilityViewIsModal>
+        <Text style={{ color: fg }}>Game Over</Text>
+        <Text style={{ color: fgMuted }}>Score 42</Text>
+        <View style={overlayActionStyles.actions}>...</View>
+      </OverlayCard>
+    </OverlayBackdrop>
+  )
+}
+```
+
+- **Colors come from the app's theme.** Text is `onSurface` (`fg`) and `onSurfaceVariant` (`fgMuted`),
+  the edge is `outlineVariant`, and the dim is the theme's `backdrop`, the same scrim auto-paper's own
+  `Dialog` uses. The card is auto-paper's `BlurView` at elevation 3: the theme's surface with a light
+  wash of its primary, MD3's dialog color. So a card follows each game's palette and light/dark mode.
+- **Blur is automatic.** The card blurs what's behind it when the player's Blur setting is on and the
+  app hands `expo-blur` to auto-paper's `Provider` (`expoBlur={ExpoBlur}`). Otherwise it paints that
+  raised surface color instead: on Android (`BlurView` needs a blur target there, which a card has
+  none of), in an app without `expo-blur`, or with Blur off. Beyond passing `expoBlur`, a game wires
+  nothing for this.
+- **The Blur setting lives in `BaseSettingsDialog`.** Its APPEARANCE section shows a Blur row under the
+  appearance picker that flips auto-paper's own `blur` theme setting, which the settings sheet, Paper
+  menus and these cards all follow. The row only shows where blur can actually happen: not on
+  Android, not in an app that never passed `expoBlur`, and not with `hideAppearance`.
+- **`getOverlayCardColors(dark)` is deprecated.** It returns the old fixed black/white card
+  (`#F2F2F2`/`#111111`), which ignores the theme and never blurs. It stays until every game has moved
+  its own cards onto `OverlayCard`.
 
 ## Zone-aware popovers (`useZoneClampedAlign`)
 
@@ -565,7 +607,8 @@ touches the main barrel. It's for an app that has `@tastic/core` and `@rific/upd
 - Stats: `BaseStatsScreen`, `StatSection`, `StatRow`, `AchievementRow`, `LOCKED_BADGE_COLOR`,
   `AchievementCatalogSection`, `ActivityStatSection`
 - Chrome: `CornerActionButtons`, `ContentGutter`, `StaggeredWord`, `getStaggeredWordDuration`
-- Style tokens: `getOverlayCardColors`, `overlayStyles`, `overlayActionStyles`, `MONO_FONT`
+- Overlay cards: `OverlayCard`, `OverlayBackdrop`, `useOverlayCardColors`
+- Style tokens: `overlayStyles`, `overlayActionStyles`, `MONO_FONT`, and the deprecated `getOverlayCardColors`
 
 Each is the same component the main entry exports and is documented above. Only the import path changes:
 
@@ -619,7 +662,7 @@ resolve module".
 | `react`, `react-native` | >=19.0.0, >=0.76.0 | every entry |
 | `react-native-paper` | >=5.0.0 | main entry, `./guide`, `./chrome` |
 | `react-native-reanimated` | >=3.0.0 | main entry (`StaggeredWord`), `./guide`, `./chrome` (`StaggeredWord`) |
-| `@rific/auto-paper` | >=0.12.2 | main entry (`BaseSettingsDialog` needs the nested `Portal.Host` first shipped in 0.12.2), `./guide`, `./chrome` |
+| `@rific/auto-paper` | >=0.12.2 | main entry (`BaseSettingsDialog` needs the nested `Portal.Host` first shipped in 0.12.2; `OverlayCard` uses `BlurView` and `useBlur`, and `BaseSettingsDialog`'s Blur row uses `useBlurModule` and `useThemeSettings`, all in 0.12.2), `./guide`, `./chrome` |
 | `@rific/feedback-press` | >=0.10.2 | main entry (`useSoundSettings` first shipped in 0.10.2), `./guide`, `./chrome` |
 | `react-native-safe-area-context` | >=5.0.0 | main entry (`useZoneClampedAlign`), `./chrome` (`RotatedFrame`, `BaseSettingsDialog`) |
 | `@tastic/core` | >=0.12.0, optional | main entry: `useRotation()` and most dialogs; `RotatedFrame` and `BaseSettingsDialog` need `FakeLandscapeView`'s `rotation`/`passThrough`, first shipped in 0.12.0; `./chrome` (the same dialogs) |

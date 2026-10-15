@@ -12,7 +12,7 @@ const GUIDE_DIR = join(__dirname, '..', 'guide')
 // Everything a file under src/guide/ is allowed to pull in: this entry point's own peers, and hud's own
 // dependency-light shared card styles.
 const ALLOWED = new Set(['react', 'react-native', 'react-native-paper', 'react-native-reanimated', '@rific/auto-paper', '@rific/feedback-press'])
-const ALLOWED_RELATIVE = new Set(['../overlayCard'])
+const ALLOWED_RELATIVE = new Set(['../overlayCard', '../OverlaySurface'])
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? sourceFiles(join(dir, entry.name)) : /\.tsx?$/.test(entry.name) ? [join(dir, entry.name)] : []))
@@ -34,6 +34,13 @@ describe('@tastic/hud/guide import boundary', () => {
     for (const specifier of specifiersOf(file)) {
       const ok = specifier.startsWith('./') || ALLOWED.has(specifier) || ALLOWED_RELATIVE.has(specifier)
       expect({ specifier, ok }).toEqual({ specifier, ok: true })
+    }
+  })
+
+  it('the shared overlay surface it borrows imports only guide-safe modules', () => {
+    const overlaySurface = join(__dirname, '..', 'OverlaySurface.tsx')
+    for (const specifier of specifiersOf(overlaySurface)) {
+      expect(['react', 'react-native', '@rific/auto-paper', './overlayCard']).toContain(specifier)
     }
   })
 

@@ -5,7 +5,8 @@ import { BackHandler, type NativeScrollEvent, type NativeSyntheticEvent, ScrollV
 import { Portal, Text } from 'react-native-paper'
 import { useReducedMotion } from 'react-native-reanimated'
 
-import { getOverlayCardColors, overlayActionStyles, overlayStyles } from '../overlayCard'
+import { overlayActionStyles } from '../overlayCard'
+import { OverlayBackdrop, OverlayCard, useOverlayCardColors } from '../OverlaySurface'
 import type { GuideRotation, GuideStep } from './types'
 
 // The overlay's own breathing room and the card's own inner padding. Together with the card's max
@@ -73,7 +74,7 @@ function HowToPlayCard({ steps, onFinish, onSkip, rotation = 0 }: CardProps) {
     return () => subscription.remove()
   }, [onSkip])
 
-  const { fg, cardBg, cardBorder, fgMuted } = getOverlayCardColors(dark)
+  const { fg, fgMuted } = useOverlayCardColors()
   const { width: cardWidth, pageWidth, maxHeight, artHeight } = getGuideCardSize(windowWidth, windowHeight, rotation)
   const rotationStyle = rotation === 0 ? undefined : { transform: [{ rotate: `${rotation}deg` }] }
   const isFirst = index === 0
@@ -119,8 +120,8 @@ function HowToPlayCard({ steps, onFinish, onSkip, rotation = 0 }: CardProps) {
 
   return (
     <Portal>
-      <View style={[overlayStyles.overlay, styles.overlay]}>
-        <View accessibilityViewIsModal style={[overlayStyles.card, styles.card, { width: cardWidth, maxHeight, backgroundColor: cardBg, borderColor: cardBorder }, rotationStyle]}>
+      <OverlayBackdrop style={styles.overlay}>
+        <OverlayCard accessibilityViewIsModal style={[styles.card, { width: cardWidth, maxHeight }, rotationStyle]}>
           {/* The pager shrinks (flexShrink) when the card hits maxHeight, and each page is its own
             vertical ScrollView, so a page that still doesn't fit (a long translation, large text)
             scrolls instead of being clipped. In the normal case nothing scrolls. */}
@@ -140,8 +141,10 @@ function HowToPlayCard({ steps, onFinish, onSkip, rotation = 0 }: CardProps) {
 
           {steps.length > 1 && (
             <View accessible accessibilityLabel={`Step ${index + 1} of ${steps.length}`} style={styles.dots}>
+              {/* fgMuted is the full-strength onSurfaceVariant, so the inactive dots are dimmed to half or
+                they'd stand out more than the active primary one. */}
               {steps.map((_, i) => (
-                <View key={i} style={[styles.dot, { backgroundColor: i === index ? colors.primary : fgMuted }]} />
+                <View key={i} style={i === index ? [styles.dot, { backgroundColor: colors.primary }] : [styles.dot, styles.dotInactive, { backgroundColor: fgMuted }]} />
               ))}
             </View>
           )}
@@ -161,14 +164,14 @@ function HowToPlayCard({ steps, onFinish, onSkip, rotation = 0 }: CardProps) {
               {isLast ? 'Ready' : 'Next'}
             </Button>
           </View>
-        </View>
-      </View>
+        </OverlayCard>
+      </OverlayBackdrop>
     </Portal>
   )
 }
 
 // A short, skippable, paged "how to play" card - the one shared shape every fleet game's intro takes,
-// built on the same retro overlay-card look as ConfirmDialog (see overlayCard.ts) so it reads as
+// built on the same overlay card as ConfirmDialog (see OverlaySurface.tsx) so it reads as
 // part of the same family. Controlled and presentational: whether it's visible, and what happens on
 // finish/skip (persisting "seen", mostly), is the caller's - see GuideProvider for the wiring nearly
 // every app wants. Buttons are the primary way through; the paging ScrollView underneath is what
@@ -202,6 +205,9 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     height: 8,
     width: 8
+  },
+  dotInactive: {
+    opacity: 0.5
   },
   dots: {
     flexDirection: 'row',

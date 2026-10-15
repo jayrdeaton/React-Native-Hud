@@ -14,6 +14,7 @@ export { getInlineColorPickerContentSize, InlineColorPicker } from './InlineColo
 export { getLabeledDropdownContentHeight, LABELED_DROPDOWN_POPOVER_WIDTH, LabeledDropdown, type LabeledDropdownOption } from './LabeledDropdown'
 export { loadSkiaWeb } from './loadSkiaWeb'
 export { getOverlayCardColors, overlayActionStyles, type OverlayCardColors, overlayStyles } from './overlayCard'
+export { OverlayBackdrop, type OverlayBackdropProps, OverlayCard, type OverlayCardProps, type OverlayCardThemeColors, useOverlayCardColors } from './OverlaySurface'
 export { getColorPopoverId, getCpuDifficultyPopoverId, PlayerSetupPanel, type PlayerSetupPanelProps } from './PlayerSetupPanel'
 export { PopoverBody } from './PopoverBody'
 export { PressAwayOverlay } from './PressAwayOverlay'

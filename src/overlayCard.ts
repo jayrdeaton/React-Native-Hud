@@ -7,11 +7,14 @@ export interface OverlayCardColors {
   cardBorder: string
 }
 
-// The literal-black/white-by-appearance "retro" formula this package's own BaseSettingsDialog and
-// ConfirmDialog each independently re-derived - deliberately NOT auto-paper's own (seed-color-tinted)
-// background role, see either component's own "High-contrast retro look" comment for why. Every
-// fleet app's own Game-Over/Round-Over/Match-Over/Quit-confirmation overlay re-derives this same
-// three-or-four-line formula again, which is what this export exists to replace.
+// The old literal black/white "retro" card, the formula the fleet apps' own Game-Over/Round-Over/
+// Match-Over overlays each re-derived and that this export was made to replace. hud's own cards no
+// longer use it.
+/**
+ * @deprecated The literal black/white card colors. hud's own cards moved to the theme-driven, blur-aware
+ * OverlayCard / OverlayBackdrop / useOverlayCardColors (OverlaySurface.tsx) on 2026-10-15; this stays
+ * only until every app's own result cards have moved over too.
+ */
 export function getOverlayCardColors(dark: boolean): OverlayCardColors {
   return {
     fg: dark ? '#FFFFFF' : '#000000',
@@ -23,9 +26,11 @@ export function getOverlayCardColors(dark: boolean): OverlayCardColors {
 
 // Only the shell shape every overlay card shares (backdrop + card geometry) - deliberately not the
 // title/body styling, which already legitimately varies by consumer (each app's own score/badge/zone
-// content). A consumer applies `{backgroundColor: cardBg, borderColor: cardBorder}` from
-// getOverlayCardColors on top of `card` itself, same as every existing call site already does. The
-// one button row every overlay card with actions shares lives in overlayActionStyles below.
+// content). New cards should use OverlayBackdrop and OverlayCard (OverlaySurface.tsx), which apply
+// `overlay` and `card` underneath and set the theme's backdrop and border colors themselves (the
+// backdrop replaces `overlay`'s rgba(0,0,0,0.72)). Only an app still on the deprecated
+// getOverlayCardColors puts its cardBg and cardBorder on `card` by hand. The one button row every
+// overlay card with actions shares lives in overlayActionStyles below.
 export const overlayStyles = StyleSheet.create({
   card: {
     alignItems: 'center',

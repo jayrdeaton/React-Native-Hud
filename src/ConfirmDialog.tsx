@@ -5,7 +5,8 @@ import { type ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Icon, Portal, Text } from 'react-native-paper'
 
-import { getOverlayCardColors, overlayActionStyles, overlayStyles } from './overlayCard'
+import { overlayActionStyles } from './overlayCard'
+import { OverlayBackdrop, OverlayCard, useOverlayCardColors } from './OverlaySurface'
 
 export interface ConfirmDialogProps {
   visible: boolean
@@ -27,27 +28,28 @@ export interface ConfirmDialogProps {
   destructive?: boolean
 }
 
-// A themed replacement for the native Alert.alert/window.confirm two-button confirm pattern - the
-// same "retro card overlay" look BaseSettingsDialog's own update-check info messages already use
-// (see its onInfo/infoMessage), generalized here into its own reusable, exported component for any
-// caller that needs a real yes/no decision instead of a single OK dismissal. A solid backdrop +
-// centered card, not react-native-paper's own Dialog (which BaseSettingsDialog uses instead) -
+// A themed replacement for the native Alert.alert/window.confirm two-button confirm pattern, the same
+// card BaseSettingsDialog's own update-check info messages use (see its onInfo/infoMessage),
+// generalized into its own reusable, exported component for any caller that needs a real yes/no
+// decision instead of a single OK dismissal. The card and backdrop come from OverlaySurface.tsx: the
+// theme's raised surface, blurred when the player's Blur setting allows it. A backdrop + centered
+// card, not react-native-paper's own Dialog (which BaseSettingsDialog uses instead) -
 // this renders identically on every platform, including web, where react-native-web's Alert.alert
 // is a hard no-op (confirmed: its entire implementation is `static alert() {}`) and Dialog's own
 // Portal-based positioning has its own web quirks BaseSettingsDialog already works around.
 export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLabel, onConfirm, onCancel, rotation = 0, icon = 'help-circle-outline', destructive = false }: ConfirmDialogProps) {
-  const { dark, colors } = useAutoPaperTheme()
+  const { colors } = useAutoPaperTheme()
+  const { fg } = useOverlayCardColors()
   if (!visible) return null
 
-  const { fg, cardBg, cardBorder } = getOverlayCardColors(dark)
   const accent = destructive ? colors.danger : colors.primary
   const onAccent = destructive ? colors.onDanger : colors.onPrimary
   const showCancel = cancelLabel !== undefined && onCancel !== undefined
 
   return (
     <Portal>
-      <View style={[overlayStyles.overlay, styles.overlay]}>
-        <View style={[overlayStyles.card, styles.card, { backgroundColor: cardBg, borderColor: cardBorder }, toRotationStyle(rotation)]}>
+      <OverlayBackdrop style={styles.overlay}>
+        <OverlayCard style={[styles.card, toRotationStyle(rotation)]}>
           <Icon source={icon} size={64} color={accent} />
           <Text variant='headlineLarge' style={[styles.title, { color: accent }]}>
             {title}
@@ -65,8 +67,8 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLab
               {confirmLabel}
             </Button>
           </View>
-        </View>
-      </View>
+        </OverlayCard>
+      </OverlayBackdrop>
     </Portal>
   )
 }

@@ -1,8 +1,11 @@
+import { BlurView, useBlur } from '@rific/auto-paper'
 import { Button } from '@rific/feedback-press'
 import { render } from '@testing-library/react'
-import { Icon } from 'react-native-paper'
+import { Icon, Text } from 'react-native-paper'
 
+import { mockViewRender } from '../__mocks__/react-native'
 import { ConfirmDialog } from '../ConfirmDialog'
+import { overlayStyles } from '../overlayCard'
 
 const baseProps = {
   visible: true,
@@ -71,5 +74,28 @@ describe('ConfirmDialog', () => {
     const { unmount: unmountOverride } = render(<ConfirmDialog {...baseProps} icon='alert-circle-outline' />)
     expect((Icon as jest.Mock).mock.calls[0][0].source).toBe('alert-circle-outline')
     unmountOverride()
+  })
+
+  // The 0.16.0 card was a plain View in fixed black/white over a 72% black scrim; these pin the
+  // theme-following, blur-aware one (OverlaySurface.tsx) so a revert fails here.
+  it("draws the theme's raised, blur-aware card over the theme's backdrop", () => {
+    const { unmount } = render(<ConfirmDialog {...baseProps} />)
+
+    const blurCalls = (BlurView as unknown as jest.Mock).mock.calls
+    expect(blurCalls[blurCalls.length - 1][0]).toMatchObject({ blur: true, elevation: 3 })
+    const bodyCalls = (Text as jest.Mock).mock.calls.filter(([props]) => props.variant === 'bodyLarge')
+    expect([bodyCalls[bodyCalls.length - 1][0].style].flat(Infinity)).toContainEqual({ color: '#000002' }) // colors.onSurface
+    const backdrop = mockViewRender.mock.calls.map(([props]) => [props.style].flat(Infinity)).filter((style) => style.includes(overlayStyles.overlay))
+    expect(backdrop[backdrop.length - 1]).toContainEqual({ backgroundColor: '#00000e' }) // colors.backdrop
+    unmount()
+  })
+
+  it("passes the player's Blur setting through to the card", () => {
+    ;(useBlur as jest.Mock).mockImplementationOnce((override?: boolean) => override ?? false)
+    const { unmount } = render(<ConfirmDialog {...baseProps} />)
+
+    const blurCalls = (BlurView as unknown as jest.Mock).mock.calls
+    expect(blurCalls[blurCalls.length - 1][0]).toMatchObject({ blur: false, elevation: 3 })
+    unmount()
   })
 })

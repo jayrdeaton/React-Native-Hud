@@ -1,4 +1,4 @@
-import { Dialog } from '@rific/auto-paper'
+import { Dialog, useBlurModule, useThemeSettings } from '@rific/auto-paper'
 import { Button, SoundContext, TouchableRipple, useHapticSettings, useSoundSettings } from '@rific/feedback-press'
 import { useUpdater } from '@rific/updater'
 import { FakeLandscapeView, useIsTouchPrimaryDevice, useRotation } from '@tastic/core'
@@ -41,6 +41,7 @@ describe('BaseSettingsDialog', () => {
     Platform.OS = originalOS
     ;(useIsTouchPrimaryDevice as jest.Mock).mockReturnValue(true)
     ;(useRotation as jest.Mock).mockReturnValue(0)
+    ;(useBlurModule as jest.Mock).mockReturnValue(undefined)
   })
 
   it('renders nothing while not visible', () => {
@@ -309,6 +310,74 @@ describe('BaseSettingsDialog', () => {
     expect(container.textContent).not.toContain('Sound')
     expect(container.textContent).not.toContain('Haptics')
     unmount()
+  })
+
+  describe('Blur', () => {
+    // Any non-null value stands in for the expo-blur module an app hands to auto-paper's Provider.
+    const expoBlur = { BlurView: () => null }
+
+    it("shows under Appearance once expo-blur is handed to auto-paper, and flips auto-paper's own setting", () => {
+      Platform.OS = 'ios'
+      ;(useBlurModule as jest.Mock).mockReturnValue(expoBlur)
+      const set = jest.fn()
+      ;(useThemeSettings as jest.Mock).mockReturnValueOnce({ settings: { blur: true }, set })
+      const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
+
+      const text = container.textContent ?? ''
+      expect(text.indexOf('APPEARANCE')).toBeLessThan(text.indexOf('Blur'))
+      findRippleByLabel('Blur on').onPress()
+
+      expect(set).toHaveBeenCalledWith({ blur: false })
+      unmount()
+    })
+
+    it('turns blur back on from off', () => {
+      Platform.OS = 'web'
+      ;(useBlurModule as jest.Mock).mockReturnValue(expoBlur)
+      const set = jest.fn()
+      ;(useThemeSettings as jest.Mock).mockReturnValueOnce({ settings: { blur: false }, set })
+      const { unmount } = render(<BaseSettingsDialog {...baseProps} />)
+
+      findRippleByLabel('Blur off').onPress()
+
+      expect(set).toHaveBeenCalledWith({ blur: true })
+      unmount()
+    })
+
+    it('hides in an app that never handed expo-blur to auto-paper', () => {
+      Platform.OS = 'ios'
+      const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
+
+      expect(container.textContent).not.toContain('Blur')
+      unmount()
+    })
+
+    it('hides for a null module too', () => {
+      Platform.OS = 'ios'
+      ;(useBlurModule as jest.Mock).mockReturnValue(null)
+      const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
+
+      expect(container.textContent).not.toContain('Blur')
+      unmount()
+    })
+
+    it("hides on Android, where these cards can't blur", () => {
+      Platform.OS = 'android'
+      ;(useBlurModule as jest.Mock).mockReturnValue(expoBlur)
+      const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
+
+      expect(container.textContent).not.toContain('Blur')
+      unmount()
+    })
+
+    it('hides along with the rest of Appearance via hideAppearance', () => {
+      Platform.OS = 'ios'
+      ;(useBlurModule as jest.Mock).mockReturnValue(expoBlur)
+      const { container, unmount } = render(<BaseSettingsDialog {...baseProps} hideAppearance />)
+
+      expect(container.textContent).not.toContain('Blur')
+      unmount()
+    })
   })
 
   it('hides Appearance via hideAppearance', () => {

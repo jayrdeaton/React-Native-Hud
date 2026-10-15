@@ -1,4 +1,4 @@
-import { AutoAppearancePicker, Dialog, useAutoPaperTheme } from '@rific/auto-paper'
+import { AutoAppearancePicker, Dialog, useAutoPaperTheme, useBlurModule, useThemeSettings } from '@rific/auto-paper'
 import { Button, SoundContext, TouchableRipple, useHapticSettings, useSoundSettings, useVibration } from '@rific/feedback-press'
 import { useUpdater } from '@rific/updater'
 import { useIsTouchPrimaryDevice, useRotation, type ViewRotation } from '@tastic/core'
@@ -106,6 +106,8 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   // manually here instead, gated on the NEW value so it only plays when switching that channel on.
   const sound = useContext(SoundContext)
   const { forceShort: forceHapticFeedback } = useVibration()
+  const { settings: themeSettings, set: setThemeSettings } = useThemeSettings()
+  const expoBlur = useBlurModule()
   // Covers check()'s three purely-informational cases (dev-mode disabled, web unsupported, no
   // update found) via onInfo below - a retro card overlay instead of the native Alert.alert those
   // cases fall back to by default.
@@ -139,6 +141,8 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   const showHaptics = Platform.OS !== 'web' && !hideHaptics
   const showSound = !hideSound
   const showAppearance = !hideAppearance
+  // See the Blur row's own comment below for why it hides on Android and without expo-blur.
+  const showBlur = showAppearance && Platform.OS !== 'android' && expoBlur !== undefined && expoBlur !== null
   const showUpdateCheck = Platform.OS !== 'web' && !hideUpdateCheck
 
   // Laid out in its own turned frame rather than rotated in place. Paper's Portal mounts at the app
@@ -297,6 +301,23 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
                     APPEARANCE
                   </Text>
                   <AutoAppearancePicker showLabels={false} />
+                  {/* Blur (Jay, 2026-10-15): one fleet-wide switch for auto-paper's own `blur` setting,
+                    which every blur-capable surface follows on its own (this sheet, and the
+                    OverlayCard behind ConfirmDialog, UpdateDialog and the guide). Off, or wherever
+                    blur can't happen, those surfaces paint the theme's raised surface instead. So the
+                    row only shows where turning it on would change something: not on Android
+                    (auto-paper's BlurView needs a blur target there, which these cards don't have) and
+                    not in an app that never handed expo-blur to auto-paper's Provider. */}
+                  {showBlur && (
+                    <TouchableRipple onPress={() => setThemeSettings({ blur: !themeSettings.blur })} style={styles.toggleButton} accessibilityLabel={`Blur ${themeSettings.blur ? 'on' : 'off'}`}>
+                      <View style={styles.toggleContent}>
+                        <SettingIcon source={themeSettings.blur ? 'blur' : 'blur-off'} color={themeSettings.blur ? colors.tertiary : colors.onSurfaceVariant} containerColor={themeSettings.blur ? colors.tertiaryContainer : colors.surfaceVariant} />
+                        <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
+                          Blur
+                        </Text>
+                      </View>
+                    </TouchableRipple>
+                  )}
                 </View>
               )}
 
