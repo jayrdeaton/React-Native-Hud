@@ -1,5 +1,6 @@
 import { BlurView, useAutoPaperTheme, useBlur } from '@rific/auto-paper'
 import { render } from '@testing-library/react'
+import { StyleSheet } from 'react-native'
 
 import { mockViewRender } from '../__mocks__/react-native'
 import { overlayStyles } from '../overlayCard'
@@ -42,6 +43,15 @@ describe('useOverlayCardColors', () => {
 })
 
 describe('OverlayBackdrop', () => {
+  it('hands its layout to the caller (useCompactDialog measures the space the dialog lays out in)', () => {
+    const onLayout = jest.fn()
+    const { unmount } = render(<OverlayBackdrop onLayout={onLayout} />)
+
+    const calls = mockViewRender.mock.calls.filter(([props]) => [props.style].flat(Infinity).includes(overlayStyles.overlay))
+    expect(calls[calls.length - 1][0].onLayout).toBe(onLayout)
+    unmount()
+  })
+
   it("paints the shared overlay geometry in the theme's backdrop color, then the caller's style", () => {
     const { container, unmount } = render(
       <OverlayBackdrop style={backdropStyle}>
@@ -56,7 +66,10 @@ describe('OverlayBackdrop', () => {
 })
 
 describe('OverlayCard', () => {
-  it("renders on auto-paper's BlurView at elevation 3 with the theme's edge color", () => {
+  // Jay, 2026-10-15: the card is the Settings sheet's surface (auto-paper's Dialog), not MD3's elevation-3
+  // wash of the primary, which read as a different shade next to it. No elevation, no border, and the
+  // Dialog's own corner radius.
+  it("renders on auto-paper's plain BlurView surface, untinted and borderless, with the Dialog's corner radius", () => {
     const { container, unmount } = render(
       <OverlayCard style={cardStyle} accessibilityViewIsModal testID='card'>
         <>card body</>
@@ -66,8 +79,11 @@ describe('OverlayCard', () => {
     expect(container.textContent).toBe('card body')
     const calls = (BlurView as unknown as jest.Mock).mock.calls
     const props = calls[calls.length - 1][0]
-    expect(props).toMatchObject({ blur: true, elevation: 3, accessibilityViewIsModal: true, testID: 'card' })
-    expect([props.style].flat(Infinity)).toEqual([overlayStyles.card, { overflow: 'hidden' }, { borderColor: '#00000d' }, cardStyle])
+    expect(props).toMatchObject({ blur: true, accessibilityViewIsModal: true, testID: 'card' })
+    expect(props.elevation).toBeUndefined()
+    expect(props.variant).toBeUndefined()
+    expect([props.style].flat(Infinity)).toEqual([overlayStyles.card, { overflow: 'hidden' }, { borderRadius: 28 }, cardStyle])
+    expect(StyleSheet.flatten(props.style).borderWidth).toBeUndefined()
     unmount()
   })
 
@@ -80,7 +96,8 @@ describe('OverlayCard', () => {
     const { unmount } = render(<OverlayCard />)
 
     const calls = (BlurView as unknown as jest.Mock).mock.calls
-    expect(calls[calls.length - 1][0]).toMatchObject({ blur: false, elevation: 3 })
+    expect(calls[calls.length - 1][0]).toMatchObject({ blur: false })
+    expect(calls[calls.length - 1][0].elevation).toBeUndefined()
     unmount()
   })
 

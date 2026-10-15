@@ -6,9 +6,20 @@ import { Text } from 'react-native-paper'
 import { useReducedMotion } from 'react-native-reanimated'
 
 import { mockBackHandlerAdd, mockBackHandlerRemove, mockScrollTo, mockViewRender } from '../__mocks__/react-native'
+import { DialogHeader } from '../DialogHeader'
 import { getGuideCardSize, HowToPlayDialog } from '../guide/HowToPlayDialog'
 import type { GuideStep } from '../guide/types'
 import { overlayStyles } from '../overlayCard'
+
+// The real header, wrapped so a test can read the props it was rendered with.
+jest.mock('../DialogHeader', () => {
+  const actual = jest.requireActual('../DialogHeader')
+  return { ...actual, DialogHeader: jest.fn(actual.DialogHeader) }
+})
+
+function lastHeaderProps() {
+  return (DialogHeader as unknown as jest.Mock).mock.lastCall![0]
+}
 
 const steps: GuideStep[] = [
   { title: 'Swipe to steer', body: 'Swipe in any direction.' },
@@ -297,7 +308,8 @@ describe('HowToPlayDialog', () => {
     const { unmount } = render(<HowToPlayDialog {...baseProps} />)
 
     const blurCalls = (BlurView as unknown as jest.Mock).mock.calls
-    expect(blurCalls[blurCalls.length - 1][0]).toMatchObject({ blur: true, elevation: 3, accessibilityViewIsModal: true })
+    expect(blurCalls[blurCalls.length - 1][0]).toMatchObject({ blur: true, accessibilityViewIsModal: true })
+    expect(blurCalls[blurCalls.length - 1][0].elevation).toBeUndefined()
     const titleCalls = (Text as jest.Mock).mock.calls.filter(([props]) => props.variant === 'headlineSmall')
     expect([titleCalls[titleCalls.length - 1][0].style].flat(Infinity)).toContainEqual({ color: '#000002' }) // colors.onSurface
     const backdrop = mockViewRender.mock.calls.map(([props]) => [props.style].flat(Infinity)).filter((style) => style.includes(overlayStyles.overlay))
@@ -320,6 +332,17 @@ describe('HowToPlayDialog', () => {
     unmount()
   })
 
+  // Jay, 2026-10-15: it opens unprompted on a first launch, so it says what it is first.
+  it("says what it is with the fleet's dialog header, compact on a phone held sideways", () => {
+    const { unmount } = render(<HowToPlayDialog {...baseProps} />)
+    expect(lastHeaderProps()).toEqual(expect.objectContaining({ icon: 'help-circle-outline', title: 'How to Play', compact: false }))
+    unmount()
+
+    const { unmount: unmountTurned } = render(<HowToPlayDialog {...baseProps} rotation={90} />)
+    expect(lastHeaderProps()).toEqual(expect.objectContaining({ compact: true }))
+    unmountTurned()
+  })
+
   it('marks the card as a modal for screen readers', () => {
     const { unmount } = render(<HowToPlayDialog {...baseProps} />)
 
@@ -330,8 +353,8 @@ describe('HowToPlayDialog', () => {
 
 describe('getGuideCardSize', () => {
   it('sizes an upright card to the window, capped at 360 wide, with full art', () => {
-    expect(getGuideCardSize(402, 874, 0)).toEqual({ width: 354, pageWidth: 306, maxHeight: 826, artHeight: 132 })
-    expect(getGuideCardSize(1200, 900, 180)).toEqual({ width: 360, pageWidth: 312, maxHeight: 852, artHeight: 132 })
+    expect(getGuideCardSize(402, 874, 0)).toEqual({ width: 354, pageWidth: 306, maxHeight: 826, artHeight: 132, compact: false })
+    expect(getGuideCardSize(1200, 900, 180)).toEqual({ width: 360, pageWidth: 312, maxHeight: 852, artHeight: 132, compact: false })
   })
 
   it("sizes a quarter-turned card against the SWAPPED window: its height must fit the phone's short edge", () => {
@@ -340,6 +363,7 @@ describe('getGuideCardSize', () => {
     expect(size.maxHeight).toBe(312)
     expect(size.width).toBe(520)
     expect(size.artHeight).toBe(88)
+    expect(size.compact).toBe(true)
     expect(getGuideCardSize(360, 800, -90)).toEqual(size)
   })
 

@@ -116,7 +116,7 @@
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
-    "@rific/auto-paper": ">=0.12.2",
+    "@rific/auto-paper": ">=0.13.0",
     "@rific/feedback-press": ">=0.10.2",
     "@rific/updater": ">=0.4.0",
     "@shopify/react-native-skia": ">=1.5.0",

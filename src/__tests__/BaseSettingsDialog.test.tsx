@@ -3,10 +3,18 @@ import { Button, SoundContext, TouchableRipple, useHapticSettings, useSoundSetti
 import { useUpdater } from '@rific/updater'
 import { FakeLandscapeView, useIsTouchPrimaryDevice, useRotation } from '@tastic/core'
 import { act, render } from '@testing-library/react'
-import { Platform } from 'react-native'
+import { Children, type ReactElement } from 'react'
+import { Platform, ScrollView } from 'react-native'
 import { Icon } from 'react-native-paper'
 
 import { BaseSettingsDialog } from '../BaseSettingsDialog'
+import { DialogHeader } from '../DialogHeader'
+import { overlayActionStyles } from '../overlayCard'
+
+jest.mock('../DialogHeader', () => {
+  const actual = jest.requireActual('../DialogHeader')
+  return { ...actual, DialogHeader: jest.fn(actual.DialogHeader) }
+})
 
 const baseProps = {
   visible: true,
@@ -32,6 +40,11 @@ function findButtonByLabel(label: string) {
   const call = (Button as jest.Mock).mock.calls.find(([props]) => props.children === label)
   if (!call) throw new Error(`No Button rendered with label "${label}"`)
   return call[0]
+}
+
+// The react-native mock's StyleSheet.flatten is the identity, so a style array is merged here.
+function flatStyle(style: unknown): Record<string, unknown> {
+  return Object.assign({}, ...[style].flat(Infinity))
 }
 
 describe('BaseSettingsDialog', () => {
@@ -137,6 +150,60 @@ describe('BaseSettingsDialog', () => {
     // it has to land between Appearance and Check for Updates, not just anywhere in the tree.
     expect(text.indexOf('APPEARANCE')).toBeLessThan(text.indexOf('Board settings go here'))
     expect(text.indexOf('Board settings go here')).toBeLessThan(text.indexOf('Check for Updates'))
+    unmount()
+  })
+
+  // Jay, 2026-10-15: every dialog opens with the same header and closes with the same single button.
+  it("opens with the fleet's dialog header, compact once the sheet is turned onto a phone's short edge", () => {
+    const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
+
+    expect(container.textContent).toContain('Settings')
+    expect((DialogHeader as unknown as jest.Mock).mock.lastCall![0]).toMatchObject({ icon: 'cog', title: 'Settings', compact: false })
+    unmount()
+
+    const { unmount: unmountTurned } = render(<BaseSettingsDialog {...baseProps} rotation={90} />)
+    expect((DialogHeader as unknown as jest.Mock).mock.lastCall![0]).toMatchObject({ compact: true })
+    unmountTurned()
+  })
+
+  // auto-paper's Dialog alone sits 32pt in from the edges and caps at 400; every overlay card sits 24pt
+  // in and caps at 360, so on a phone the sheet was 16pt narrower than the confirm that followed it.
+  it("is exactly as wide as the overlay cards: 24pt from the frame's edges, capped at 360", () => {
+    const { unmount } = render(<BaseSettingsDialog {...baseProps} />)
+    // The mocked 402pt-wide window.
+    expect(flatStyle((Dialog as unknown as jest.Mock).mock.lastCall![0].style).width).toBe(354)
+    unmount()
+
+    const { unmount: unmountTurned } = render(<BaseSettingsDialog {...baseProps} rotation={90} />)
+    // Turned: the frame is the window's 874pt height wide, so the cap applies.
+    expect(flatStyle((Dialog as unknown as jest.Mock).mock.lastCall![0].style).width).toBe(360)
+    unmountTurned()
+  })
+
+  // Jay, 2026-10-15: the header scrolls away with the rows so a long sheet gets the whole card; Done
+  // stays pinned below the scroll area.
+  it('scrolls the header away with the rows, and keeps Done outside the scroll area', () => {
+    const { unmount } = render(<BaseSettingsDialog {...baseProps} />)
+
+    const scrollChildren = Children.toArray((ScrollView as unknown as jest.Mock).mock.lastCall![0].children) as ReactElement[]
+    expect(scrollChildren[0].type).toBe(DialogHeader)
+    unmount()
+
+    // Rendering only what the scroll area holds draws no Done button.
+    ;(Button as jest.Mock).mockClear()
+    const { unmount: unmountScrolled } = render(<>{scrollChildren}</>)
+    expect((Button as jest.Mock).mock.calls.some(([props]) => props.children === 'Done')).toBe(false)
+    unmountScrolled()
+  })
+
+  it('closes with a Done button styled like every other single-button dialog', () => {
+    const onDismiss = jest.fn()
+    const { unmount } = render(<BaseSettingsDialog {...baseProps} onDismiss={onDismiss} />)
+
+    const done = findButtonByLabel('Done')
+    expect(done).toMatchObject({ mode: 'contained', buttonColor: '#000004', textColor: '#000001', style: overlayActionStyles.actionButtonSingle })
+    done.onPress()
+    expect(onDismiss).toHaveBeenCalledTimes(1)
     unmount()
   })
 
@@ -331,6 +398,15 @@ describe('BaseSettingsDialog', () => {
       unmount()
     })
 
+    it('says what it blurs, under the label', () => {
+      Platform.OS = 'ios'
+      ;(useBlurModule as jest.Mock).mockReturnValue(expoBlur)
+      const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
+
+      expect(container.textContent).toContain('Frost behind dialogs')
+      unmount()
+    })
+
     it('turns blur back on from off', () => {
       Platform.OS = 'web'
       ;(useBlurModule as jest.Mock).mockReturnValue(expoBlur)
@@ -413,7 +489,7 @@ describe('BaseSettingsDialog', () => {
 
       expect(lastFrameProps()).toMatchObject({ rotation: 180, passThrough: true })
       // The frame does the turning, so the card itself carries no transform.
-      expect(lastDialogStyle()).toEqual({ maxHeight: '90%' })
+      expect(flatStyle(lastDialogStyle())).toEqual({ maxHeight: '90%', width: 354 })
       unmount()
     })
 
@@ -422,7 +498,7 @@ describe('BaseSettingsDialog', () => {
       const { unmount } = render(<BaseSettingsDialog {...baseProps} rotation={90} />)
 
       expect(lastFrameProps()).toMatchObject({ rotation: 90, passThrough: true })
-      expect(lastDialogStyle()).toEqual({ maxHeight: '90%' })
+      expect(flatStyle(lastDialogStyle())).toEqual({ maxHeight: '90%', width: 360 })
       unmount()
     })
 

@@ -19,6 +19,9 @@ export const getColorRoles = jest.fn((_accent: string, _bg: string) => ({ onColo
 // same reasoning as every other stub in this file.
 export const useAutoPaperTheme = jest.fn(() => ({
   dark: false,
+  // OverlayCard rounds its corners like auto-paper's Dialog: 7 x roundness on an MD3 theme.
+  isV3: true,
+  roundness: 4,
   colors: {
     danger: '#00000b',
     onDanger: '#00000c',
@@ -49,6 +52,13 @@ export const Dialog = Object.assign(
 )
 
 export const AutoAppearancePicker = jest.fn(() => null)
+
+// FadingScrollView (BaseSettingsDialog's rows) is a pass-through to the react-native mock's ScrollView, so
+// tests keep reading the rows off ScrollView.mock.calls.
+export const FadingScrollView = jest.fn((props: { children?: React.ReactNode; [key: string]: unknown }) => {
+  const { ScrollView } = jest.requireActual('./react-native')
+  return React.createElement(ScrollView, props, props.children)
+})
 
 // OverlayCard renders on BlurView; the mock is a plain View so tests can find the card and its children.
 export const BlurView = jest.fn(({ children, style, ...rest }: { children?: React.ReactNode; style?: unknown; [key: string]: unknown }) => {

@@ -1,44 +1,21 @@
 import { StyleSheet } from 'react-native'
 
-export interface OverlayCardColors {
-  fg: string
-  fgMuted: string
-  cardBg: string
-  cardBorder: string
-}
-
-// The old literal black/white "retro" card, the formula the fleet apps' own Game-Over/Round-Over/
-// Match-Over overlays each re-derived and that this export was made to replace. hud's own cards no
-// longer use it.
-/**
- * @deprecated The literal black/white card colors. hud's own cards moved to the theme-driven, blur-aware
- * OverlayCard / OverlayBackdrop / useOverlayCardColors (OverlaySurface.tsx) on 2026-10-15; this stays
- * only until every app's own result cards have moved over too.
- */
-export function getOverlayCardColors(dark: boolean): OverlayCardColors {
-  return {
-    fg: dark ? '#FFFFFF' : '#000000',
-    fgMuted: dark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)',
-    cardBg: dark ? '#111111' : '#F2F2F2',
-    cardBorder: dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'
-  }
-}
-
-// Only the shell shape every overlay card shares (backdrop + card geometry) - deliberately not the
-// title/body styling, which already legitimately varies by consumer (each app's own score/badge/zone
-// content). New cards should use OverlayBackdrop and OverlayCard (OverlaySurface.tsx), which apply
-// `overlay` and `card` underneath and set the theme's backdrop and border colors themselves (the
-// backdrop replaces `overlay`'s rgba(0,0,0,0.72)). Only an app still on the deprecated
-// getOverlayCardColors puts its cardBg and cardBorder on `card` by hand. The one button row every
-// overlay card with actions shares lives in overlayActionStyles below.
+// Only the shell shape every overlay card shares (backdrop + card geometry). The title is
+// DialogHeader's; the body still legitimately varies by consumer (each app's own score/badge/zone
+// content). Cards should use OverlayBackdrop and OverlayCard (OverlaySurface.tsx), which apply
+// `overlay` and `card` underneath and set the theme's backdrop color and corner radius themselves
+// (the backdrop replaces `overlay`'s rgba(0,0,0,0.72)). The one button row every overlay card with
+// actions shares lives in overlayActionStyles below.
+// No border and 24pt of padding, like the Settings sheet (auto-paper's Dialog, 24pt insets on its
+// title and scroll area), so the two families match (Jay, 2026-10-15). borderRadius is that Dialog's
+// at MD3's default roundness; OverlayCard derives it from the live theme.
 export const overlayStyles = StyleSheet.create({
   card: {
     alignItems: 'center',
-    borderRadius: 20,
-    borderWidth: 1,
+    borderRadius: 28,
     gap: 16,
     maxWidth: 360,
-    padding: 32
+    padding: 24
   },
   overlay: {
     alignItems: 'center',

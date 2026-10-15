@@ -79,6 +79,8 @@ corner of the screen.
 - **`OverlayCard`** / **`OverlayBackdrop`** / **`useOverlayCardColors`** - the card and dim behind
   `ConfirmDialog` and the how-to-play guide, in the app's own theme colors and blurred when the
   player's Blur setting allows it. See Overlay cards below.
+- **`DialogHeader`** / **`useCompactDialog`** - the one header every dialog opens with (an icon over
+  a bold title in the theme's primary), and the rule for its compact form. See Overlay cards below.
 
 ## Rotation
 
@@ -244,14 +246,15 @@ export function SettingsDialog({ visible, onDismiss, rotation = 0, settings, set
 own overlay (a result banner, a game-over card) should too, so every card in the fleet looks the same:
 
 ```tsx
-import { OverlayBackdrop, OverlayCard, overlayActionStyles, useOverlayCardColors } from '@tastic/hud'
+import { DialogHeader, OverlayBackdrop, OverlayCard, overlayActionStyles, useCompactDialog, useOverlayCardColors } from '@tastic/hud'
 
 function GameOverCard({ onRestart }: { onRestart: () => void }) {
-  const { fg, fgMuted } = useOverlayCardColors()
+  const { fgMuted } = useOverlayCardColors()
+  const { compact, onLayout } = useCompactDialog()
   return (
-    <OverlayBackdrop>
+    <OverlayBackdrop onLayout={onLayout}>
       <OverlayCard accessibilityViewIsModal>
-        <Text style={{ color: fg }}>Game Over</Text>
+        <DialogHeader icon='flag-checkered' title='Game Over' compact={compact} />
         <Text style={{ color: fgMuted }}>Score 42</Text>
         <View style={overlayActionStyles.actions}>...</View>
       </OverlayCard>
@@ -261,9 +264,18 @@ function GameOverCard({ onRestart }: { onRestart: () => void }) {
 ```
 
 - **Colors come from the app's theme.** Text is `onSurface` (`fg`) and `onSurfaceVariant` (`fgMuted`),
-  the edge is `outlineVariant`, and the dim is the theme's `backdrop`, the same scrim auto-paper's own
-  `Dialog` uses. The card is auto-paper's `BlurView` at elevation 3: the theme's surface with a light
-  wash of its primary, MD3's dialog color. So a card follows each game's palette and light/dark mode.
+  and the dim is the theme's `backdrop`, the same scrim auto-paper's own `Dialog` uses. The card is the
+  Settings sheet's surface: auto-paper's `BlurView` with no elevation (the theme's plain surface, no
+  wash of the primary), no border, and the `Dialog`'s corner radius. So every card and the Settings
+  sheet look like one family, in each game's palette and light/dark mode.
+- **Every dialog opens with `DialogHeader`.** A 64pt icon over a large bold title, both in the theme's
+  primary (pass `color` for another role, as `ConfirmDialog` does with danger when `destructive`).
+  `ConfirmDialog`, the how-to-play guide (titled "How to Play") and `BaseSettingsDialog` all use it;
+  an app's own cards should too. With `compact` the icon shrinks to 32pt and sits beside a smaller
+  title. `useCompactDialog(rotation?)` decides it: put its `onLayout` on the `OverlayBackdrop`, and it
+  is compact when the space the dialog lays out in is under `COMPACT_DIALOG_HEIGHT` (528pt) along the
+  card's own vertical axis, so a phone held sideways. One-button dialogs end in a single contained
+  primary button (`overlayActionStyles.actionButtonSingle`), the Settings sheet's Done included.
 - **Blur is automatic.** The card blurs what's behind it when the player's Blur setting is on and the
   app hands `expo-blur` to auto-paper's `Provider` (`expoBlur={ExpoBlur}`). Otherwise it paints that
   raised surface color instead: on Android (`BlurView` needs a blur target there, which a card has
@@ -273,9 +285,8 @@ function GameOverCard({ onRestart }: { onRestart: () => void }) {
   appearance picker that flips auto-paper's own `blur` theme setting, which the settings sheet, Paper
   menus and these cards all follow. The row only shows where blur can actually happen: not on
   Android, not in an app that never passed `expoBlur`, and not with `hideAppearance`.
-- **`getOverlayCardColors(dark)` is deprecated.** It returns the old fixed black/white card
-  (`#F2F2F2`/`#111111`), which ignores the theme and never blurs. It stays until every game has moved
-  its own cards onto `OverlayCard`.
+- **`getOverlayCardColors` is gone.** It returned the old fixed black/white card (`#F2F2F2`/`#111111`),
+  which ignored the theme and never blurred. Use `useOverlayCardColors` for a card's text and edges.
 
 ## Zone-aware popovers (`useZoneClampedAlign`)
 
@@ -607,8 +618,8 @@ touches the main barrel. It's for an app that has `@tastic/core` and `@rific/upd
 - Stats: `BaseStatsScreen`, `StatSection`, `StatRow`, `AchievementRow`, `LOCKED_BADGE_COLOR`,
   `AchievementCatalogSection`, `ActivityStatSection`
 - Chrome: `CornerActionButtons`, `ContentGutter`, `StaggeredWord`, `getStaggeredWordDuration`
-- Overlay cards: `OverlayCard`, `OverlayBackdrop`, `useOverlayCardColors`
-- Style tokens: `overlayStyles`, `overlayActionStyles`, `MONO_FONT`, and the deprecated `getOverlayCardColors`
+- Overlay cards: `OverlayCard`, `OverlayBackdrop`, `useOverlayCardColors`, `DialogHeader`, `useCompactDialog`, `isCompactDialogHeight`, `COMPACT_DIALOG_HEIGHT`
+- Style tokens: `overlayStyles`, `overlayActionStyles`, `MONO_FONT`
 
 Each is the same component the main entry exports and is documented above. Only the import path changes:
 

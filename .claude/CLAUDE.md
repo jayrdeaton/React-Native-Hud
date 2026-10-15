@@ -305,7 +305,8 @@ if not blur then surface color, automatically, across the fleet". So:
 
 - Colors are theme roles, never literals: `onSurface`, `onSurfaceVariant`, `outlineVariant`, and the
   theme's `backdrop` (auto-paper's Dialog scrim) instead of the old solid `rgba(0,0,0,0.72)`.
-- The card is auto-paper's `BlurView` with `elevation={3}` and `blur={useBlur()}`. **`BlurView` does not
+- The card is auto-paper's `BlurView` with `blur={useBlur()}` (and, until the "One family of dialogs"
+  change below, `elevation={3}`). **`BlurView` does not
   read the setting itself**: its `blur` prop defaults to true, and auto-paper's Dialog and Menu each call
   `useBlur()` and pass it in. Without the explicit prop the Settings toggle would never reach the card
   (caught before release; `OverlaySurface.test.tsx` now checks `blur: false` gets through). When blur
@@ -317,12 +318,13 @@ if not blur then surface color, automatically, across the fleet". So:
   app persists auto-paper's settings. It shows only where blur can happen: not on Android, not when
   `useBlurModule()` returns undefined (the app never passed `expoBlur` to auto-paper's Provider; the
   mock uses undefined too, since real auto-paper never returns null), and not with `hideAppearance`.
-  No prop turns it off; it's uniform. Only Hangman and Snake pass `expoBlur` today, so the other five
-  games get the solid raised card and no row until they add `expo-blur` (a native build).
-- `getOverlayCardColors(dark)` (`overlayCard.ts`) is `@deprecated` but kept: Solitaire's win and loss
-  banners still call it, and the five arcade games hand-copy the same `#F2F2F2`/`#111111` card and 72%
-  scrim in their own game-over cards. Moving them onto `OverlayCard` is a separate task. Delete it once
-  nothing uses it.
+  No prop turns it off; it's uniform. Every game passes `expoBlur` since 2026-10-15 (Hangman and Snake
+  already did; Pong, AirHockey, BoxHockey, LightCycles and Solitaire added `expo-blur`, which needs a
+  new native build before it does anything on a device).
+- `getOverlayCardColors(dark)` and its `OverlayCardColors` type are deleted (2026-10-15). Solitaire's
+  win and loss banners and the five arcade games' own result cards (Pong, AirHockey, BoxHockey,
+  LightCycles, Snake) moved onto `OverlayBackdrop`/`OverlayCard`/`useOverlayCardColors` with hud
+  ^0.17.0 first, so nothing in the fleet called it any more. An app still on it can't take the next hud.
 - The file is `OverlaySurface.tsx`, not `OverlayCard.tsx`. The two files could sit side by side (their
   extensions differ), but the import specifiers `./OverlayCard` and `./overlayCard` differ only in case,
   and on macOS's case-insensitive filesystem a resolver that tries `.ts` before `.tsx` (tsc, Metro,
@@ -330,6 +332,83 @@ if not blur then surface color, automatically, across the fleet". So:
   bug would only show on a Mac.
 - `HowToPlayDialog.test.tsx` flattens the card's style before matching: `OverlayCard` nests the caller's
   style array inside its own, and the RN mock's `StyleSheet.flatten` is the identity.
+
+### One family of dialogs (2026-10-15)
+
+Jay: "they should all have the same title and maybe an icon, and the buttons should have the same
+treatment... I value consistency above all else". Prompted by Solitaire, where the win/loss/New Game
+cards read as a different shade from the Settings sheet. So:
+
+- **The card is the Settings sheet's surface.** `OverlayCard` dropped `elevation={3}` (MD3's 11% wash
+  of the primary, which next to auto-paper's untinted `Dialog` read as a different shade; Jay preferred
+  the sheet), its border (`overlayStyles.card` has no `borderWidth` any more, so `cardBorder` is unused
+  by hud itself) and its 20pt radius: it takes the Dialog's `(isV3 ? 7 : 1) * roundness` (28 at MD3's
+  default) from the theme. `overlayStyles.card` padding went 32 -> 24, the sheet's own inset.
+- **`DialogHeader` (src/DialogHeader.tsx)** is the one header: icon 64 over `headlineLarge` bold, both in
+  `color ?? primary`, centered; `compact` puts a 32pt icon beside a `headlineSmall` title. The guide
+  borrows the file, so it imports only `react-native`, `react-native-paper` and `@rific/auto-paper`
+  (asserted in `guideImports.test.ts`). `isCompactDialogHeight`/`COMPACT_DIALOG_HEIGHT` (528 = the
+  guide's old "480 usable inside 24pt gutters") is the one compact rule.
+- **`useCompactDialog(rotation)` (src/useCompactDialog.ts)** needs `@tastic/core`, so it lives apart from
+  the header (the guide can't import it; it computes compact in `getGuideCardSize`). It measures the
+  `OverlayBackdrop` (`onLayout`, new prop), which fills whatever the dialog lays out in, and reads it
+  along the card's own axis (width for a card turned +/-90). Before the first layout it guesses: a card
+  that turns itself is at the upright root (raw window), one that doesn't is in a frame the app turned
+  by the live rotation (`useRotatedWindowDimensions`).
+- **`ConfirmDialog`** uses the header (its own title styles are gone). **`HowToPlayDialog`** has a header
+  above the pages, `title`/`icon` props defaulting to "How to Play"/`help-circle-outline` (the Settings
+  row's icon): it opens unprompted on a first launch, so it says what it is first. In compact the page
+  gaps go 12 -> 8 (`pageCompact`), which is exactly what the header cost a page on a 402pt-tall window
+  (measured on Solitaire's web build: 184 needed, 176 available, 176/176 after). Smaller phones held
+  sideways (375, 360) still scroll a page a little; the art can't shrink (apps draw it at fixed sizes).
+- **`BaseSettingsDialog`** opens with `DialogHeader` (`cog`, "Settings", compact by the frame's height)
+  instead of Paper's `Dialog.Title`, ends with a Done button (`actionButtonSingle`, primary, calls
+  `onDismiss`; a tap outside still closes it), drops the scroll area's hairline dividers (no other dialog
+  has them), and is exactly as wide as the cards: `min(360, frame width - 2 * max(left inset, right
+  inset, 24))`, passed as the Dialog's `width` (auto-paper's own 32pt margin and 400 cap made it 16pt
+  narrower than a confirm on a phone; the centered card overhangs that padding).
+- **The Settings header scrolls away with the rows** (Jay, same day: so a long sheet gives the rows the
+  whole card once scrolled). `DialogHeader` is the ScrollView's first child (`scrollContent`: 24 top,
+  16 gap, 16 bottom), `Dialog.ScrollArea` is the Dialog's first child so it runs to the card's top edge,
+  and Done stays pinned below it. Compact still applies sideways: it is what shows first. The guide's
+  header stays fixed (its pages swipe sideways; a header inside them would slide with every swipe), and
+  the cards that never scroll are unchanged.
+- **The Blur row says what it does:** "Frost behind dialogs" under the label, the other rows'
+  `bodySmall` subtitle (Jay's wording, 2026-10-15). One line even on a 360pt phone (216pt of room;
+  measured on Solitaire's web build).
+- **Row captions are short commands with no articles, in sentence case** (Jay, 2026-10-15): "Pin current
+  layout" (Lock Orientation), "Require second swipe" (Edge Guard), "Replay quick intro" (How to Play),
+  "Frost behind dialogs" (Blur). They used to mix descriptions ("Pins the current layout", "Requires a
+  second swipe") with commands. Labels stay Title Case; a caption is a short line under one, so sentence
+  case. Swirlio's comments and CLAUDE.md still quote Edge Guard's old caption.
+- **Tried and rejected: a frosted Done footer** (Jay asked, 2026-10-15, as a cue that a sheet scrolls).
+  The Done row pinned over the bottom of the scroll area as its own auto-paper `BlurView` showed a hard
+  seam on both platforms, and the rows under it were never frosted: on web a `backdrop-filter` inside the
+  card's own `backdrop-filter` can't see past the card (the card is its backdrop root), so the strip
+  showed the page behind unblurred; on iOS (a Release build on the iPhone 18 Pro simulator) the footer's
+  blur sampled the game behind the sheet, not the sheet's rows, and read as a lighter separate panel.
+- **What shipped instead: `FadingScrollView`, now in `@rific/auto-paper` (>= 0.13.0)** (it lived here as
+  src/FadingScrollView.tsx first; Jay moved it upstream the same day so every app can use it, and the
+  Settings sheet imports it from there). As first built here: A ScrollView whose content
+  fades to transparent over its bottom `SCROLL_FADE_HEIGHT` (24pt) while there is more to scroll, and not
+  once at the end. It masks the content instead of painting over it, so the card behind (blurred or
+  plain, light or dark) stays one continuous surface: no seam. Sizes are kept in a ref and only "more
+  below" is state, so scrolling re-renders nothing until the fade turns on or off. iOS/Android: a
+  `MaskedView` whose bottom band is RN's native `experimental_backgroundImage` linear gradient. Web:
+  react-native-masked-view's web build renders ONLY the mask element (no masking), so the outer box gets a
+  CSS `mask-image` instead (react-native-web passes it through). **`@react-native-masked-view/masked-view`
+  is an OPTIONAL peer, `require`d inside try/catch:** BaseSettingsDialog uses this, it is part of the
+  chrome entry, and Hangman has no masked-view (the fleet's other apps get it through expo-router). Expo's
+  Metro allows optional dependencies (`allowOptionalDependencies: true` in @expo/metro-config, and hud is
+  bundled from its own source), so a missing package throws at runtime, is caught, and the content just
+  doesn't fade. In auto-paper the masked-view module is handed in through its Provider (`maskedView`)
+  instead, auto-paper's pattern for optional peers, so hud no longer requires it and the chrome boundary
+  test needed no exception. Used by the Settings sheet and Solitaire's RulesDialog. Seen on web and on the iOS simulator (the JS bundle exported with `expo
+  export:embed` and swapped into the installed Release build). Not seen: Android, a real device, Hangman.
+- **Section labels are all `labelMedium`** (letter-spaced, `onSurfaceVariant`): VERSION was `labelSmall`
+  while APPEARANCE and every app's own labels were `labelMedium`.
+- Not changed: auto-paper itself (its Dialog keeps 32/400 for every non-hud caller), and the fade: the
+  Settings sheet still fades in and out (auto-paper's Dialog) while the overlay cards appear at once.
 
 ### The press-away pattern for split-screen (no component for this - it's a wiring pattern)
 
@@ -444,7 +523,7 @@ Gotchas worth knowing:
 `BaseSettingsDialog`, `ConfirmDialog`, `UpdateDialog`, `RotatedFrame`, `BaseStatsScreen`, `StatSection`,
 `StatRow`, `AchievementRow`, `LOCKED_BADGE_COLOR`, `AchievementCatalogSection`, `ActivityStatSection`,
 `CornerActionButtons`, `ContentGutter`, `StaggeredWord`, `getStaggeredWordDuration`, `OverlayCard`,
-`OverlayBackdrop`, `useOverlayCardColors`, `getOverlayCardColors` (deprecated), `overlayStyles`,
+`OverlayBackdrop`, `useOverlayCardColors`, `DialogHeader`, `useCompactDialog`, `isCompactDialogHeight`, `COMPACT_DIALOG_HEIGHT`, `overlayStyles`,
 `overlayActionStyles` and `MONO_FONT`, with their props types. Built like `./guide`: its own
 tsup entry (`dist/chrome/index.*`), and `react-native` and `browser` both point at the source entry.
 
@@ -528,7 +607,7 @@ Real `peerDependencies` from `package.json`, with their actual version floors:
 - `@shopify/react-native-skia` - `>=1.5.0` (`Canvas`, `Path`, `Skia` in `TriggerGauge.tsx`; `LoadSkiaWeb` via its own `/src/web` subpath in `loadSkiaWeb.web.ts`)
 
 **Internal fleet:**
-- `@rific/auto-paper` - `>=0.12.2`, the first release whose Provider mounts a nested `Portal.Host` inside its own contexts, which `BaseSettingsDialog`'s outer Portal relies on (see "BaseSettingsDialog lays out in a turned frame" above). Uses `AutoAppearancePicker`, `BlurView`, `useBlur`, `useBlurModule`, `useThemeSettings` (all in 0.12.2, for `OverlayCard` and the Blur row), `defaultColors`, `getContrastColor`, `getBlendedColor`, `getColorRoles`, `SeedColor`
+- `@rific/auto-paper` - `>=0.13.0`, the first release with `FadingScrollView` (the Settings sheet's rows), and after 0.12.2, whose Provider mounts a nested `Portal.Host` inside its own contexts, which `BaseSettingsDialog`'s outer Portal relies on (see "BaseSettingsDialog lays out in a turned frame" above). Uses `AutoAppearancePicker`, `BlurView`, `useBlur`, `useBlurModule`, `useThemeSettings` (all in 0.12.2, for `OverlayCard` and the Blur row), `defaultColors`, `getContrastColor`, `getBlendedColor`, `getColorRoles`, `SeedColor`
 - `@rific/feedback-press` - `>=0.10.2`, the first release with `useSoundSettings` (`IconButton`, `TouchableRipple`, `useSoundSettings`)
 - `@tastic/achievements` - `>=0.2.0` (`AchievementCatalogRow` type, in `AchievementCatalogSection.tsx`
   only - type-only, no value/runtime import; see "AchievementCatalogSection + ActivityStatSection"

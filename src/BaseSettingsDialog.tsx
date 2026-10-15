@@ -1,12 +1,15 @@
-import { AutoAppearancePicker, Dialog, useAutoPaperTheme, useBlurModule, useThemeSettings } from '@rific/auto-paper'
+import { AutoAppearancePicker, Dialog, FadingScrollView, useAutoPaperTheme, useBlurModule, useThemeSettings } from '@rific/auto-paper'
 import { Button, SoundContext, TouchableRipple, useHapticSettings, useSoundSettings, useVibration } from '@rific/feedback-press'
 import { useUpdater } from '@rific/updater'
-import { useIsTouchPrimaryDevice, useRotation, type ViewRotation } from '@tastic/core'
+import { rotateInsets, useIsTouchPrimaryDevice, useRotation, type ViewRotation } from '@tastic/core'
 import { ReactNode, useContext, useState } from 'react'
-import { Platform, ScrollView, StyleSheet, View } from 'react-native'
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { Icon, Portal, Text } from 'react-native-paper'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ConfirmDialog } from './ConfirmDialog'
+import { DialogHeader, isCompactDialogHeight } from './DialogHeader'
+import { overlayActionStyles, overlayStyles } from './overlayCard'
 import { RotatedFrame } from './RotatedFrame'
 import { useUpdateConfirmBridge } from './useUpdateConfirmBridge'
 
@@ -91,6 +94,18 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   const { colors } = useAutoPaperTheme()
   const ambientRotation = useRotation()
   const rotation = rotationOverride ?? ambientRotation
+  // The sheet lays out in a RotatedFrame turned by `rotation` (below), so its height is the window's
+  // width when turned a quarter: the same compact rule as every other dialog's header.
+  const window = useWindowDimensions()
+  const turned = rotation === 90 || rotation === -90
+  const compactHeader = isCompactDialogHeight(turned ? window.width : window.height)
+  // The overlay cards' width (ConfirmDialog, the guide, every app's result card): 24pt from the
+  // frame's edges, never under a notch, capped at their 360 (overlayStyles.card). auto-paper's Dialog
+  // would give the sheet a 32pt margin and a 400 cap, 16pt narrower than a card on a phone, which
+  // showed when Settings and a confirm opened one after the other. The card is centered, so the
+  // Dialog's own 32pt padding is simply overhung.
+  const insets = rotateInsets(useSafeAreaInsets(), rotation)
+  const sheetWidth = Math.min(overlayStyles.card.maxWidth, (turned ? window.height : window.width) - 2 * Math.max(insets.left, insets.right, SHEET_GUTTER))
   // Also gates the Lock Orientation row below (alongside showLockOrientation itself) - true
   // unconditionally on native (see the hook's own doc), so this only actually excludes a
   // desktop/laptop browser, where a mouse-driven window has no physical orientation to lock
@@ -159,186 +174,205 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   return (
     <Portal>
       <RotatedFrame rotation={rotation} rotatedSafeArea portalHost passThrough>
-        <Dialog visible={visible} onDismiss={onDismiss} style={styles.dialog}>
-          <Dialog.Title>Settings</Dialog.Title>
+        <Dialog visible={visible} onDismiss={onDismiss} style={[styles.dialog, { width: sheetWidth }]}>
           {/* react-native-paper's Dialog.ScrollArea has a fixed 24px marginBottom baked in (meant to
-            reserve room for a Dialog.Actions row below it) - overridden to 0 since this dialog has
-            no actions row, and that gap otherwise reads as unexplained empty footer space. */}
+            reserve room for a Dialog.Actions row below it) - overridden to 0: the Done row below
+            carries its own spacing. It is the sheet's first child, so it runs to the card's top edge. */}
           <Dialog.ScrollArea style={styles.scrollArea}>
-            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-              {/* Grouped tightly together (styles.toggleGroup's small internal gap, not the 24px gap
+            <FadingScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+              {/* The fleet's one dialog header and Done button (DialogHeader, overlayActionStyles' single
+                button), so the sheet reads as one family with ConfirmDialog, the guide and every app's
+                result cards (Jay, 2026-10-15). The header scrolls away with the rows, so a long sheet
+                gives them the whole card once scrolled; Done stays pinned below. Tapping outside still
+                closes it too. */}
+              <DialogHeader icon='cog' title='Settings' compact={compactHeader} />
+              <View style={styles.content}>
+                {/* Grouped tightly together (styles.toggleGroup's small internal gap, not the 24px gap
                 between sections below) - same bare-row shape for all of them, no segmented control
                 and no section heading (each row's own label already says what it is). Haptics only
                 joins on native - there's nothing for it to control on web. */}
-              <View style={styles.toggleGroup}>
-                {/* Omitted entirely for a portrait-only game (no lockOrientation/onLockOrientationChange
+                <View style={styles.toggleGroup}>
+                  {/* Omitted entirely for a portrait-only game (no lockOrientation/onLockOrientationChange
                   passed at all - nothing to lock), and hidden (not just disabled) on a desktop/laptop
                   browser even when they are - see isTouchPrimary's own doc above. Still shown on
                   native and on a touch-capable mobile browser, where a rotated window really does
                   reflect a rotated device. */}
-                {showLockOrientation && (
-                  <TouchableRipple onPress={() => onLockOrientationChange!(!lockOrientation)} style={styles.toggleButton} accessibilityLabel={`Lock orientation ${lockOrientation ? 'on' : 'off'}`}>
-                    <View style={styles.toggleContent}>
-                      <SettingIcon source={lockOrientation ? 'lock' : 'lock-open-variant-outline'} color={lockOrientation ? colors.tertiary : colors.onSurfaceVariant} containerColor={lockOrientation ? colors.tertiaryContainer : colors.surfaceVariant} />
-                      <View style={styles.flexShrink}>
-                        <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
-                          Lock Orientation
-                        </Text>
-                        <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
-                          Pins the current layout
-                        </Text>
+                  {showLockOrientation && (
+                    <TouchableRipple onPress={() => onLockOrientationChange!(!lockOrientation)} style={styles.toggleButton} accessibilityLabel={`Lock orientation ${lockOrientation ? 'on' : 'off'}`}>
+                      <View style={styles.toggleContent}>
+                        <SettingIcon source={lockOrientation ? 'lock' : 'lock-open-variant-outline'} color={lockOrientation ? colors.tertiary : colors.onSurfaceVariant} containerColor={lockOrientation ? colors.tertiaryContainer : colors.surfaceVariant} />
+                        <View style={styles.flexShrink}>
+                          <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
+                            Lock Orientation
+                          </Text>
+                          <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
+                            Pin current layout
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                  </TouchableRipple>
-                )}
+                    </TouchableRipple>
+                  )}
 
-                {/* iOS only - mirrors into UserDefaults for @tastic/edge-guard's own config plugin
+                  {/* iOS only - mirrors into UserDefaults for @tastic/edge-guard's own config plugin
                   swizzle to read. Guards both edges - the top (Notification Center/Control Center)
                   and the bottom (home-indicator swipe, incidentally Reachability too), per that
                   package's own doc. Off by default: a deliberate opt-in for whoever's actually hit an
                   accidental-swipe-near-an-edge problem mid-game and come looking for a fix, not a
                   surprise every player gets by default. */}
-                {showEdgeGuard && (
-                  <TouchableRipple onPress={() => onDeferBottomEdgeGestures!(!deferBottomEdgeGestures)} style={styles.toggleButton} accessibilityLabel={`Edge guard ${deferBottomEdgeGestures ? 'on' : 'off'}`}>
-                    <View style={styles.toggleContent}>
-                      <SettingIcon source={deferBottomEdgeGestures ? 'shield-check-outline' : 'shield-off-outline'} color={deferBottomEdgeGestures ? colors.tertiary : colors.onSurfaceVariant} containerColor={deferBottomEdgeGestures ? colors.tertiaryContainer : colors.surfaceVariant} />
-                      <View style={styles.flexShrink}>
-                        <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
-                          Edge Guard
-                        </Text>
-                        <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
-                          Requires a second swipe
-                        </Text>
+                  {showEdgeGuard && (
+                    <TouchableRipple onPress={() => onDeferBottomEdgeGestures!(!deferBottomEdgeGestures)} style={styles.toggleButton} accessibilityLabel={`Edge guard ${deferBottomEdgeGestures ? 'on' : 'off'}`}>
+                      <View style={styles.toggleContent}>
+                        <SettingIcon source={deferBottomEdgeGestures ? 'shield-check-outline' : 'shield-off-outline'} color={deferBottomEdgeGestures ? colors.tertiary : colors.onSurfaceVariant} containerColor={deferBottomEdgeGestures ? colors.tertiaryContainer : colors.surfaceVariant} />
+                        <View style={styles.flexShrink}>
+                          <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
+                            Edge Guard
+                          </Text>
+                          <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
+                            Require second swipe
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                  </TouchableRipple>
-                )}
+                    </TouchableRipple>
+                  )}
 
-                {/* Side by side, not stacked - neither needs a full row's width (single-line label,
+                  {/* Side by side, not stacked - neither needs a full row's width (single-line label,
                   no description under it the way Lock Orientation has), so sharing one row reads
                   just as clearly and takes half the vertical space. toggleRow carries the same
                   edge-alignment negative margin toggleButton normally carries itself; the buttons
                   inside it use toggleButtonInRow (flex: 1) instead so the two don't double up on it.
                   The row itself only renders when at least one of the two will - an empty flex row
                   still eats its own gap/margin otherwise. */}
-                {(showSound || showHaptics) && (
-                  <View style={styles.toggleRow}>
-                    {showSound && (
-                      <TouchableRipple
-                        soundDisabled
-                        onPress={() => {
-                          const enabled = !soundSettings.enabled
-                          setSoundSettings({ enabled })
-                          if (enabled) sound.selection?.()
-                        }}
-                        style={styles.toggleButtonInRow}
-                        accessibilityLabel={`Sound ${soundSettings.enabled ? 'on' : 'off'}`}
-                      >
-                        <View style={styles.toggleContent}>
-                          <SettingIcon source={soundSettings.enabled ? 'volume-high' : 'volume-off'} color={soundSettings.enabled ? colors.tertiary : colors.onSurfaceVariant} containerColor={soundSettings.enabled ? colors.tertiaryContainer : colors.surfaceVariant} />
-                          <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
-                            Sound
-                          </Text>
-                        </View>
-                      </TouchableRipple>
-                    )}
+                  {(showSound || showHaptics) && (
+                    <View style={styles.toggleRow}>
+                      {showSound && (
+                        <TouchableRipple
+                          soundDisabled
+                          onPress={() => {
+                            const enabled = !soundSettings.enabled
+                            setSoundSettings({ enabled })
+                            if (enabled) sound.selection?.()
+                          }}
+                          style={styles.toggleButtonInRow}
+                          accessibilityLabel={`Sound ${soundSettings.enabled ? 'on' : 'off'}`}
+                        >
+                          <View style={styles.toggleContent}>
+                            <SettingIcon source={soundSettings.enabled ? 'volume-high' : 'volume-off'} color={soundSettings.enabled ? colors.tertiary : colors.onSurfaceVariant} containerColor={soundSettings.enabled ? colors.tertiaryContainer : colors.surfaceVariant} />
+                            <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
+                              Sound
+                            </Text>
+                          </View>
+                        </TouchableRipple>
+                      )}
 
-                    {/* Already native-only (see showHaptics's own definition) - hideHaptics can hide
+                      {/* Already native-only (see showHaptics's own definition) - hideHaptics can hide
                       it there too, for a game that's deliberately silent on vibration. */}
-                    {showHaptics && (
-                      <TouchableRipple
-                        hapticDisabled
-                        onPress={() => {
-                          const vibrate = !hapticSettings.vibrate
-                          setHapticSettings({ vibrate })
-                          if (vibrate) forceHapticFeedback()
-                        }}
-                        style={styles.toggleButtonInRow}
-                        accessibilityLabel={`Haptics ${hapticSettings.vibrate ? 'on' : 'off'}`}
-                      >
-                        <View style={styles.toggleContent}>
-                          <SettingIcon source={hapticSettings.vibrate ? 'vibrate' : 'vibrate-off'} color={hapticSettings.vibrate ? colors.tertiary : colors.onSurfaceVariant} containerColor={hapticSettings.vibrate ? colors.tertiaryContainer : colors.surfaceVariant} />
-                          <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
-                            Haptics
-                          </Text>
-                        </View>
-                      </TouchableRipple>
-                    )}
-                  </View>
-                )}
+                      {showHaptics && (
+                        <TouchableRipple
+                          hapticDisabled
+                          onPress={() => {
+                            const vibrate = !hapticSettings.vibrate
+                            setHapticSettings({ vibrate })
+                            if (vibrate) forceHapticFeedback()
+                          }}
+                          style={styles.toggleButtonInRow}
+                          accessibilityLabel={`Haptics ${hapticSettings.vibrate ? 'on' : 'off'}`}
+                        >
+                          <View style={styles.toggleContent}>
+                            <SettingIcon source={hapticSettings.vibrate ? 'vibrate' : 'vibrate-off'} color={hapticSettings.vibrate ? colors.tertiary : colors.onSurfaceVariant} containerColor={hapticSettings.vibrate ? colors.tertiaryContainer : colors.surfaceVariant} />
+                            <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
+                              Haptics
+                            </Text>
+                          </View>
+                        </TouchableRipple>
+                      )}
+                    </View>
+                  )}
 
-                {/* Not a toggle, but it reads like one of the rows above and belongs with them rather than
+                  {/* Not a toggle, but it reads like one of the rows above and belongs with them rather than
                   down in `children` (which sits below Appearance) - this is the "replay the intro"
                   entry point every game's own how-to-play flow shares. Dismisses this dialog first so
                   the guide's own overlay never opens on top of a still-visible Settings card. */}
-                {onShowHowToPlay && (
-                  <TouchableRipple
-                    onPress={() => {
-                      onDismiss()
-                      onShowHowToPlay()
-                    }}
-                    style={styles.toggleButton}
-                    accessibilityLabel='How to Play'
-                  >
-                    <View style={styles.toggleContent}>
-                      <SettingIcon source='help-circle-outline' color={colors.secondary} containerColor={colors.secondaryContainer} />
-                      <View style={styles.flexShrink}>
-                        <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
-                          How to Play
-                        </Text>
-                        <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
-                          Replay the quick intro
-                        </Text>
+                  {onShowHowToPlay && (
+                    <TouchableRipple
+                      onPress={() => {
+                        onDismiss()
+                        onShowHowToPlay()
+                      }}
+                      style={styles.toggleButton}
+                      accessibilityLabel='How to Play'
+                    >
+                      <View style={styles.toggleContent}>
+                        <SettingIcon source='help-circle-outline' color={colors.secondary} containerColor={colors.secondaryContainer} />
+                        <View style={styles.flexShrink}>
+                          <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
+                            How to Play
+                          </Text>
+                          <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
+                            Replay quick intro
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                  </TouchableRipple>
-                )}
-              </View>
+                    </TouchableRipple>
+                  )}
+                </View>
 
-              {showAppearance && (
-                <View style={styles.section}>
-                  <Text variant='labelMedium' style={[styles.sectionLabel, { color: colors.onSurfaceVariant }]}>
-                    APPEARANCE
-                  </Text>
-                  <AutoAppearancePicker showLabels={false} />
-                  {/* Blur (Jay, 2026-10-15): one fleet-wide switch for auto-paper's own `blur` setting,
+                {showAppearance && (
+                  <View style={styles.section}>
+                    <Text variant='labelMedium' style={[styles.sectionLabel, { color: colors.onSurfaceVariant }]}>
+                      APPEARANCE
+                    </Text>
+                    <AutoAppearancePicker showLabels={false} />
+                    {/* Blur (Jay, 2026-10-15): one fleet-wide switch for auto-paper's own `blur` setting,
                     which every blur-capable surface follows on its own (this sheet, and the
                     OverlayCard behind ConfirmDialog, UpdateDialog and the guide). Off, or wherever
                     blur can't happen, those surfaces paint the theme's raised surface instead. So the
                     row only shows where turning it on would change something: not on Android
                     (auto-paper's BlurView needs a blur target there, which these cards don't have) and
                     not in an app that never handed expo-blur to auto-paper's Provider. */}
-                  {showBlur && (
-                    <TouchableRipple onPress={() => setThemeSettings({ blur: !themeSettings.blur })} style={styles.toggleButton} accessibilityLabel={`Blur ${themeSettings.blur ? 'on' : 'off'}`}>
-                      <View style={styles.toggleContent}>
-                        <SettingIcon source={themeSettings.blur ? 'blur' : 'blur-off'} color={themeSettings.blur ? colors.tertiary : colors.onSurfaceVariant} containerColor={themeSettings.blur ? colors.tertiaryContainer : colors.surfaceVariant} />
-                        <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
-                          Blur
-                        </Text>
-                      </View>
-                    </TouchableRipple>
-                  )}
-                </View>
-              )}
+                    {showBlur && (
+                      <TouchableRipple onPress={() => setThemeSettings({ blur: !themeSettings.blur })} style={styles.toggleButton} accessibilityLabel={`Blur ${themeSettings.blur ? 'on' : 'off'}`}>
+                        <View style={styles.toggleContent}>
+                          <SettingIcon source={themeSettings.blur ? 'blur' : 'blur-off'} color={themeSettings.blur ? colors.tertiary : colors.onSurfaceVariant} containerColor={themeSettings.blur ? colors.tertiaryContainer : colors.surfaceVariant} />
+                          {/* The one-word label alone didn't say what blurs (Jay, 2026-10-15). One line
+                            even on a 360pt phone (216pt of room). */}
+                          <View style={styles.flexShrink}>
+                            <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
+                              Blur
+                            </Text>
+                            <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
+                              Frost behind dialogs
+                            </Text>
+                          </View>
+                        </View>
+                      </TouchableRipple>
+                    )}
+                  </View>
+                )}
 
-              {children}
+                {children}
 
-              {/* Native only (a web build has no OTA update concept at all, desktop or mobile browser
+                {/* Native only (a web build has no OTA update concept at all, desktop or mobile browser
                 alike) - hideUpdateCheck can hide it there too, for a native app that isn't wired up
                 for EAS/OTA updates at all. */}
-              {showUpdateCheck && (
-                <View style={styles.section}>
-                  <Text variant='labelSmall' style={[styles.sectionLabel, { color: colors.onSurfaceVariant }]}>
-                    VERSION {version}
-                    {updateReady ? ' · UPDATE READY' : ''}
-                  </Text>
-                  <Button mode='outlined' onPress={check} loading={checking} disabled={checking}>
-                    Check for Updates
-                  </Button>
-                </View>
-              )}
-            </ScrollView>
+                {showUpdateCheck && (
+                  <View style={styles.section}>
+                    <Text variant='labelMedium' style={[styles.sectionLabel, { color: colors.onSurfaceVariant }]}>
+                      VERSION {version}
+                      {updateReady ? ' · UPDATE READY' : ''}
+                    </Text>
+                    <Button mode='outlined' onPress={check} loading={checking} disabled={checking}>
+                      Check for Updates
+                    </Button>
+                  </View>
+                )}
+              </View>
+            </FadingScrollView>
           </Dialog.ScrollArea>
+          <View style={[overlayActionStyles.actions, styles.footer]}>
+            <Button mode='contained' onPress={onDismiss} style={overlayActionStyles.actionButtonSingle} buttonColor={colors.primary} textColor={colors.onPrimary}>
+              Done
+            </Button>
+          </View>
         </Dialog>
         <ConfirmDialog visible={!!updateManifest} title='Update Available' message={updateManifestDate ? `Released ${updateManifestDate.toLocaleDateString()} at ${updateManifestDate.toLocaleTimeString()}` : ''} confirmLabel='Restart' cancelLabel='Later' icon='update' rotation={0} onConfirm={() => respondToUpdateConfirm(true)} onCancel={() => respondToUpdateConfirm(false)} />
         <ConfirmDialog visible={!!infoMessage} title={infoMessage?.title ?? ''} message={infoMessage?.message ?? ''} confirmLabel='OK' icon='information-outline' rotation={0} onConfirm={() => setInfoMessage(null)} />
@@ -347,10 +381,13 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   )
 }
 
+// The backdrop gutter every overlay card keeps from the screen's edges.
+const SHEET_GUTTER = 24
+
 const styles = StyleSheet.create({
+  // The rows' sections, 24pt apart.
   content: {
-    gap: 24,
-    paddingVertical: 20
+    gap: 24
   },
   // Caps the card so it never grows past the screen - without this the dialog just keeps
   // growing to fit its content and the overflow gets clipped by the screen edge, which is
@@ -362,6 +399,11 @@ const styles = StyleSheet.create({
   flexShrink: {
     flexShrink: 1
   },
+  // The overlay cards' 24pt padding, as the sheet's own insets (its scroll area pads 24 sideways).
+  footer: {
+    paddingBottom: 24,
+    paddingHorizontal: 24
+  },
   iconBadge: {
     alignItems: 'center',
     borderRadius: 10,
@@ -369,8 +411,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 36
   },
+  // No hairline dividers above and below the scroll area (Paper's MD2-era borders): none of the
+  // fleet's other dialogs draws one, so the sheet matches them (Jay, 2026-10-15).
   scrollArea: {
+    borderBottomWidth: 0,
+    borderTopWidth: 0,
     marginBottom: 0
+  },
+  // The header and the rows scroll together: the card's 24pt inset above the header, the overlay
+  // cards' 16pt gap between it and the rows, and 16pt below the last row before the Done row.
+  scrollContent: {
+    gap: 16,
+    paddingBottom: 16,
+    paddingTop: 24
   },
   section: {
     gap: 12

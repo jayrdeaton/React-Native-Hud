@@ -1,11 +1,23 @@
 import { BlurView, useBlur } from '@rific/auto-paper'
 import { Button } from '@rific/feedback-press'
-import { render } from '@testing-library/react'
+import { act, render } from '@testing-library/react'
+import { type LayoutChangeEvent } from 'react-native'
 import { Icon, Text } from 'react-native-paper'
 
 import { mockViewRender } from '../__mocks__/react-native'
 import { ConfirmDialog } from '../ConfirmDialog'
+import { DialogHeader } from '../DialogHeader'
 import { overlayStyles } from '../overlayCard'
+
+// The real header, wrapped so a test can read the props it was rendered with.
+jest.mock('../DialogHeader', () => {
+  const actual = jest.requireActual('../DialogHeader')
+  return { ...actual, DialogHeader: jest.fn(actual.DialogHeader) }
+})
+
+function lastHeaderProps() {
+  return (DialogHeader as unknown as jest.Mock).mock.lastCall![0]
+}
 
 const baseProps = {
   visible: true,
@@ -82,7 +94,8 @@ describe('ConfirmDialog', () => {
     const { unmount } = render(<ConfirmDialog {...baseProps} />)
 
     const blurCalls = (BlurView as unknown as jest.Mock).mock.calls
-    expect(blurCalls[blurCalls.length - 1][0]).toMatchObject({ blur: true, elevation: 3 })
+    expect(blurCalls[blurCalls.length - 1][0]).toMatchObject({ blur: true })
+    expect(blurCalls[blurCalls.length - 1][0].elevation).toBeUndefined()
     const bodyCalls = (Text as jest.Mock).mock.calls.filter(([props]) => props.variant === 'bodyLarge')
     expect([bodyCalls[bodyCalls.length - 1][0].style].flat(Infinity)).toContainEqual({ color: '#000002' }) // colors.onSurface
     const backdrop = mockViewRender.mock.calls.map(([props]) => [props.style].flat(Infinity)).filter((style) => style.includes(overlayStyles.overlay))
@@ -95,7 +108,23 @@ describe('ConfirmDialog', () => {
     const { unmount } = render(<ConfirmDialog {...baseProps} />)
 
     const blurCalls = (BlurView as unknown as jest.Mock).mock.calls
-    expect(blurCalls[blurCalls.length - 1][0]).toMatchObject({ blur: false, elevation: 3 })
+    expect(blurCalls[blurCalls.length - 1][0]).toMatchObject({ blur: false })
+    unmount()
+  })
+
+  it("opens with the fleet's dialog header: the icon and title in the accent, the danger role when destructive", () => {
+    const { unmount } = render(<ConfirmDialog {...baseProps} destructive />)
+
+    expect(lastHeaderProps()).toEqual(expect.objectContaining({ icon: 'help-circle-outline', title: 'Start a new game?', color: '#00000b', compact: false }))
+    unmount()
+  })
+
+  it('uses the compact header once its backdrop measures short (a phone held sideways)', () => {
+    const { unmount } = render(<ConfirmDialog {...baseProps} />)
+    const backdrop = mockViewRender.mock.calls.filter(([props]) => [props.style].flat(Infinity).includes(overlayStyles.overlay)).pop()![0]
+
+    act(() => (backdrop.onLayout as (e: LayoutChangeEvent) => void)({ nativeEvent: { layout: { x: 0, y: 0, width: 874, height: 402 } } } as LayoutChangeEvent))
+    expect(lastHeaderProps()).toEqual(expect.objectContaining({ compact: true }))
     unmount()
   })
 })

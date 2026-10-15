@@ -5,6 +5,7 @@ import { BackHandler, type NativeScrollEvent, type NativeSyntheticEvent, ScrollV
 import { Portal, Text } from 'react-native-paper'
 import { useReducedMotion } from 'react-native-reanimated'
 
+import { DialogHeader, isCompactDialogHeight } from '../DialogHeader'
 import { overlayActionStyles } from '../overlayCard'
 import { OverlayBackdrop, OverlayCard, useOverlayCardColors } from '../OverlaySurface'
 import type { GuideRotation, GuideStep } from './types'
@@ -19,9 +20,11 @@ const MAX_CARD_WIDTH = 360
 // lines mean fewer of them, which is what actually has to fit (see sizing below).
 const MAX_CARD_WIDTH_TURNED = 520
 const ART_HEIGHT = 132
-// Below this much usable height the illustration box shrinks. Sized so the full card (padding, art,
-// title, two lines of body, dots, buttons) fits a 360pt-wide phone held sideways.
-const COMPACT_BELOW = 480
+// On a short screen (isCompactDialogHeight, the rule every dialog's header follows) the illustration
+// box shrinks. Before the dialog header, that fit the whole card (padding, art, title, two lines of
+// body, dots, buttons) on a 360pt-wide phone held sideways; the compact header adds 48pt, so a page
+// there now scrolls a little (see the pager below). The art can't shrink further: the apps' own art
+// is drawn at fixed sizes (Solitaire's is 72-98pt tall). The page's own gaps tighten instead (pageCompact).
 const ART_HEIGHT_COMPACT = 88
 
 // Where the card has to fit. The fleet's rotation is FAKE: the OS window stays portrait and the card
@@ -34,11 +37,13 @@ export function getGuideCardSize(windowWidth: number, windowHeight: number, rota
   const availableWidth = (turned ? windowHeight : windowWidth) - OVERLAY_GUTTER * 2
   const availableHeight = (turned ? windowWidth : windowHeight) - OVERLAY_GUTTER * 2
   const width = Math.min(turned ? MAX_CARD_WIDTH_TURNED : MAX_CARD_WIDTH, availableWidth)
+  const compact = isCompactDialogHeight(turned ? windowWidth : windowHeight)
   return {
     width,
     pageWidth: width - CARD_PADDING * 2,
     maxHeight: availableHeight,
-    artHeight: availableHeight < COMPACT_BELOW ? ART_HEIGHT_COMPACT : ART_HEIGHT
+    artHeight: compact ? ART_HEIGHT_COMPACT : ART_HEIGHT,
+    compact
   }
 }
 
@@ -53,11 +58,15 @@ export interface HowToPlayDialogProps {
   // The app's live fake-landscape rotation (see GuideRotation). Portal content escapes any rotated
   // ancestor, so the card rotates itself, and sizes itself for the turn (see getGuideCardSize).
   rotation?: GuideRotation
+  // The dialog's own header (DialogHeader), above the pages: the guide opens unprompted on a first
+  // launch, so it says what it is before the first card's own title (Jay, 2026-10-15).
+  title?: string
+  icon?: string
 }
 
 type CardProps = Omit<HowToPlayDialogProps, 'visible'>
 
-function HowToPlayCard({ steps, onFinish, onSkip, rotation = 0 }: CardProps) {
+function HowToPlayCard({ steps, onFinish, onSkip, rotation = 0, title = 'How to Play', icon = 'help-circle-outline' }: CardProps) {
   const { dark, colors } = useAutoPaperTheme()
   const { width: windowWidth, height: windowHeight } = useWindowDimensions()
   const reducedMotion = useReducedMotion()
@@ -75,7 +84,7 @@ function HowToPlayCard({ steps, onFinish, onSkip, rotation = 0 }: CardProps) {
   }, [onSkip])
 
   const { fg, fgMuted } = useOverlayCardColors()
-  const { width: cardWidth, pageWidth, maxHeight, artHeight } = getGuideCardSize(windowWidth, windowHeight, rotation)
+  const { width: cardWidth, pageWidth, maxHeight, artHeight, compact } = getGuideCardSize(windowWidth, windowHeight, rotation)
   const rotationStyle = rotation === 0 ? undefined : { transform: [{ rotate: `${rotation}deg` }] }
   const isFirst = index === 0
   const isLast = index === steps.length - 1
@@ -122,12 +131,13 @@ function HowToPlayCard({ steps, onFinish, onSkip, rotation = 0 }: CardProps) {
     <Portal>
       <OverlayBackdrop style={styles.overlay}>
         <OverlayCard accessibilityViewIsModal style={[styles.card, { width: cardWidth, maxHeight }, rotationStyle]}>
+          <DialogHeader icon={icon} title={title} compact={compact} />
           {/* The pager shrinks (flexShrink) when the card hits maxHeight, and each page is its own
             vertical ScrollView, so a page that still doesn't fit (a long translation, large text)
             scrolls instead of being clipped. In the normal case nothing scrolls. */}
           <ScrollView ref={scrollRef} horizontal pagingEnabled showsHorizontalScrollIndicator={false} onScroll={handleScroll} scrollEventThrottle={16} onMomentumScrollEnd={handleMomentumEnd} style={[styles.pager, { width: pageWidth }]}>
             {steps.map((step, i) => (
-              <ScrollView key={i} nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ width: pageWidth }} contentContainerStyle={styles.page}>
+              <ScrollView key={i} nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ width: pageWidth }} contentContainerStyle={[styles.page, compact && styles.pageCompact]}>
                 {step.art !== undefined && <View style={[styles.art, { height: artHeight, backgroundColor: artBackground }]}>{step.art}</View>}
                 <Text variant='headlineSmall' style={[styles.title, { color: fg }]}>
                   {step.title}
@@ -196,8 +206,7 @@ const styles = StyleSheet.create({
   body: {
     textAlign: 'center'
   },
-  // Additive on top of overlayCard's own shared `card` shape - its default 32px padding is tighter
-  // here (a paged card wants more width for its art) and the shared 16px gap is right.
+  // overlayCard's shared `card` padding, restated: the page width above is computed from it.
   card: {
     padding: CARD_PADDING
   },
@@ -219,6 +228,11 @@ const styles = StyleSheet.create({
   page: {
     alignItems: 'center',
     gap: 12
+  },
+  // The 8pt this saves is what the compact dialog header cost a page on a 402pt-tall window (a
+  // Pro-size iPhone held sideways, measured on web): without it the body's second line scrolled.
+  pageCompact: {
+    gap: 8
   },
   pager: {
     flexShrink: 1

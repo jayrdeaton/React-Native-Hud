@@ -3,10 +3,12 @@ import { Button } from '@rific/feedback-press'
 import { toRotationStyle, type ViewRotation } from '@tastic/core'
 import { type ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
-import { Icon, Portal, Text } from 'react-native-paper'
+import { Portal, Text } from 'react-native-paper'
 
+import { DialogHeader } from './DialogHeader'
 import { overlayActionStyles } from './overlayCard'
 import { OverlayBackdrop, OverlayCard, useOverlayCardColors } from './OverlaySurface'
+import { useCompactDialog } from './useCompactDialog'
 
 export interface ConfirmDialogProps {
   visible: boolean
@@ -20,8 +22,8 @@ export interface ConfirmDialogProps {
   // BaseSettingsDialog's own rotation prop; defaults to 0 for a caller with no per-player zone to
   // match (a portrait-only or single-player game has nothing to stay consistent with).
   rotation?: ViewRotation
-  // Any react-native-paper Icon `source` name, shown above the title - defaults to a plain
-  // question mark, since this component has no way to know why a caller is asking.
+  // Any react-native-paper Icon `source` name, shown in the header (DialogHeader) - defaults to a
+  // plain question mark, since this component has no way to know why a caller is asking.
   icon?: string
   // Whether the confirm button reads as destructive (the fleet's shared `danger` semantic role)
   // instead of the default primary-colored affirmative action.
@@ -40,6 +42,7 @@ export interface ConfirmDialogProps {
 export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLabel, onConfirm, onCancel, rotation = 0, icon = 'help-circle-outline', destructive = false }: ConfirmDialogProps) {
   const { colors } = useAutoPaperTheme()
   const { fg } = useOverlayCardColors()
+  const { compact, onLayout } = useCompactDialog(rotation)
   if (!visible) return null
 
   const accent = destructive ? colors.danger : colors.primary
@@ -48,12 +51,9 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLab
 
   return (
     <Portal>
-      <OverlayBackdrop style={styles.overlay}>
+      <OverlayBackdrop style={styles.overlay} onLayout={onLayout}>
         <OverlayCard style={[styles.card, toRotationStyle(rotation)]}>
-          <Icon source={icon} size={64} color={accent} />
-          <Text variant='headlineLarge' style={[styles.title, { color: accent }]}>
-            {title}
-          </Text>
+          <DialogHeader icon={icon} title={title} color={accent} compact={compact} />
           <Text variant='bodyLarge' style={[styles.body, { color: fg }]}>
             {message}
           </Text>
@@ -91,12 +91,5 @@ const styles = StyleSheet.create({
   // screen narrower than maxWidth's own 360.
   overlay: {
     paddingHorizontal: 24
-  },
-  // textAlign is load-bearing, not decorative, once `title` wraps to more than one line - centered
-  // within card's own alignItems: 'center' only centers the Text's block as a whole; each wrapped
-  // line inside that block still defaults to left-aligned without this.
-  title: {
-    fontWeight: 'bold',
-    textAlign: 'center'
   }
 })
