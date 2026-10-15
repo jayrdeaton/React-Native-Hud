@@ -410,6 +410,22 @@ cards read as a different shade from the Settings sheet. So:
 - Not changed: auto-paper itself (its Dialog keeps 32/400 for every non-hud caller), and the fade: the
   Settings sheet still fades in and out (auto-paper's Dialog) while the overlay cards appear at once.
 
+### Keep Awake row in BaseSettingsDialog (2026-10-15)
+
+- **`keepAwake`/`onKeepAwakeChange`**, an optional pair like Lock Orientation's: the "Keep Awake" row
+  (caption "Stop auto-lock mid-match", icon `eye`/`eye-closed`) sits after Edge Guard. Jay asked for it
+  while the five games were adding `expo-keep-awake` to `/game` (audit F086: Pong's tilt steering never
+  touches the screen, so a release build could lock mid-rally).
+- **The dialog only toggles it.** Each app keeps the screen awake itself (its own `expo-keep-awake` call
+  on its match screen, gated on its own persisted `keepAwake`, default on), so hud takes no native
+  dependency for this.
+- **Shown where Lock Orientation is** (`isTouchPrimary`: native, and touch-first mobile browsers). A
+  desktop or laptop browser stays awake while someone plays with its keyboard or mouse, so the row
+  would be clutter there; the app's default still applies.
+- Tested in `BaseSettingsDialog.test.tsx` (shown and reported, hidden on desktop, omitted without the
+  props, tertiary accent while on). Needs a release before the games can use it from npm (a new prop
+  pair, so a minor).
+
 ### The press-away pattern for split-screen (no component for this - it's a wiring pattern)
 
 A single full-screen `PressAwayOverlay` works for one player. For two players sharing a screen, the

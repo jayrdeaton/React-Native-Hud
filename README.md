@@ -207,9 +207,11 @@ the fleet with real Redux Toolkit state - reads `lockOrientation`/`deferBottomEd
 `useSelector` and writes them back via `dispatch(gameActions.setLockOrientation(...))` directly
 inside the adapter, with nothing threaded through props at all. `BaseSettingsDialog` doesn't care
 which of these an app uses: sound, haptics, appearance, and update-checking are identical across
-every app and live entirely inside this package now, so `lockOrientation`/`onLockOrientationChange`
-and `deferBottomEdgeGestures`/`onDeferBottomEdgeGestures` are the only two settings an adapter
-actually needs to source itself, however it does that.
+every app and live entirely inside this package now, so `lockOrientation`/`onLockOrientationChange`,
+`deferBottomEdgeGestures`/`onDeferBottomEdgeGestures` and `keepAwake`/`onKeepAwakeChange` are the only
+settings an adapter actually needs to source itself, however it does that. Each pair is optional: omit
+one and its row doesn't show. The Keep Awake row only toggles the value; the app keeps the screen awake
+itself while it's on (for example with `expo-keep-awake` on its match screen).
 
 Every adapter also passes `version={release.otaVersion}` (so the dialog's own update-check button
 knows what it's currently running) and `onUpdateError`, wired to a real `useToast()` call. Wire this
@@ -234,6 +236,8 @@ export function SettingsDialog({ visible, onDismiss, rotation = 0, settings, set
       onLockOrientationChange={(value) => setSettings({ lockOrientation: value })}
       deferBottomEdgeGestures={settings.deferBottomEdgeGestures}
       onDeferBottomEdgeGestures={(value) => setSettings({ deferBottomEdgeGestures: value })}
+      keepAwake={settings.keepAwake}
+      onKeepAwakeChange={(value) => setSettings({ keepAwake: value })}
       onUpdateError={(message) => error('Update check failed', message)}
     />
   )
