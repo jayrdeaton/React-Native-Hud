@@ -268,6 +268,31 @@ avatar's icon uses `getContrastColor(color)`, where Pong/AirHockey used the them
 result for their theme primary/secondary colors in practice. Snake's 2 Player game-over card was
 checked in a browser (guest seats, bronze unlocks, no console errors); the other four were not.
 
+### `CornerActionButtons` takes an opt-in `hitSlop` (2026-10-15)
+
+Each corner's touch target is its 40pt box (size 24 plus Paper's 8pt padding; Paper's 6pt margin
+and the 8pt corner offset sit outside it). The optional `hitSlop` prop (`number | Insets`) goes to
+both buttons' own `hitSlop` unchanged; the `style` (corner offset) is the same with or without it,
+which the test checks. Hangman passes 4 for 48pt targets, matching the 4pt slop its drawer headers'
+IconButtons use.
+
+**It only works with `@rific/feedback-press` 0.13.0 or later.** Paper's IconButton clips its touchable
+to the 40pt box (a Surface with `overflow: 'hidden'`), and RN's native hit testing never reaches past a
+clipping parent, so a `hitSlop` handed to Paper was always a no-op on device (Paper's own default slop
+too). feedback-press 0.13.0's IconButton wraps the Paper button in an invisible Pressable that owns the
+slop, with nothing drawn and no layout change; see feedback-press's CLAUDE.md for the mechanism and why it
+isn't a style override. The peer floor here stays at `>=0.10.2`: on an older feedback-press the prop is
+silently ignored rather than breaking anything. react-native-web ignores `hitSlop` entirely, so on web the
+target stays 40pt.
+
+**Jay chose opt-in (2026-10-15): one optional prop covering both corners, not a built-in slop on every
+game.** That cuts against the guide's "uniform by construction" rule (below), so don't turn it into a
+default without asking him. Omitting it keeps the 40pt target the other games have. Whoever passes it
+owns the clearance: in Hangman the Difficulty and Hint pills sit 8pt from the button boxes, so a 4pt
+slop leaves a 4pt gap, though the Hint pill's own `hitSlop={8}` already reaches into it. Where the two
+slops overlap (4pt, only when the pill row fills the width), the corner button wins because Main.tsx draws the corners
+above the game.
+
 ### The press-away pattern for split-screen (no component for this - it's a wiring pattern)
 
 A single full-screen `PressAwayOverlay` works for one player. For two players sharing a screen, the

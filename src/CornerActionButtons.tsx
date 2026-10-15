@@ -1,5 +1,5 @@
 import { IconButton } from '@rific/feedback-press'
-import { StyleSheet } from 'react-native'
+import { type Insets, StyleSheet } from 'react-native'
 
 interface Props {
   onBack: () => void
@@ -20,6 +20,14 @@ interface Props {
   // together - an icon without a matching label (or vice versa) misleads screen readers/tooltips.
   backIcon?: string
   backLabel?: string
+  // Opt-in extra touch area on both buttons, forwarded as each IconButton's own hitSlop (RN's
+  // number | Insets). Each button's target is its 40pt box (24pt glyph plus Paper's 8pt padding), so
+  // 4 makes it 48pt. Nothing visible changes: the glyphs, the press ripple and the 8pt corner offset
+  // all stay put. Needs @rific/feedback-press 0.13.0 or later, whose IconButton makes hitSlop reach
+  // past Paper's clipped box; on older versions it's silently ignored. Omitted means no slop, as
+  // before. The caller owns what sits near its corners, so it's the one that knows how much room
+  // there is.
+  hitSlop?: number | Insets
 }
 
 // Back (top-left) + Settings (top-right) icon buttons, fixed at the screen's rotated corners - the
@@ -28,11 +36,11 @@ interface Props {
 // right answer for a screen where the top corners themselves fall *inside* one player's own rotated
 // zone (two-player face-to-face) - see SharedActionBand for that case instead, which callers select
 // between based on their own game-mode/orientation state (this component has no opinion on which).
-export function CornerActionButtons({ onBack, onSettings, fg, insets, backIcon = 'arrow-left', backLabel = 'Back' }: Props) {
+export function CornerActionButtons({ onBack, onSettings, fg, insets, backIcon = 'arrow-left', backLabel = 'Back', hitSlop }: Props) {
   return (
     <>
-      <IconButton icon={backIcon} iconColor={fg} size={24} style={[styles.back, { top: 8 + insets.top, left: 8 + insets.left }]} onPress={onBack} accessibilityLabel={backLabel} />
-      <IconButton icon='cog' iconColor={fg} size={24} style={[styles.topRight, { top: 8 + insets.top, right: 8 + insets.right }]} onPress={onSettings} accessibilityLabel='Settings' />
+      <IconButton icon={backIcon} iconColor={fg} size={24} style={[styles.back, { top: 8 + insets.top, left: 8 + insets.left }]} hitSlop={hitSlop} onPress={onBack} accessibilityLabel={backLabel} />
+      <IconButton icon='cog' iconColor={fg} size={24} style={[styles.topRight, { top: 8 + insets.top, right: 8 + insets.right }]} hitSlop={hitSlop} onPress={onSettings} accessibilityLabel='Settings' />
     </>
   )
 }

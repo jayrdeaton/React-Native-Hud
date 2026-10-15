@@ -52,7 +52,13 @@ corner of the screen.
   instead of reusing this component there, a real (if minor) missed-reuse case worth fixing next
   time one of those screens gets touched. Not the right fit for a screen where the top corners fall
   *inside* one player's own rotated zone (two-player face-to-face) - see `SharedActionBand` for
-  that case instead.
+  that case instead. Each button's touch target is its own 40pt box. Pass the optional `hitSlop`
+  (a number or `Insets`, forwarded to both buttons) to grow it without changing anything visible:
+  `hitSlop={4}` makes a 48pt target, and the glyphs and press ripple stay as they are. It needs
+  `@rific/feedback-press` 0.13.0 or later, whose `IconButton` makes `hitSlop` reach past Paper's
+  clipped box (older versions silently ignore it). Omit it to keep the 40pt target. Leave room for
+  it: the slop reaches past each button's box, and where it overlaps another touch target,
+  whichever is drawn on top gets the press.
 - **`StaggeredWord`** / **`getStaggeredWordDuration`** - the letter-by-letter stagger-in animation
   every app's own hero-title screen had hand-rolled independently, identical down to the same 45ms
   stagger, 320ms per-letter duration, and back-ease overshoot. Renders one word/line at a time - a
