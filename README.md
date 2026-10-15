@@ -680,5 +680,5 @@ resolve module".
 | `@rific/updater` | >=0.4.0, optional | main entry and `./chrome`: `BaseSettingsDialog`, `UpdateDialog` |
 | `@tastic/profile` | >=0.4.0, optional | main entry: `PlayerSetupPanel`, `AchievementUnlockList` (`ProfileChip`) |
 | `@tastic/split-screen` | >=0.5.0, optional | main entry: `useZoneClampedAlign` |
-| `@shopify/react-native-skia` | >=1.5.0, optional | `TriggerGaugeHost`'s gauge (lazy-loaded behind `SkiaGate`) and `./skia-gate` |
+| `@shopify/react-native-skia` | >=2.6.0, optional | `TriggerGaugeHost`'s gauge (lazy-loaded behind `SkiaGate`) and `./skia-gate` |
 | `@tastic/achievements` | >=0.2.0, optional | `AchievementCatalogSection`, `AchievementUnlockList`, type-only (`AchievementCatalogRow`, first exported in 0.2.0; `AchievementTier`); `./chrome` needs it installed only to type-check |

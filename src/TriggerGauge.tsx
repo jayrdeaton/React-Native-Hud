@@ -77,10 +77,10 @@ const SELECTION_TRANSITION_DURATION_MS = 260
 // Arc of dashes drawn around a SectionedDropdown trigger, purely decorative-informational - the
 // trigger's own icon stays exactly as it is (see SectionedDropdown's triggerIcon), this just frames
 // it with an at-a-glance read of *which* option is active without opening the popover. Each dash is
-// a real Skia arc segment (Path.addArc), not a straight bar approximating one - a straight bar wide
-// enough to look bold started visibly crossing its neighbors on a sparse (e.g. 3-option) gauge,
-// since a chord that long diverges a lot from the circle it's meant to trace; an actual arc stays on
-// the circle at any width. Skia measures angles clockwise from 3 o'clock, so a center angle here
+// a real Skia arc segment (PathBuilder.addArc), not a straight bar approximating one - a straight
+// bar wide enough to look bold started visibly crossing its neighbors on a sparse (e.g. 3-option)
+// gauge, since a chord that long diverges a lot from the circle it's meant to trace; an actual arc
+// stays on the circle at any width. Skia measures angles clockwise from 3 o'clock, so a center angle here
 // (measured clockwise from 12, like startDeg/endDeg) is shifted by -90° before being handed to
 // addArc.
 export function TriggerGauge({ segments, litIndices, size, accentColor, mutedColor, dashWidth, startDeg = DEFAULT_START_DEG, endDeg = startDeg }: TriggerGaugeProps) {
@@ -201,7 +201,7 @@ export function TriggerGauge({ segments, litIndices, size, accentColor, mutedCol
   // there the instant a lit dash starts shrinking off of it, rather than popping in only once the
   // shrink finishes.
   const unlitPath = useDerivedValue(() => {
-    const path = Skia.Path.Make()
+    const path = Skia.PathBuilder.Make()
     for (let i = 0; i < segments; i++) {
       if (litIndices.includes(i)) continue
       let local = 1
@@ -217,7 +217,7 @@ export function TriggerGauge({ segments, litIndices, size, accentColor, mutedCol
       const dashCenterDeg = startDeg + (i + 0.5) * step
       path.addArc(oval, dashCenterDeg - 90 - sweep / 2, sweep)
     }
-    return path
+    return path.detach()
     // litIndicesKey, not litIndices - the array itself is a brand-new reference on every render
     // (including ones triggered by a totally unrelated sibling gauge or settings field), which would
     // otherwise force this worklet to rebuild on every such render. The stable string key only
@@ -226,7 +226,7 @@ export function TriggerGauge({ segments, litIndices, size, accentColor, mutedCol
   }, [segments, litIndicesKey, step, startDeg, dashAngleDeg, totalDurationMs, oval.x, oval.y, oval.width, oval.height])
 
   const litPath = useDerivedValue(() => {
-    const path = Skia.Path.Make()
+    const path = Skia.PathBuilder.Make()
     // The common case - a single-select trigger swapping from one tier to another - is just one
     // full-width arc sitting at angleDeg's current value, which useLayoutEffect above retargets
     // (never resets) on every change; this alone gives a real rotating handoff, including smoothly
@@ -234,7 +234,7 @@ export function TriggerGauge({ segments, litIndices, size, accentColor, mutedCol
     // is done - before that, the sweep-width stagger below owns the reveal instead.
     if (mountProgress.value >= 1 && singleSelect) {
       path.addArc(oval, angleDeg.value - 90 - dashAngleDeg / 2, dashAngleDeg)
-      return path
+      return path.detach()
     }
 
     for (let i = 0; i < segments; i++) {
@@ -261,7 +261,7 @@ export function TriggerGauge({ segments, litIndices, size, accentColor, mutedCol
       const dashCenterDeg = startDeg + (i + 0.5) * step
       path.addArc(oval, dashCenterDeg - 90 - sweep / 2, sweep)
     }
-    return path
+    return path.detach()
     // litIndicesKey/transitionFromKey, not the arrays themselves - see unlitPath's identical comment.
   }, [segments, litIndicesKey, transitionFromKey, singleSelect, step, startDeg, dashAngleDeg, totalDurationMs, oval.x, oval.y, oval.width, oval.height])
 

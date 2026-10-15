@@ -604,7 +604,7 @@ Real `peerDependencies` from `package.json`, with their actual version floors:
 - `react-native` - `>=0.76.0`
 - `react-native-paper` - `>=5.0.0` (`Icon`, `Text`)
 - `react-native-reanimated` - `>=3.0.0` (`Easing`, `useDerivedValue`, `useSharedValue`, `withTiming` - `TriggerGauge.tsx` only)
-- `@shopify/react-native-skia` - `>=1.5.0` (`Canvas`, `Path`, `Skia` in `TriggerGauge.tsx`; `LoadSkiaWeb` via its own `/src/web` subpath in `loadSkiaWeb.web.ts`)
+- `@shopify/react-native-skia` - `>=2.6.0` (`Canvas`, `Path`, `Skia` in `TriggerGauge.tsx`, which builds its arcs with `Skia.PathBuilder` - added in 2.6.0, and the only way to build a path since 2.14 made `SkPath` immutable; `LoadSkiaWeb` via its own `/src/web` subpath in `loadSkiaWeb.web.ts`)
 
 **Internal fleet:**
 - `@rific/auto-paper` - `>=0.13.0`, the first release with `FadingScrollView` (the Settings sheet's rows), and after 0.12.2, whose Provider mounts a nested `Portal.Host` inside its own contexts, which `BaseSettingsDialog`'s outer Portal relies on (see "BaseSettingsDialog lays out in a turned frame" above). Uses `AutoAppearancePicker`, `BlurView`, `useBlur`, `useBlurModule`, `useThemeSettings` (all in 0.12.2, for `OverlayCard` and the Blur row), `defaultColors`, `getContrastColor`, `getBlendedColor`, `getColorRoles`, `SeedColor`

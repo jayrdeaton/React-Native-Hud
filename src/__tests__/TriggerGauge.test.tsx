@@ -40,12 +40,12 @@ function centerDeg(startDeg: number, step: number, i: number) {
   return startDeg + (i + 0.5) * step
 }
 
-// The two most-recently created Skia paths -- TriggerGauge computes unlitPath then litPath on every
-// render (see the source's own useDerivedValue calls, in that order), and each computation makes
-// exactly one fresh Skia.Path.Make() call, so the last two Path.Make results of any settled render
-// are reliably [unlit, lit].
+// The two most-recently created Skia path builders -- TriggerGauge computes unlitPath then litPath on
+// every render (see the source's own useDerivedValue calls, in that order), and each computation
+// makes exactly one fresh Skia.PathBuilder.Make() call, so the last two PathBuilder.Make results of
+// any settled render are reliably [unlit, lit].
 function lastPaths() {
-  const results = (Skia.Path.Make as jest.Mock).mock.results
+  const results = (Skia.PathBuilder.Make as jest.Mock).mock.results
   return {
     unlit: results[results.length - 2].value as { addArc: jest.Mock },
     lit: results[results.length - 1].value as { addArc: jest.Mock }
