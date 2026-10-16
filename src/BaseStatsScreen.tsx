@@ -1,8 +1,8 @@
-import { useAutoPaperTheme } from '@rific/auto-paper'
+import { FadingScrollView, useAutoPaperTheme } from '@rific/auto-paper'
 import { Button, IconButton } from '@rific/feedback-press'
 import { useRotation, type ViewRotation } from '@tastic/core'
 import { ReactNode, useState } from 'react'
-import { type Insets, ScrollView, StyleSheet, View } from 'react-native'
+import { type Insets, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 
 import { ConfirmDialog } from './ConfirmDialog'
@@ -101,7 +101,9 @@ export function BaseStatsScreen({ rotation: rotationOverride, title = 'Achieveme
         </Text>
       </View>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]} showsVerticalScrollIndicator={false}>
+      {/* Fades out at an edge while there is more past it, the same cue as the Settings sheet's rows and the
+      Profiles screen's (Jay, 2026-10-16: every scrolling screen alike). */}
+      <FadingScrollView style={styles.scrollView} contentContainerStyle={[styles.content, { paddingBottom: 32 + insets.bottom }]} showsVerticalScrollIndicator={false}>
         {children}
 
         {showReset && (
@@ -109,7 +111,7 @@ export function BaseStatsScreen({ rotation: rotationOverride, title = 'Achieveme
             {resetLabel}
           </Button>
         )}
-      </ScrollView>
+      </FadingScrollView>
 
       <ConfirmDialog
         visible={confirmResetVisible}
@@ -147,7 +149,7 @@ const styles = StyleSheet.create({
   resetButton: {
     marginTop: 16
   },
-  // Bounds the ScrollView to the space `container`'s flex:1 actually gives it - without this, a
+  // Bounds the scroller (FadingScrollView puts it on its outer box) to the space `container`'s flex:1 actually gives it - without this, a
   // ScrollView with only a contentContainerStyle isn't reliably height-constrained on native (it
   // can render at its full unclipped content height instead of the screen's), which leaves the
   // header's back button touch target unreliable underneath it.

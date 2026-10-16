@@ -403,7 +403,7 @@ cards read as a different shade from the Settings sheet. So:
   bundled from its own source), so a missing package throws at runtime, is caught, and the content just
   doesn't fade. In auto-paper the masked-view module is handed in through its Provider (`maskedView`)
   instead, auto-paper's pattern for optional peers, so hud no longer requires it and the chrome boundary
-  test needed no exception. Used by the Settings sheet and Solitaire's RulesDialog. Seen on web and on the iOS simulator (the JS bundle exported with `expo
+  test needed no exception. Used by the Settings sheet and Solitaire's RulesDialog, and since 2026-10-16 by `BaseStatsScreen`'s content too (Jay: every scrolling screen alike; `@tastic/profile`'s `ProfilesManager` and Solitaire's Home took it the same day; `BaseStatsScreen.test.tsx` pins it). That change is unreleased as of this note. Seen on web and on the iOS simulator (the JS bundle exported with `expo
   export:embed` and swapped into the installed Release build). Not seen: Android, a real device, Hangman.
 - **Section labels are all `labelMedium`** (letter-spaced, `onSurfaceVariant`): VERSION was `labelSmall`
   while APPEARANCE and every app's own labels were `labelMedium`.

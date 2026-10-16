@@ -1,3 +1,4 @@
+import { FadingScrollView } from '@rific/auto-paper'
 import { Button, IconButton } from '@rific/feedback-press'
 import { useRotation } from '@tastic/core'
 import { act, render } from '@testing-library/react'
@@ -36,6 +37,22 @@ describe('BaseStatsScreen', () => {
     expect(renderedTexts()).toContain('Achievements')
     expect(renderedTexts()).toContain('section content')
     expect((IconButton as jest.Mock).mock.calls[0][0].icon).toBe('arrow-left')
+  })
+
+  // The Settings sheet's and the Profiles screen's edge fade, so every scrolling screen in the fleet reads the same.
+  it('scrolls its content (children and the reset button) in a FadingScrollView', () => {
+    render(
+      <BaseStatsScreen onBack={jest.fn()} insets={INSETS} onReset={jest.fn()}>
+        <Text>section content</Text>
+      </BaseStatsScreen>
+    )
+
+    const scrollCalls = (FadingScrollView as unknown as jest.Mock).mock.calls
+    expect(scrollCalls.length).toBeGreaterThan(0)
+    expect(scrollCalls[scrollCalls.length - 1][0].showsVerticalScrollIndicator).toBe(false)
+    expect(renderedTexts()).toContain('section content')
+    const buttonCalls = (Button as jest.Mock).mock.calls
+    expect(buttonCalls[buttonCalls.length - 1][0].children).toBe('Reset All Stats')
   })
 
   it('accepts a custom title', () => {
