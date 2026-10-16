@@ -21,10 +21,10 @@ interface Props {
   // timestamp - this component has no opinion on date formatting or streak conventions, which vary
   // per app (see LightCycles' own calendar-day-difference convention in its achievements.tsx).
   unlockedLabel?: string
-  // Color for the unlocked check-circle icon/badge glyph - typically the same tier color passed to
-  // badgeColor, kept as its own prop rather than reused internally so a caller can special-case it
-  // independently if its own tier scheme ever needs to (matching LightCycles' own call site, which
-  // does pass the identical value to both today).
+  // Color for the unlocked check-circle icon and the locked progress bar - defaults to badgeColor.
+  // Its own prop so a caller can tune it apart from the badge: AchievementCatalogSection passes the
+  // tier color darkened in light mode, where raw gold and silver barely show on white, while the badge
+  // keeps the true tier color behind its black glyph.
   checkColor?: string
   // Only rendered while locked (unlockedLabel is undefined) - 0..1.
   progress?: number

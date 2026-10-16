@@ -2,7 +2,7 @@ import { useAutoPaperTheme } from '@rific/auto-paper'
 import { Button, IconButton } from '@rific/feedback-press'
 import { useRotation, type ViewRotation } from '@tastic/core'
 import { ReactNode, useState } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { type Insets, ScrollView, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 
 import { ConfirmDialog } from './ConfirmDialog'
@@ -30,6 +30,14 @@ interface Props {
   // caller that wants something else entirely.
   titleVariant?: MD3TextVariant
   onBack: () => void
+  // The header arrow's accessibility label, default 'Back' (same name and default as
+  // CornerActionButtons' own backLabel). Without one, VoiceOver and TalkBack announce only "button".
+  backLabel?: string
+  // Opt-in extra touch area on the header arrow, forwarded as its IconButton's own hitSlop, exactly
+  // like CornerActionButtons' hitSlop: the target is the 40pt box, so 4 makes it 48pt, and nothing
+  // visible moves. Needs @rific/feedback-press 0.13.0 or later (ignored on older versions, and on
+  // web). Omitted means no slop, as before.
+  hitSlop?: number | Insets
   insets: { top: number; left: number; bottom: number; right: number }
   // Optional, and always passed as a pair - a caller with nothing resettable (or that deliberately
   // doesn't want a reset action on this screen) omits both rather than one alone. Confirmation copy
@@ -70,7 +78,7 @@ interface Props {
 // convention. `children` is the seam for whatever isn't shared: this component has no opinion on
 // what a "stat" is or how achievements are catalogued - see StatRow/StatSection/AchievementRow for
 // the smaller presentational pieces built to go inside it.
-export function BaseStatsScreen({ rotation: rotationOverride, title = 'Achievements', titleVariant = 'headlineSmall', onBack, insets, onReset, resetLabel = 'Reset All Stats', resetConfirmTitle = 'Reset Everything?', resetConfirmBody = 'This permanently erases all stats and achievements. This cannot be undone.', fg: fgOverride, bg: bgOverride, children }: Props) {
+export function BaseStatsScreen({ rotation: rotationOverride, title = 'Achievements', titleVariant = 'headlineSmall', onBack, backLabel = 'Back', hitSlop, insets, onReset, resetLabel = 'Reset All Stats', resetConfirmTitle = 'Reset Everything?', resetConfirmBody = 'This permanently erases all stats and achievements. This cannot be undone.', fg: fgOverride, bg: bgOverride, children }: Props) {
   const { dark, colors } = useAutoPaperTheme()
   const ambientRotation = useRotation()
   const rotation = rotationOverride ?? ambientRotation
@@ -87,7 +95,7 @@ export function BaseStatsScreen({ rotation: rotationOverride, title = 'Achieveme
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
       <View style={[styles.header, { paddingTop: 8 + insets.top, paddingLeft: 8 + insets.left }]}>
-        <IconButton icon='arrow-left' iconColor={fg} size={24} onPress={onBack} />
+        <IconButton icon='arrow-left' iconColor={fg} size={24} hitSlop={hitSlop} onPress={onBack} accessibilityLabel={backLabel} />
         <Text variant={titleVariant} style={[styles.title, { color: fg }]}>
           {title}
         </Text>

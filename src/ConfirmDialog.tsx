@@ -1,8 +1,8 @@
 import { useAutoPaperTheme } from '@rific/auto-paper'
 import { Button } from '@rific/feedback-press'
 import { toRotationStyle, type ViewRotation } from '@tastic/core'
-import { type ReactNode } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { type ReactNode, useEffect, useRef } from 'react'
+import { BackHandler, StyleSheet, View } from 'react-native'
 import { Portal, Text } from 'react-native-paper'
 
 import { DialogHeader } from './DialogHeader'
@@ -43,6 +43,29 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLab
   const { colors } = useAutoPaperTheme()
   const { fg } = useOverlayCardColors()
   const { compact, onLayout } = useCompactDialog(rotation)
+
+  // Android's back means Cancel while the dialog is up. It's a Portal over a View, not a Modal, so
+  // nothing else catches the press: it would fall through to whatever is underneath (the router, or a
+  // screen's own back listener) and close that screen with the dialog still up. RN calls the newest
+  // listener first, and this one is added when the dialog opens. Always consumed, even with no
+  // onCancel: a dialog with only a confirm button has to be answered, not backed out from under.
+  //
+  // onCancel goes through a ref (kept current after every commit, the useQuitConfirmation idiom) so the
+  // listener is added once per opening. Callers pass a new arrow each render, and re-adding the
+  // listener on each would move it to the top of the stack, ahead of anything opened above it since.
+  const onCancelRef = useRef(onCancel)
+  useEffect(() => {
+    onCancelRef.current = onCancel
+  })
+  useEffect(() => {
+    if (!visible) return
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      onCancelRef.current?.()
+      return true
+    })
+    return () => subscription.remove()
+  }, [visible])
+
   if (!visible) return null
 
   const accent = destructive ? colors.danger : colors.primary

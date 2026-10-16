@@ -75,7 +75,10 @@ corner of the screen.
   settings sheet, an achievements/stats screen, and a plain confirm-or-cancel dialog, each factored
   out after being independently copied into several games. See Rotation below for how each of these
   (plus `SectionedDropdown`/`InlineColorPicker`) handles rotating inside a `@tastic/split-screen`
-  zone.
+  zone. `BaseStatsScreen`'s header arrow is labeled 'Back' for screen readers (`backLabel` to change
+  it) and takes the same opt-in `hitSlop` as `CornerActionButtons`. On Android, back while a
+  `ConfirmDialog` is open calls its `onCancel` and goes no further (with no `onCancel`, it does
+  nothing), so it never reaches the screen underneath.
 - **`OverlayCard`** / **`OverlayBackdrop`** / **`useOverlayCardColors`** - the card and dim behind
   `ConfirmDialog` and the how-to-play guide, in the app's own theme colors and blurred when the
   player's Blur setting allows it. See Overlay cards below.
@@ -470,7 +473,9 @@ row. Returns a `Fragment`, not a `View`: every call site renders the heading and
 siblings inside `BaseStatsScreen`'s own gap-spaced `ScrollView` content, and a wrapping container
 here would double up that spacing. Resolves each row's locked-vs-unlocked `badgeColor` itself
 (`row.tierColor` once `row.unlockedAt` is set, else the locked color) rather than upstream, since
-`getAchievementCatalogRows` deliberately leaves that choice to whatever renders the rows.
+`getAchievementCatalogRows` deliberately leaves that choice to whatever renders the rows. In light
+mode the check mark and progress bar are the tier color mixed half with black, since raw gold and
+silver barely show on a white screen; the badge keeps the true tier color.
 
 ```ts
 interface AchievementCatalogSectionProps {

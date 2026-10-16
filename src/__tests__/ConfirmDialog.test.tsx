@@ -4,7 +4,7 @@ import { act, render } from '@testing-library/react'
 import { type LayoutChangeEvent } from 'react-native'
 import { Icon, Text } from 'react-native-paper'
 
-import { mockViewRender } from '../__mocks__/react-native'
+import { mockBackHandlerAdd, mockBackHandlerRemove, mockViewRender } from '../__mocks__/react-native'
 import { ConfirmDialog } from '../ConfirmDialog'
 import { DialogHeader } from '../DialogHeader'
 import { overlayStyles } from '../overlayCard'
@@ -117,6 +117,63 @@ describe('ConfirmDialog', () => {
 
     expect(lastHeaderProps()).toEqual(expect.objectContaining({ icon: 'help-circle-outline', title: 'Start a new game?', color: '#00000b', compact: false }))
     unmount()
+  })
+
+  describe("Android's back button", () => {
+    const backHandler = () => {
+      const call = mockBackHandlerAdd.mock.calls.find(([event]) => event === 'hardwareBackPress')
+      if (!call) throw new Error('No hardwareBackPress listener added')
+      return call[1]
+    }
+
+    it('cancels while visible, and consumes the press so it never reaches the screen underneath', () => {
+      const onConfirm = jest.fn()
+      const onCancel = jest.fn()
+      const { unmount } = render(<ConfirmDialog {...baseProps} onConfirm={onConfirm} onCancel={onCancel} />)
+
+      expect(backHandler()()).toBe(true)
+      expect(onCancel).toHaveBeenCalledTimes(1)
+      expect(onConfirm).not.toHaveBeenCalled()
+      unmount()
+    })
+
+    it('listens only while visible, and lets go once the dialog closes', () => {
+      const { rerender, unmount } = render(<ConfirmDialog {...baseProps} visible={false} />)
+      expect(mockBackHandlerAdd).not.toHaveBeenCalled()
+
+      rerender(<ConfirmDialog {...baseProps} visible />)
+      expect(mockBackHandlerAdd).toHaveBeenCalledTimes(1)
+
+      rerender(<ConfirmDialog {...baseProps} visible={false} />)
+      expect(mockBackHandlerRemove).toHaveBeenCalledTimes(1)
+      unmount()
+      expect(mockBackHandlerRemove).toHaveBeenCalledTimes(1)
+    })
+
+    // Re-adding on every render would move the listener to the top of RN's stack, ahead of anything
+    // opened above the dialog since it first opened.
+    it('keeps one listener across re-renders with a new onCancel, and calls the latest one', () => {
+      const firstCancel = jest.fn()
+      const latestCancel = jest.fn()
+      const { rerender, unmount } = render(<ConfirmDialog {...baseProps} onCancel={firstCancel} />)
+      rerender(<ConfirmDialog {...baseProps} onCancel={latestCancel} />)
+
+      expect(mockBackHandlerAdd).toHaveBeenCalledTimes(1)
+      expect(mockBackHandlerRemove).not.toHaveBeenCalled()
+      backHandler()()
+      expect(firstCancel).not.toHaveBeenCalled()
+      expect(latestCancel).toHaveBeenCalledTimes(1)
+      unmount()
+    })
+
+    it('still consumes the press with no onCancel (a confirm-only dialog has to be answered), and never confirms', () => {
+      const onConfirm = jest.fn()
+      const { unmount } = render(<ConfirmDialog {...baseProps} cancelLabel={undefined} onCancel={undefined} onConfirm={onConfirm} />)
+
+      expect(backHandler()()).toBe(true)
+      expect(onConfirm).not.toHaveBeenCalled()
+      unmount()
+    })
   })
 
   it('uses the compact header once its backdrop measures short (a phone held sideways)', () => {

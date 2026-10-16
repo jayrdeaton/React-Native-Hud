@@ -426,6 +426,35 @@ cards read as a different shade from the Settings sheet. So:
   props, tertiary accent while on). Needs a release before the games can use it from npm (a new prop
   pair, so a minor).
 
+### Stats screen gaps found in Hangman's review (2026-10-16)
+
+Hangman's Stats & Achievements screen (BaseStatsScreen and friends through `./chrome`) turned up three
+gaps, each fixed here for every game at once:
+
+- **`BaseStatsScreen` labels its header arrow.** `backLabel` (default 'Back', CornerActionButtons'
+  name and default) goes to the IconButton's `accessibilityLabel`; before, screen readers said only
+  "button". `hitSlop` is opt-in and forwarded unchanged, the same as CornerActionButtons' (needs
+  feedback-press 0.13.0+ to reach past Paper's clipped box; ignored on web). Not a default, for the
+  same reason as the corner buttons' (Jay's opt-in call, 2026-10-15).
+- **`AchievementCatalogSection` darkens the check mark and progress bar in light mode.** `checkColor`
+  (which AchievementRow also uses for the progress bar) is `getBlendedColor('#000000', tierColor, 0.5)`
+  when `!dark`, the raw tier color in dark mode. Raw gold and silver are about 1.4:1 and 1.8:1 on white;
+  mixed, about 5:1 and 6:1. The badge keeps the true tier color (its glyph is black). This is
+  Hangman's own `tierAccent`, promoted. No prop to turn it off: the five arcade games all render it on
+  the default white screen, and Solitaire (white chrome on felt) renders AchievementRow itself.
+  AchievementRow's own props stay literal, so a caller rendering rows itself picks its own colors.
+- **`ConfirmDialog` handles Android back.** It's a Portal over a View, not a Modal, so back used to fall
+  through to whatever was underneath (in Hangman, the stats screen's own listener closed the screen
+  with the confirm still up). While visible it now adds a `hardwareBackPress` listener that calls
+  `onCancel` and returns true; RN calls the newest listener first, so it wins over a screen's or
+  Paper Modal's listener added before it opened. It always consumes the press, even with no
+  `onCancel` (a confirm-only card, like Hangman's PnpHandoffDialog, has to be answered). A caller that
+  wants back to dismiss a one-button card passes `onCancel` without `cancelLabel` (no button appears):
+  BaseSettingsDialog's OK message does. `onCancel` is read through a ref so the listener is added once per opening: the
+  callers pass inline arrows, and re-adding on every render would move it ahead of anything opened
+  above it since. In the games' Paused card, Cancel is Quit, so back still leaves the match, as it did
+  before through the router.
+
 ### The press-away pattern for split-screen (no component for this - it's a wiring pattern)
 
 A single full-screen `PressAwayOverlay` works for one player. For two players sharing a screen, the

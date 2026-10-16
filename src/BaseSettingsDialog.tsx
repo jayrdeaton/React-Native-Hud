@@ -400,7 +400,9 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
           </View>
         </Dialog>
         <ConfirmDialog visible={!!updateManifest} title='Update Available' message={updateManifestDate ? `Released ${updateManifestDate.toLocaleDateString()} at ${updateManifestDate.toLocaleTimeString()}` : ''} confirmLabel='Restart' cancelLabel='Later' icon='update' rotation={0} onConfirm={() => respondToUpdateConfirm(true)} onCancel={() => respondToUpdateConfirm(false)} />
-        <ConfirmDialog visible={!!infoMessage} title={infoMessage?.title ?? ''} message={infoMessage?.message ?? ''} confirmLabel='OK' icon='information-outline' rotation={0} onConfirm={() => setInfoMessage(null)} />
+        {/* onCancel with no cancelLabel adds no button: it's only so Android back dismisses the
+            message the way OK does (ConfirmDialog consumes back either way). */}
+        <ConfirmDialog visible={!!infoMessage} title={infoMessage?.title ?? ''} message={infoMessage?.message ?? ''} confirmLabel='OK' icon='information-outline' rotation={0} onConfirm={() => setInfoMessage(null)} onCancel={() => setInfoMessage(null)} />
       </RotatedFrame>
     </Portal>
   )

@@ -7,6 +7,7 @@ import { Children, type ReactElement } from 'react'
 import { Platform, ScrollView } from 'react-native'
 import { Icon } from 'react-native-paper'
 
+import { mockBackHandlerAdd } from '../__mocks__/react-native'
 import { BaseSettingsDialog } from '../BaseSettingsDialog'
 import { DialogHeader } from '../DialogHeader'
 import { overlayActionStyles } from '../overlayCard'
@@ -322,6 +323,26 @@ describe('BaseSettingsDialog', () => {
       findButtonByLabel('OK').onPress()
     })
     expect(container.textContent).not.toContain('No update')
+
+    unmount()
+  })
+
+  it("dismisses the OK overlay on Android's back, like OK, without adding a Cancel button", () => {
+    Platform.OS = 'android'
+    const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
+    const calls = (useUpdater as jest.Mock).mock.calls
+    act(() => calls[calls.length - 1][0].onInfo('No update', 'No update available yet.'))
+    expect(container.textContent).toContain('No update available yet.')
+    expect((Button as jest.Mock).mock.calls.some(([props]) => props.children === 'Cancel')).toBe(false)
+
+    // The newest listener is the open info card's (RN calls the newest first).
+    const backCalls = mockBackHandlerAdd.mock.calls.filter(([event]) => event === 'hardwareBackPress')
+    let consumed = false
+    act(() => {
+      consumed = backCalls[backCalls.length - 1][1]()
+    })
+    expect(consumed).toBe(true)
+    expect(container.textContent).not.toContain('No update available yet.')
 
     unmount()
   })

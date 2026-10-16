@@ -3,7 +3,7 @@ import { useRotation } from '@tastic/core'
 import { act, render } from '@testing-library/react'
 import { Text } from 'react-native-paper'
 
-import { mockViewRender } from '../__mocks__/react-native'
+import { mockBackHandlerAdd, mockViewRender } from '../__mocks__/react-native'
 import { BaseStatsScreen } from '../BaseStatsScreen'
 
 const INSETS = { top: 0, left: 0, bottom: 0, right: 0 }
@@ -61,6 +61,42 @@ describe('BaseStatsScreen', () => {
     expect(onBack).toHaveBeenCalledTimes(1)
   })
 
+  it("labels the back button 'Back' for screen readers by default, and accepts a backLabel", () => {
+    render(
+      <BaseStatsScreen onBack={jest.fn()} insets={INSETS}>
+        <Text>content</Text>
+      </BaseStatsScreen>
+    )
+    render(
+      <BaseStatsScreen onBack={jest.fn()} insets={INSETS} backLabel='Menu'>
+        <Text>content</Text>
+      </BaseStatsScreen>
+    )
+
+    expect((IconButton as jest.Mock).mock.calls.map((c) => c[0].accessibilityLabel)).toEqual(['Back', 'Menu'])
+  })
+
+  it('passes no hitSlop to the back button by default, and forwards an opted-in one, number or Insets', () => {
+    const insetsSlop = { top: 4, bottom: 4, left: 4, right: 4 }
+    render(
+      <BaseStatsScreen onBack={jest.fn()} insets={INSETS}>
+        <Text>content</Text>
+      </BaseStatsScreen>
+    )
+    render(
+      <BaseStatsScreen onBack={jest.fn()} insets={INSETS} hitSlop={4}>
+        <Text>content</Text>
+      </BaseStatsScreen>
+    )
+    render(
+      <BaseStatsScreen onBack={jest.fn()} insets={INSETS} hitSlop={insetsSlop}>
+        <Text>content</Text>
+      </BaseStatsScreen>
+    )
+
+    expect((IconButton as jest.Mock).mock.calls.map((c) => c[0].hitSlop)).toEqual([undefined, 4, insetsSlop])
+  })
+
   it('omits the reset button entirely when onReset is not provided', () => {
     render(
       <BaseStatsScreen onBack={jest.fn()} insets={INSETS}>
@@ -112,6 +148,35 @@ describe('BaseStatsScreen', () => {
     act(() => cancelButton.onPress())
 
     expect(onReset).not.toHaveBeenCalled()
+    expect(renderedTexts()).not.toContain('Reset Everything?')
+  })
+
+  // The confirm is a Portal over a View, not a Modal, so before ConfirmDialog listened for back itself
+  // the press went to whatever was underneath - in Hangman, the screen's own back listener, which
+  // closed the whole screen with the confirm still up.
+  it('Android back cancels the reset confirm without resetting or leaving the screen', () => {
+    const onBack = jest.fn()
+    const onReset = jest.fn()
+    render(
+      <BaseStatsScreen onBack={onBack} onReset={onReset} insets={INSETS}>
+        <Text>content</Text>
+      </BaseStatsScreen>
+    )
+
+    const resetTrigger = (Button as jest.Mock).mock.calls.find((c) => c[0].children === 'Reset All Stats')![0]
+    act(() => resetTrigger.onPress())
+    expect(renderedTexts()).toContain('Reset Everything?')
+
+    ;(Text as jest.Mock).mockClear()
+    const handler = mockBackHandlerAdd.mock.calls.find(([event]) => event === 'hardwareBackPress')![1]
+    let consumed = false
+    act(() => {
+      consumed = handler()
+    })
+
+    expect(consumed).toBe(true)
+    expect(onReset).not.toHaveBeenCalled()
+    expect(onBack).not.toHaveBeenCalled()
     expect(renderedTexts()).not.toContain('Reset Everything?')
   })
 
