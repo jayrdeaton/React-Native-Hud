@@ -144,6 +144,8 @@ actually clicking through to the `SkiaGate`-mounted screen in a browser and watc
 
 ### `getInlineColorPickerContentSize` (2026-09-18)
 
+(Superseded for `PlayerSetupPanel` on 2026-10-17: its seat button places its own dropdown, `cpuDifficultyAlignOverride` is gone, and `colorAlignOverride`/`colorRotation` only reach the fallback swatch. See "PlayerSetupPanel's seat button" below.)
+
 A fleet-wide drift scan found that `PlayerSetupPanel`'s existing `colorAlignOverride` prop (forwarded straight into `InlineColorPicker`'s own `alignOverride`, exactly the same plumbing `cpuDifficultyAlignOverride` already had for the CPU-difficulty dropdown) was never actually wired up by any of the 5 consuming apps - a real bug, not a documentation gap, since the color picker (unlike the CPU-difficulty picker, a confirmed no-op everywhere) genuinely renders inside a live `@tastic/split-screen` zone in every app's two-human-player mode. The missing piece was a way for a caller to compute the popover's own content size ahead of render, the same job `LabeledDropdown`'s `getLabeledDropdownContentHeight` already does for that picker - `InlineColorPicker` had no equivalent export, just an internal computation.
 
 Added `getInlineColorPickerContentSize(swatchCount, windowWidth, columns?): { width, height }`, exported alongside `InlineColorPicker`. Unlike `getLabeledDropdownContentHeight` (which only depends on a static option count), this one also takes `windowWidth` explicitly - the picker's own auto-column clamp depends on window width, and a caller computing this ahead of the picker's own mount has no component instance to read `useWindowDimensions()` from. `InlineColorPicker`'s own internal computation now calls this same function (removed the duplicated inline formula), so there's exactly one place this math lives. Now `0.9.1` (patch, no breaking change - this is a new export only; no app was wired to use it as part of this fix, see each app's own CLAUDE.md for that follow-up).
@@ -675,9 +677,9 @@ Unrelated to the peer deps above - the fleet's own shared tooling, pulled in as 
   (bundled by the shared preset, not a direct dependency of this repo) + `@testing-library/react`
 - **Location:** `src/__tests__/*.test.ts`
 - **Mocks:** `src/__mocks__/` - `react-native`, `react-native-paper`
-- **Current suite** (as of the `SkiaGate` addition, 2026-09): 24 test files, 160 tests, all passing -
+- **Current suite** (2026-10-17): 41 test files, 451 tests, all passing. (As of the `SkiaGate` addition, 2026-09: 24 test files, 160 tests -
   now covers component rendering too, not just hooks (this doc previously said otherwise; that was
-  already stale before this edit).
+  already stale before this edit).)
 - **Coverage** (`npm test`, freshly run): ~99.6% statements / ~90% branches / ~99% functions overall,
   comfortably clears the fleet shared preset's own default 70% threshold (genuinely enforced -
   `collectCoverage: true` in the shared config, not just documented), so `jest.config.cjs` carries no
@@ -710,6 +712,22 @@ overrides) and its bundled Prettier config (`package.json`'s `"prettier"` field 
 - `package-json/order-properties`, `package-json/sort-collections` - warn, on `package.json` itself
 - Test/mock files (`__tests__/`, `__mocks__/`) are linted like any other source, except
   `@typescript-eslint/no-explicit-any` is off there
+
+## PlayerSetupPanel's seat button (2026-10-17)
+
+Solitaire's player button made the fleet's seat control (Jay, 2026-10-16). Each seat is now ONE button opening ONE dropdown, with the seat's color behind a Color row at its top: a human seat with `profiles`/`onProfileSelect` draws `@tastic/profile`'s `ProfilePicker` with a `colorSection`, and a CPU seat with `cpuDifficulty`/`cpuDifficultyOptions`/`onCpuDifficultyChange` draws its new `OptionPicker` (the difficulty levels, `cpuIcon` on the chip) with the same section. The separate color swatch is gone from both; it is only drawn, with the plain `label`, on a seat that has neither picker (unchanged there, `colorAlignOverride`/`colorRotation` included). Released in 0.21.0, a minor; its `@tastic/profile` peer is now `>=0.15.0` (`OptionPicker`, `colorSection.takenValue`).
+
+- **The Color row** is the seat's `color`, `swatches`, the other seat's `takenColor` (faded with an X, or a swap icon with `allowSwapTaken`) and `onColorChange`. New `colorCaption?` (e.g. 'Snake only') shows under it only while a profile is selected on a human seat, never for a guest or the CPU. New `showColor?` (default true) leaves the row out, for a CPU seat set to "no opponent".
+- **Placement is the panel's own:** `useZoneClampedAlign(open, size)` sized with `getProfilePickerContentSize(profiles.length, !!onManageProfiles, colorSection)` or `getOptionPickerContentSize(options.length, colorSection)`, handed to the picker as `alignOverride`, so the dropdown stays in that player's half inside a `@tastic/split-screen` zone and is plain `useAutoAlign` outside one. Rotation 0, as the profile, color and difficulty dropdowns it replaced were placed. **`cpuDifficultyAlignOverride` was removed** (breaking); every consumer passed `useZoneClampedAlign` there anyway.
+- **Layout:** the button is the header; `pickerRow` (`secondPicker`, plus the fallback swatch) only renders when it has something in it. `getProfilePopoverId(idPrefix)` is new (`${idPrefix}-profile`, the human seat's dropdown); the CPU seat's stays `getCpuDifficultyPopoverId`. Elevation is unchanged: the button's dropdown elevates the panel, `pickerRow` only for its own popovers.
+- Tests: `PlayerSetupPanel.test.tsx` rewritten around the button (which picker, its props and Color row, the caption only with a profile, `showColor`, no separate swatch, the empty row dropped, elevation, the placement sized from the same section), against `src/__mocks__/tastic-profile.ts` (now also `OptionPicker` and fixed-size stand-ins for the two size functions). Checked live in Snake's web loadout, 1 Player and 2 Player face to face (see Snake's CLAUDE.md, "The seat button").
+
+## Dependencies brought up to date for the 0.21.0 release (2026-10-17)
+
+Dev dependencies moved to Expo SDK 58, as toaster and auto-paper did on 2026-10-16: `react-native` ^0.88.0, `@shopify/react-native-skia` ^2.14.0, `react-native-reanimated` ^4.7.1, `react-native-safe-area-context` ^5.10.1, `@infinitetoken/tsconfig` ^0.6.0, `@infinitetoken/jest-config` ^0.5.2, and the fleet's own `@rific/auto-paper` ^0.13.3 and `@tastic/profile` ^0.15.0. TypeScript, ESLint and tsup stay on 6, 9 and 8, like the rest of the fleet.
+
+- **`tsconfig.json`'s `customConditions`** (set here to keep tsc off sibling packages' raw source) now lists `react-native-legacy-deep-imports`, the preset's temporary condition for React Native 0.88's pre-strict types; with `[]` it dropped it and type-checked against the strict types (see TODO.md).
+- **`jest.config.cjs` compiles tests to plain CommonJS** (`module: 'CommonJS'`, `moduleResolution: 'node10'`, `ignoreDeprecations: '6.0'`). jest-config 0.5's ts-jest uses Node16 modules, which keep `TriggerGaugeHost`'s lazy `import('./TriggerGauge')` as a real dynamic import, and Jest can't run one without `--experimental-vm-modules`: 29 tests in three files (TriggerGaugeHost, SectionedDropdown, ControlSchemePicker) failed with "A dynamic import callback was invoked". Only the test transform changes; the package's own build and `tsc` don't.
 
 ## BaseSettingsDialog lays out in a turned frame; `RotatedFrame` (2026-10-08)
 

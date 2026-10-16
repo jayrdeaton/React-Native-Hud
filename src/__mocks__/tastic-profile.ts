@@ -8,5 +8,10 @@
 // this package's own components wire through to ProfilePicker, not exercise @tastic/profile's own
 // popover/list behavior (already covered by that package's own test suite).
 export const ProfilePicker = jest.fn(() => null)
+// PlayerSetupPanel.test.tsx: the CPU seat's button, and the two sizes the panel places its seat
+// button's dropdown with (fixed stand-ins, so a test can tell which one sized it).
+export const OptionPicker = jest.fn(() => null)
+export const getProfilePickerContentSize = jest.fn(() => ({ width: 220, height: 301 }))
+export const getOptionPickerContentSize = jest.fn(() => ({ width: 220, height: 202 }))
 // AchievementUnlockList.test.tsx only asserts which profile each row hands ProfileChip.
 export const ProfileChip = jest.fn(() => null)

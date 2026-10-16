@@ -1,4 +1,10 @@
 module.exports = require('@infinitetoken/jest-config/react-native')({
+  // @infinitetoken/jest-config 0.5's ts-jest emits Node16 modules, which keeps a dynamic import()
+  // as a real one in CommonJS output, and Jest can't run that without --experimental-vm-modules
+  // (TriggerGaugeHost's lazy Skia load, and every suite that mounts it). Plain CommonJS turns it
+  // into a require. node10 is deprecated in TypeScript 6, hence ignoreDeprecations; ts-jest only
+  // transpiles here, the real type-check is `tsc` in verify.
+  tsconfig: { module: 'CommonJS', moduleResolution: 'node10', ignoreDeprecations: '6.0' },
   moduleNameMapper: {
     '^react-native$': '<rootDir>/src/__mocks__/react-native.ts',
     '^react-native-paper$': '<rootDir>/src/__mocks__/react-native-paper.ts',

@@ -1,21 +1,20 @@
 import { defaultColors } from '@rific/auto-paper'
-import { ProfilePicker } from '@tastic/profile'
+import { getOptionPickerContentSize, getProfilePickerContentSize, OptionPicker, ProfilePicker } from '@tastic/profile'
 import { render, screen } from '@testing-library/react'
 import { act, useEffect } from 'react'
 import { Icon } from 'react-native-paper'
 
 import { mockViewRender } from '../__mocks__/react-native'
-import { getColorPopoverId, getCpuDifficultyPopoverId, PlayerSetupPanel, PlayerSetupPanelProps } from '../PlayerSetupPanel'
+import { getColorPopoverId, getCpuDifficultyPopoverId, getProfilePopoverId, PlayerSetupPanel, PlayerSetupPanelProps } from '../PlayerSetupPanel'
 import { useAutoAlign } from '../useAutoAlign'
 import { PopoverHost, usePopoverHost } from '../usePopoverHost'
 
-// Only this file's own "alignment passthrough" describe block below asserts against useAutoAlign's
-// call args - every other test here never depends on its real alignment output, so replacing it
-// with a jest.fn() (real implementation preserved for anything not overridden per-test) doesn't
-// change any existing test's behavior. Mocking this module (rather than InlineColorPicker/
-// LabeledDropdown themselves, both of which render for real elsewhere in this file) is what lets
-// this file verify PlayerSetupPanel actually forwards colorAlignOverride/cpuDifficultyAlignOverride
-// through to them.
+// Only this file's own "placement" describe block below asserts against useAutoAlign's call args -
+// every other test here never depends on its real alignment output, so replacing it with a
+// jest.fn() (real implementation preserved for anything not overridden per-test) doesn't change any
+// existing test's behavior. Mocking this module (rather than InlineColorPicker itself, which renders
+// for real elsewhere in this file) is what lets this file verify PlayerSetupPanel sizes its seat
+// button's dropdown and forwards colorAlignOverride to the fallback swatch.
 jest.mock('../useAutoAlign', () => ({
   ...jest.requireActual('../useAutoAlign'),
   useAutoAlign: jest.fn(jest.requireActual('../useAutoAlign').useAutoAlign)
@@ -87,6 +86,11 @@ function iconSources(): unknown[] {
   return (Icon as jest.Mock).mock.calls.map((c) => (c[0] as { source?: unknown }).source)
 }
 
+const ADA = { id: 'a', name: 'Ada', color: '#ff0000', tag: 'AD', createdAt: 0, updatedAt: 0 }
+const cpuSeat = { isHuman: false, cpuDifficulty: 'easy' as Difficulty, cpuDifficultyOptions: DIFFICULTY_OPTIONS, onCpuDifficultyChange: jest.fn() }
+const profilePickerProps = () => (ProfilePicker as jest.Mock).mock.calls[(ProfilePicker as jest.Mock).mock.calls.length - 1][0]
+const optionPickerProps = () => (OptionPicker as jest.Mock).mock.calls[(OptionPicker as jest.Mock).mock.calls.length - 1][0]
+
 describe('PlayerSetupPanel', () => {
   describe('header', () => {
     it('renders the plain label when neither a profile picker nor a CPU-difficulty picker applies', () => {
@@ -94,16 +98,18 @@ describe('PlayerSetupPanel', () => {
 
       expect(screen.getByText('P1')).toBeTruthy()
       expect(ProfilePicker).not.toHaveBeenCalled()
+      expect(OptionPicker).not.toHaveBeenCalled()
     })
 
     it('prefers the profile picker over the plain label for a human seat with profiles wired', () => {
-      const profiles = [{ id: 'a', name: 'Ada', color: '#ff0000', tag: 'AD', createdAt: 0, updatedAt: 0 }]
+      const profiles = [ADA]
       const onProfileSelect = jest.fn()
-      renderPanel({ label: 'P1', profiles, selectedProfileId: 'a', takenProfileId: 'b', onProfileSelect, guestLabel: 'YOU' })
+      const onManageProfiles = jest.fn()
+      renderPanel({ label: 'P1', profiles, selectedProfileId: 'a', takenProfileId: 'b', onProfileSelect, onManageProfiles, guestLabel: 'YOU' })
 
       expect(screen.queryByText('P1')).toBeNull()
       expect(ProfilePicker).toHaveBeenCalledTimes(1)
-      const props = (ProfilePicker as jest.Mock).mock.calls[0][0]
+      const props = profilePickerProps()
       expect(props).toEqual(
         expect.objectContaining({
           idPrefix: 'p1',
@@ -112,7 +118,8 @@ describe('PlayerSetupPanel', () => {
           takenId: 'b',
           color: '#3366ff',
           dark: false,
-          guestLabel: 'YOU'
+          guestLabel: 'YOU',
+          onManage: onManageProfiles
         })
       )
 
@@ -123,26 +130,84 @@ describe('PlayerSetupPanel', () => {
     it("defaults the profile picker's guestLabel to 'GUEST' when omitted", () => {
       renderPanel({ profiles: [], onProfileSelect: jest.fn() })
 
-      expect((ProfilePicker as jest.Mock).mock.calls[0][0]).toEqual(expect.objectContaining({ guestLabel: 'GUEST' }))
+      expect(profilePickerProps()).toEqual(expect.objectContaining({ guestLabel: 'GUEST' }))
     })
 
-    it('falls back to a CPU-difficulty dropdown for a non-human seat with cpuDifficulty wired', () => {
-      renderPanel({ label: 'CPU', isHuman: false, cpuDifficulty: 'easy', cpuDifficultyOptions: DIFFICULTY_OPTIONS, onCpuDifficultyChange: jest.fn() })
+    it('shows the CPU seat button for a non-human seat with cpuDifficulty wired: the difficulty levels, under its own id, with cpuIcon on the chip', () => {
+      const onCpuDifficultyChange = jest.fn()
+      renderPanel({ label: 'CPU', ...cpuSeat, onCpuDifficultyChange, cpuIcon: 'close-circle-outline' })
 
       expect(screen.queryByText('CPU')).toBeNull()
-      expect(screen.getByText('EASY')).toBeTruthy()
       expect(ProfilePicker).not.toHaveBeenCalled()
+      const props = optionPickerProps()
+      expect(props).toEqual(expect.objectContaining({ id: getCpuDifficultyPopoverId('p1'), options: DIFFICULTY_OPTIONS, value: 'easy', color: '#3366ff', dark: false, icon: 'close-circle-outline' }))
+      props.onChange('hard')
+      expect(onCpuDifficultyChange).toHaveBeenCalledWith('hard')
     })
 
-    it('does not show the CPU-difficulty dropdown for a human seat, even with cpuDifficulty wired', () => {
+    it("defaults the CPU seat's chip icon to 'robot'", () => {
+      renderPanel(cpuSeat)
+      expect(optionPickerProps().icon).toBe('robot')
+    })
+
+    it('does not show the CPU seat button for a human seat, even with cpuDifficulty wired', () => {
       renderPanel({ label: 'P1', isHuman: true, cpuDifficulty: 'easy', cpuDifficultyOptions: DIFFICULTY_OPTIONS, onCpuDifficultyChange: jest.fn() })
 
       expect(screen.getByText('P1')).toBeTruthy()
-      expect(screen.queryByText('EASY')).toBeNull()
+      expect(OptionPicker).not.toHaveBeenCalled()
     })
   })
 
-  describe('color trigger icon', () => {
+  describe("the seat button's Color row", () => {
+    it("is the seat's color, swatches and the other seat's color, committing through onColorChange", () => {
+      const onColorChange = jest.fn()
+      renderPanel({ profiles: [ADA], onProfileSelect: jest.fn(), onColorChange, takenColor: '#00ff00', allowSwapTaken: true })
+
+      const section = profilePickerProps().colorSection
+      expect(section).toEqual(expect.objectContaining({ value: '#3366ff', swatches: defaultColors, takenValue: '#00ff00', allowSwapTaken: true }))
+      section.onChange('#abcdef')
+      expect(onColorChange).toHaveBeenCalledWith('#abcdef')
+    })
+
+    it('is on the CPU seat button too', () => {
+      renderPanel({ ...cpuSeat, takenColor: '#00ff00', allowSwapTaken: true })
+      expect(optionPickerProps().colorSection).toEqual(expect.objectContaining({ value: '#3366ff', takenValue: '#00ff00', allowSwapTaken: true }))
+    })
+
+    it('captions it with colorCaption only while a profile is selected', () => {
+      const { unmount } = renderPanel({ profiles: [ADA], selectedProfileId: 'a', onProfileSelect: jest.fn(), colorCaption: 'Snake only' })
+      expect(profilePickerProps().colorSection.caption).toBe('Snake only')
+      unmount()
+
+      const guest = renderPanel({ profiles: [ADA], selectedProfileId: null, onProfileSelect: jest.fn(), colorCaption: 'Snake only' })
+      expect(profilePickerProps().colorSection.caption).toBeUndefined()
+      guest.unmount()
+
+      renderPanel({ ...cpuSeat, colorCaption: 'Snake only' })
+      expect(optionPickerProps().colorSection.caption).toBeUndefined()
+    })
+
+    it('is left out with showColor false', () => {
+      const { unmount } = renderPanel({ profiles: [ADA], onProfileSelect: jest.fn(), showColor: false })
+      expect(profilePickerProps().colorSection).toBeUndefined()
+      unmount()
+
+      renderPanel({ ...cpuSeat, showColor: false })
+      expect(optionPickerProps().colorSection).toBeUndefined()
+    })
+
+    it('replaces the separate color swatch on either seat button', () => {
+      const { unmount } = renderPanel({ profiles: [ADA], selectedProfileId: 'a', onProfileSelect: jest.fn() })
+      expect(iconSources()).not.toContain('face-man')
+      expect(screen.queryByText('AD')).toBeNull()
+      unmount()
+
+      renderPanel(cpuSeat)
+      expect(iconSources()).not.toContain('robot')
+    })
+  })
+
+  describe('fallback color swatch', () => {
     it("defaults to 'face-man' for a human seat and 'robot' for a non-human seat", () => {
       const { unmount } = renderPanel({ isHuman: true })
       expect(iconSources()).toContain('face-man')
@@ -162,17 +227,6 @@ describe('PlayerSetupPanel', () => {
       expect(iconSources()).toContain('close-circle-outline')
       expect(iconSources()).not.toContain('robot')
     })
-
-    it("passes the selected profile's own tag through to the color trigger, human seats only", () => {
-      const profiles = [{ id: 'a', name: 'Ada', color: '#ff0000', tag: 'AD', createdAt: 0, updatedAt: 0 }]
-      const { unmount } = renderPanel({ isHuman: true, profiles, selectedProfileId: 'a', onProfileSelect: jest.fn() })
-      expect(screen.getByText('AD')).toBeTruthy()
-      unmount()
-
-      // Same selectedProfileId, but a non-human seat never reads a tag off it at all.
-      renderPanel({ isHuman: false, profiles, selectedProfileId: 'a', cpuDifficulty: 'easy', cpuDifficultyOptions: DIFFICULTY_OPTIONS, onCpuDifficultyChange: jest.fn() })
-      expect(screen.queryByText('AD')).toBeNull()
-    })
   })
 
   describe('secondPicker', () => {
@@ -184,6 +238,17 @@ describe('PlayerSetupPanel', () => {
 
       renderPanel()
       expect(iconSources()).not.toContain('keyboard-outline')
+    })
+
+    it('keeps the picker row for secondPicker under a seat button, and drops the empty row without one', () => {
+      const { unmount } = renderPanel({ profiles: [ADA], onProfileSelect: jest.fn(), secondPicker: <Icon source='keyboard-outline' size={16} /> })
+      expect(iconSources()).toContain('keyboard-outline')
+      expect(() => findStyledView(isPickerRowStyle)).not.toThrow()
+      unmount()
+      ;(mockViewRender as jest.Mock).mockClear()
+
+      renderPanel({ profiles: [ADA], onProfileSelect: jest.fn() })
+      expect(() => findStyledView(isPickerRowStyle)).toThrow()
     })
   })
 
@@ -217,7 +282,7 @@ describe('PlayerSetupPanel', () => {
       expect(hasZIndex100(findStyledView(isPickerRowStyle))).toBe(false)
     })
 
-    it('elevates both panel and pickerRow once the color popover (idPrefix-color) opens', () => {
+    it('elevates both panel and pickerRow once the fallback color popover (idPrefix-color) opens', () => {
       const { hostBoxRef } = renderPanel()
       act(() => hostBoxRef.current!.toggle(getColorPopoverId('p1')))
 
@@ -225,10 +290,17 @@ describe('PlayerSetupPanel', () => {
       expect(hasZIndex100(findStyledView(isPickerRowStyle))).toBe(true)
     })
 
-    it('elevates only panel, not pickerRow, for an own popover outside the picker row (e.g. the difficulty dropdown)', () => {
-      const { hostBoxRef } = renderPanel({ isHuman: false, cpuDifficulty: 'easy', cpuDifficultyOptions: DIFFICULTY_OPTIONS, onCpuDifficultyChange: jest.fn() })
-      act(() => hostBoxRef.current!.toggle(getCpuDifficultyPopoverId('p1')))
+    it("elevates only panel, not pickerRow, for the seat button's own dropdown", () => {
+      const secondPicker = <Icon source='keyboard-outline' size={16} />
+      const { hostBoxRef, unmount } = renderPanel({ profiles: [ADA], onProfileSelect: jest.fn(), secondPicker, secondPickerId: 'p1-controls' })
+      act(() => hostBoxRef.current!.toggle(getProfilePopoverId('p1')))
+      expect(hasZIndex100(findStyledView(isPanelStyle))).toBe(true)
+      expect(hasZIndex100(findStyledView(isPickerRowStyle))).toBe(false)
+      unmount()
+      ;(mockViewRender as jest.Mock).mockClear()
 
+      const cpu = renderPanel({ ...cpuSeat, secondPicker })
+      act(() => cpu.hostBoxRef.current!.toggle(getCpuDifficultyPopoverId('p1')))
       expect(hasZIndex100(findStyledView(isPanelStyle))).toBe(true)
       expect(hasZIndex100(findStyledView(isPickerRowStyle))).toBe(false)
     })
@@ -255,10 +327,32 @@ describe('PlayerSetupPanel', () => {
     })
   })
 
-  describe('alignment passthrough', () => {
+  describe('placement', () => {
     const ALIGN_OVERRIDE = { align: 'right' as const, verticalAlign: 'above' as const, maxHeight: 123, measured: true, triggerRef: { current: null } }
 
-    it('forwards colorAlignOverride to the internal InlineColorPicker without breaking its own rendering', () => {
+    it("places the profile seat button's dropdown itself, sized from the same rows and Color row it draws", () => {
+      const { hostBoxRef } = renderPanel({ profiles: [ADA], onProfileSelect: jest.fn(), onManageProfiles: jest.fn(), colorCaption: 'Snake only', selectedProfileId: 'a' })
+
+      expect(getProfilePickerContentSize).toHaveBeenLastCalledWith(1, true, profilePickerProps().colorSection)
+      expect(useAutoAlign).toHaveBeenLastCalledWith(false, 220, 301, 0)
+      expect(profilePickerProps().alignOverride).toEqual(expect.objectContaining({ measured: expect.any(Boolean), triggerRef: expect.anything() }))
+
+      act(() => hostBoxRef.current!.toggle(getProfilePopoverId('p1')))
+      expect(useAutoAlign).toHaveBeenLastCalledWith(true, 220, 301, 0)
+    })
+
+    it("places the CPU seat button's dropdown from its own size", () => {
+      const { hostBoxRef } = renderPanel(cpuSeat)
+
+      expect(getOptionPickerContentSize).toHaveBeenLastCalledWith(DIFFICULTY_OPTIONS.length, optionPickerProps().colorSection)
+      expect(useAutoAlign).toHaveBeenLastCalledWith(false, 220, 202, 0)
+
+      act(() => hostBoxRef.current!.toggle(getCpuDifficultyPopoverId('p1')))
+      expect(useAutoAlign).toHaveBeenLastCalledWith(true, 220, 202, 0)
+      expect(optionPickerProps().alignOverride).toBeDefined()
+    })
+
+    it('forwards colorAlignOverride to the fallback InlineColorPicker without breaking its own rendering', () => {
       renderPanel({ colorAlignOverride: ALIGN_OVERRIDE })
 
       // InlineColorPicker itself still renders (its trigger is always present regardless of open
@@ -268,7 +362,7 @@ describe('PlayerSetupPanel', () => {
       expect(useAutoAlign).toHaveBeenCalled()
     })
 
-    it('forwards colorRotation to the internal InlineColorPicker, overriding its default ambient useRotation() read', () => {
+    it('forwards colorRotation to the fallback InlineColorPicker, overriding its default ambient useRotation() read', () => {
       renderPanel({ colorRotation: 180 })
 
       // InlineColorPicker's own useAutoAlign call takes rotation as its 4th argument - see that
@@ -276,38 +370,19 @@ describe('PlayerSetupPanel', () => {
       const calls = (useAutoAlign as jest.Mock).mock.calls
       expect(calls[calls.length - 1][3]).toBe(180)
     })
-
-    it('forwards cpuDifficultyAlignOverride to the internal LabeledDropdown without breaking its own rendering', () => {
-      renderPanel({ isHuman: false, cpuDifficulty: 'easy', cpuDifficultyOptions: DIFFICULTY_OPTIONS, onCpuDifficultyChange: jest.fn(), cpuDifficultyAlignOverride: ALIGN_OVERRIDE })
-
-      expect(screen.getByText('EASY')).toBeTruthy()
-      expect(useAutoAlign).toHaveBeenCalled()
-    })
-
-    it('cpuDifficultyAlignOverride is a no-op for a human seat, which never renders LabeledDropdown at all', () => {
-      renderPanel({ label: 'P1', isHuman: true, cpuDifficultyAlignOverride: ALIGN_OVERRIDE })
-
-      expect(screen.getByText('P1')).toBeTruthy()
-    })
   })
 
-  describe('getColorPopoverId / getCpuDifficultyPopoverId', () => {
-    it('derive the same ids this panel actually opens its color/difficulty popovers under', () => {
+  describe('popover ids', () => {
+    it('derive the ids this panel actually opens its popovers under', () => {
       expect(getColorPopoverId('p1')).toBe('p1-color')
+      expect(getProfilePopoverId('p1')).toBe('p1-profile')
       expect(getCpuDifficultyPopoverId('p1')).toBe('p1-difficulty')
 
-      // Confirms the derived id is the REAL one this panel's own internal InlineColorPicker/
-      // LabeledDropdown open under, not just a string this test happens to also hardcode the same
-      // way - toggling the derived id and observing the same elevation behavior the two tests above
-      // already establish for the hardcoded literal is what actually ties them together.
-      const { hostBoxRef } = renderPanel({ isHuman: false, cpuDifficulty: 'easy', cpuDifficultyOptions: DIFFICULTY_OPTIONS, onCpuDifficultyChange: jest.fn() })
+      // Ties the derived ids to the real ones: the fallback swatch's id elevates pickerRow, the
+      // seat buttons open under theirs (see the placement block above).
+      const { hostBoxRef } = renderPanel()
       act(() => hostBoxRef.current!.toggle(getColorPopoverId('p1')))
       expect(hasZIndex100(findStyledView(isPickerRowStyle))).toBe(true)
-
-      act(() => hostBoxRef.current!.toggle(getColorPopoverId('p1')))
-      act(() => hostBoxRef.current!.toggle(getCpuDifficultyPopoverId('p1')))
-      expect(hasZIndex100(findStyledView(isPickerRowStyle))).toBe(false)
-      expect(hasZIndex100(findStyledView(isPanelStyle))).toBe(true)
     })
   })
 })
