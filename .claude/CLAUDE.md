@@ -598,8 +598,21 @@ Gotchas worth knowing:
 `StatRow`, `AchievementRow`, `LOCKED_BADGE_COLOR`, `AchievementCatalogSection`, `ActivityStatSection`,
 `CornerActionButtons`, `ContentGutter`, `StaggeredWord`, `getStaggeredWordDuration`, `OverlayCard`,
 `OverlayBackdrop`, `useOverlayCardColors`, `DialogHeader`, `useCompactDialog`, `isCompactDialogHeight`, `COMPACT_DIALOG_HEIGHT`, `overlayStyles`,
-`overlayActionStyles` and `MONO_FONT`, with their props types. Built like `./guide`: its own
+`overlayActionStyles`, `MONO_FONT`, `useWellColors` and `WELL_SHADOW`, plus (since 0.23.0) the popover
+pieces `PopoverBody`, `PressAwayOverlay`, `usePopoverHost` (with its `PopoverHost` type) and `useAutoAlign`
+(with `AlignResult`, `PopoverAlign`, `PopoverRotation` and `PopoverVerticalAlign`), and `InlineColorPicker`
+with `getInlineColorPickerContentSize`, all with their props types. Built like `./guide`: its own
 tsup entry (`dist/chrome/index.*`), and `react-native` and `browser` both point at the source entry.
+
+**The popover pieces are there for `@tastic/profile` (2026-10-17).** Its `ProfilePicker`, `OptionPicker`,
+`PickerMenu` and `ProfilesManager` import `PopoverBody`, `PopoverHost`, `PopoverRotation`, `useAutoAlign`,
+`usePopoverHost`, `InlineColorPicker`, `getInlineColorPickerContentSize` and `ConfirmDialog` from hud. From
+the main entry that pulled Skia and `@tastic/split-screen` into any app using `ProfilePicker` or
+`ProfilesScreen`, so Hangman couldn't. `@tastic/profile` 0.16 imports them from `./chrome` instead and needs
+hud 0.23.0 or later for these. `PressAwayOverlay` (which profile doesn't import) came along as the press-away half of the same pattern.
+`useAutoAlign.ts`'s `rotateRect` stays unexported, as in the main barrel. `useZoneClampedAlign`
+(split-screen), `SectionedDropdown` (`TriggerGaugeHost`, so Skia) and `PlayerSetupPanel` (`@tastic/profile`)
+stay main-entry only.
 
 **Why it exists:** Hangman is moving onto the fleet's settings dialog, confirm and update dialogs, stats
 screen and corner buttons, but importing anything from the main barrel would make it install

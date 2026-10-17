@@ -628,16 +628,25 @@ const { open } = useGuide()
 
 ## Fleet chrome without the heavy peers (`@tastic/hud/chrome`)
 
-The shared dialogs, stats screen pieces, corner buttons and style tokens, from a standalone entry that never
-touches the main barrel. It's for an app that has `@tastic/core` and `@rific/updater` but none of Skia,
-`@tastic/profile` or `@tastic/split-screen` (Hangman). It exports, with their props types:
+The shared dialogs, stats screen pieces, corner buttons, popover primitives, color picker and style tokens,
+from a standalone entry that never touches the main barrel. It's for an app that has `@tastic/core` and
+`@rific/updater` but none of Skia, `@tastic/profile` or `@tastic/split-screen` (Hangman). It exports, with
+their props types:
 
 - Dialogs: `BaseSettingsDialog`, `ConfirmDialog`, `UpdateDialog`, `RotatedFrame`
 - Stats: `BaseStatsScreen`, `StatSection`, `StatRow`, `AchievementRow`, `LOCKED_BADGE_COLOR`,
   `AchievementCatalogSection`, `ActivityStatSection`, `useWellColors`, `WELL_SHADOW`
 - Chrome: `CornerActionButtons`, `ContentGutter`, `StaggeredWord`, `getStaggeredWordDuration`
 - Overlay cards: `OverlayCard`, `OverlayBackdrop`, `useOverlayCardColors`, `DialogHeader`, `useCompactDialog`, `isCompactDialogHeight`, `COMPACT_DIALOG_HEIGHT`
+- Popovers (0.23.0+): `PopoverBody`, `PressAwayOverlay`, `usePopoverHost` (and its `PopoverHost` type),
+  `useAutoAlign` (and its `AlignResult`, `PopoverAlign`, `PopoverRotation` and `PopoverVerticalAlign`
+  types), `InlineColorPicker`, `getInlineColorPickerContentSize`
 - Style tokens: `overlayStyles`, `overlayActionStyles`, `MONO_FONT`
+
+The popovers are here for `@tastic/profile`: from 0.16 its `ProfilePicker`, `ProfilesScreen` and the rest
+import them (and `ConfirmDialog`) from this entry instead of the main barrel, so a Skia-free app can use
+them. That's why `@tastic/profile` 0.16 needs hud 0.23.0 or later. `useZoneClampedAlign` (it needs `@tastic/split-screen`), `SectionedDropdown` (its trigger gauge
+loads Skia) and `PlayerSetupPanel` (it renders `@tastic/profile`'s pickers) stay main-entry only.
 
 Each is the same component the main entry exports and is documented above. Only the import path changes:
 
@@ -694,7 +703,7 @@ resolve module".
 | `@rific/auto-paper` | >=0.12.2 | main entry (`BaseSettingsDialog` needs the nested `Portal.Host` first shipped in 0.12.2; `OverlayCard` uses `BlurView` and `useBlur`, and `BaseSettingsDialog`'s Blur row uses `useBlurModule` and `useThemeSettings`, all in 0.12.2), `./guide`, `./chrome` |
 | `@rific/feedback-press` | >=0.10.2 | main entry (`useSoundSettings` first shipped in 0.10.2), `./guide`, `./chrome` |
 | `react-native-safe-area-context` | >=5.0.0 | main entry (`useZoneClampedAlign`), `./chrome` (`RotatedFrame`, `BaseSettingsDialog`) |
-| `@tastic/core` | >=0.12.0, optional | main entry: `useRotation()` and most dialogs; `RotatedFrame` and `BaseSettingsDialog` need `FakeLandscapeView`'s `rotation`/`passThrough`, first shipped in 0.12.0; `./chrome` (the same dialogs) |
+| `@tastic/core` | >=0.12.0, optional | main entry: `useRotation()` and most dialogs; `RotatedFrame` and `BaseSettingsDialog` need `FakeLandscapeView`'s `rotation`/`passThrough`, first shipped in 0.12.0; `./chrome` (the same dialogs, and `InlineColorPicker`) |
 | `@rific/updater` | >=0.4.0, optional | main entry and `./chrome`: `BaseSettingsDialog`, `UpdateDialog` |
 | `@tastic/profile` | >=0.4.0, optional | main entry: `PlayerSetupPanel`, `AchievementUnlockList` (`ProfileChip`) |
 | `@tastic/split-screen` | >=0.5.0, optional | main entry: `useZoneClampedAlign` |

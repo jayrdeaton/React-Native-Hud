@@ -65,7 +65,22 @@ describe('@tastic/hud/chrome import boundary', () => {
 
   it('reaches every module the entry re-exports', () => {
     expect(unresolved).toEqual([])
-    expect(files.map(name)).toEqual(expect.arrayContaining(['BaseSettingsDialog.tsx', 'BaseStatsScreen.tsx', 'ConfirmDialog.tsx', 'UpdateDialog.tsx', 'AchievementCatalogSection.tsx', 'overlayCard.ts']))
+    expect(files.map(name)).toEqual(
+      expect.arrayContaining([
+        'BaseSettingsDialog.tsx',
+        'BaseStatsScreen.tsx',
+        'ConfirmDialog.tsx',
+        'UpdateDialog.tsx',
+        'AchievementCatalogSection.tsx',
+        'overlayCard.ts',
+        // The popover pieces and color picker @tastic/profile 0.16+ imports from here.
+        'PopoverBody.tsx',
+        'PressAwayOverlay.tsx',
+        'usePopoverHost.ts',
+        'useAutoAlign.ts',
+        'InlineColorPicker.tsx'
+      ])
+    )
   })
 
   it('never reaches the main barrel or a profile-dependent module', () => {
