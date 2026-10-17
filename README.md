@@ -668,6 +668,64 @@ type-checks hud's source and needs it installed. `AchievementUnlockList` isn't h
 Metro resolves both entries to the same source files, so an app that imports some components from here and
 others from `@tastic/hud` still bundles each module once.
 
+## Skia on web (`@tastic/hud/skia`)
+
+On web, Skia draws through CanvasKit, a WASM file fetched at runtime. `@shopify/react-native-skia` builds
+its `Skia` object from CanvasKit when the module is first evaluated, so a component that imports Skia can't
+even be imported until CanvasKit has loaded. On native there is nothing to wait for.
+
+Every app in the fleet loads Skia the same way, with a host pair: two small files per Skia component, side
+by side, that Metro picks between by platform.
+
+```tsx
+// BoardHost.tsx: native renders the board directly, on the first frame
+import { Board, type BoardProps } from './Board'
+
+export default function BoardHost(props: BoardProps) {
+  return <Board {...props} />
+}
+```
+
+```tsx
+// BoardHost.web.tsx: web imports the board only once CanvasKit has loaded
+import { loadSkiaWeb } from '@tastic/hud/skia'
+import { lazy, Suspense } from 'react'
+
+import type { BoardProps } from './Board'
+
+const LazyBoard = lazy(() => loadSkiaWeb().then(() => import('./Board').then((m) => ({ default: m.Board }))))
+
+export default function BoardHost(props: BoardProps) {
+  return (
+    <Suspense fallback={null}>
+      <LazyBoard {...props} />
+    </Suspense>
+  )
+}
+```
+
+- Import the host, never `Board` itself, everywhere else in the app.
+- Keep `lazy()` at module scope, as above, so the component is created once.
+- Import from `@tastic/hud/skia` (also exported from `@tastic/hud`). It carries none of the main entry's
+  heavier peers, so it works in every app.
+- A test that imports a native host imports Skia, which throws under Jest (no native bindings). Mock the
+  host, or don't import the screen that uses it.
+
+`loadSkiaWeb()` fetches the app's `public/canvaskit.wasm` from `<baseUrl>/canvaskit.wasm`: under the Expo base
+URL (`experiments.baseUrl`, e.g. `/snake/canvaskit.wasm`) when the app has one, and `/canvaskit.wasm` when it
+doesn't. There's nothing to wire up: babel-preset-expo inlines `process.env.EXPO_BASE_URL` into hud's source
+when Metro bundles it, the same as in the app's own code. It's idempotent, so every host can call it.
+
+That rule is `locateSkiaWebFile(file: string): string`, also exported from `@tastic/hud/skia`, for code that
+calls Skia's own `LoadSkiaWeb` or `WithSkiaWeb` (`opts={{ locateFile: locateSkiaWebFile }}`). Without it,
+canvaskit looks for the file next to the running script or the page, which under a base URL is the wrong
+place: from `/snake` (no trailing slash) it asks for `/canvaskit.wasm`, and a static-output app can end up
+asking under `/_expo/static/js/web/`. `LoadSkiaWeb` also keeps its first call's result, a failed load
+included, for the rest of the page's life.
+
+`TriggerGaugeHost` uses the web half on both platforms: the main entry can't import Skia up front, since every
+app that imports `@tastic/hud` would then load Skia, including in its tests.
+
 ## Install
 
 Published to the public npm registry as `@tastic/hud`. Everything described above, including the
@@ -710,5 +768,5 @@ resolve module".
 | `@rific/updater` | >=0.4.0, optional | main entry and `./chrome`: `BaseSettingsDialog`, `UpdateDialog` |
 | `@tastic/profile` | >=0.4.0, optional | main entry: `PlayerSetupPanel`, `AchievementUnlockList` (`ProfileChip`) |
 | `@tastic/split-screen` | >=0.5.0, optional | main entry: `useZoneClampedAlign` |
-| `@shopify/react-native-skia` | >=2.6.0, optional | `TriggerGaugeHost`'s gauge (lazy-loaded behind `SkiaGate`) and `./skia-gate` |
+| `@shopify/react-native-skia` | >=2.6.0, optional | `TriggerGaugeHost`'s gauge (loaded when one mounts) and `./skia` |
 | `@tastic/achievements` | >=0.2.0, optional | `AchievementCatalogSection`, `AchievementUnlockList`, type-only (`AchievementCatalogRow`, first exported in 0.2.0; `AchievementTier`); `./chrome` needs it installed only to type-check |

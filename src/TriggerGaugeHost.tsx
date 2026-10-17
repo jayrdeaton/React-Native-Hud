@@ -1,18 +1,24 @@
-import { SkiaGate } from './SkiaGate'
-import { TriggerGaugeProps } from './TriggerGauge'
+import { lazy, Suspense } from 'react'
 
-// TriggerGauge.tsx's `Skia` import binds to global.CanvasKit at module-evaluation time, which on web
-// only exists once CanvasKit's WASM fetch resolves - a plain `import { TriggerGauge } from
-// './TriggerGauge'` at the top of this file would already have evaluated that binding, against a
-// not-yet-loaded, undefined CanvasKit, before anything in a consuming app renders at all, since
-// bundlers evaluate the whole static import graph up front. This file therefore never imports
-// TriggerGauge itself except as a type (erased at compile time, carrying no runtime module
-// reference) - getTriggerGauge below, hoisted to module scope so its identity stays stable across
-// renders (see SkiaGate's own comment on why that matters), is what actually defers the real import
-// to runtime. No explicit loadSkiaWeb() call here on web: SkiaGate.web.tsx (WithSkiaWeb) already
-// gates its own mount behind CanvasKit being ready, and on native there's nothing to wait on at all.
-const getTriggerGauge = () => import('./TriggerGauge').then((mod) => ({ default: mod.TriggerGauge }))
+import { loadSkiaWeb } from './loadSkiaWeb'
+import type { TriggerGaugeProps } from './TriggerGauge'
+
+// TriggerGauge.tsx imports @shopify/react-native-skia at its top level, and this file is reached from
+// the main barrel, so a static import here would evaluate Skia the moment any app imports
+// `@tastic/hud`. On web that binds Skia to a CanvasKit that hasn't loaded yet (its `Skia` object is
+// built from global.CanvasKit at module-evaluation time), and in every app's Jest run it throws
+// ("Native Skia Module failed to correctly install JSI Bindings!": no app mocks Skia). So the gauge
+// module is only imported when a gauge mounts, behind loadSkiaWeb(), which loads CanvasKit on web and
+// resolves at once on native. This is the web half of the fleet's Skia host pair (see the README's
+// "Skia on web"), used on both platforms here: an app's own native host file can import its Skia
+// component directly, but a package barrel can't. The lazy component is created once, at module
+// scope, so its identity never changes between renders.
+const LazyTriggerGauge = lazy(() => loadSkiaWeb().then(() => import('./TriggerGauge').then((mod) => ({ default: mod.TriggerGauge }))))
 
 export default function TriggerGaugeHost(props: TriggerGaugeProps) {
-  return <SkiaGate getComponent={getTriggerGauge} componentProps={props} />
+  return (
+    <Suspense fallback={null}>
+      <LazyTriggerGauge {...props} />
+    </Suspense>
+  )
 }

@@ -48,12 +48,12 @@
       "import": "./dist/guide/index.mjs",
       "require": "./dist/guide/index.js"
     },
-    "./skia-gate": {
-      "react-native": "./src/SkiaGate.tsx",
-      "browser": "./src/SkiaGate.web.tsx",
-      "types": "./dist/SkiaGate.d.ts",
-      "import": "./dist/SkiaGate.mjs",
-      "require": "./dist/SkiaGate.js"
+    "./skia": {
+      "react-native": "./src/skia/index.ts",
+      "browser": "./src/skia/index.ts",
+      "types": "./dist/skia/index.d.ts",
+      "import": "./dist/skia/index.mjs",
+      "require": "./dist/skia/index.js"
     }
   },
   "main": "dist/index.js",

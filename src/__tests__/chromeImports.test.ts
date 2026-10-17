@@ -98,7 +98,8 @@ describe('@tastic/hud/chrome import boundary', () => {
   })
 
   // react-native and browser both point at the same source entry, which is only right while nothing it
-  // reaches has a platform-specific twin (the way SkiaGate.web.tsx needs its own ./skia-gate target).
+  // reaches has a platform-specific twin (the retired ./skia-gate needed a separate browser target because
+  // its entry file, SkiaGate.tsx, had a .web twin).
   it.each(files.map((file) => [name(file), file]))('%s has no .web sibling', (_name, file) => {
     expect(existsSync(file.replace(/\.(tsx?)$/, '.web.$1'))).toBe(false)
   })

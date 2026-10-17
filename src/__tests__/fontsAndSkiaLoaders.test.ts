@@ -3,6 +3,7 @@ import { LoadSkiaWeb } from '@shopify/react-native-skia/src/web'
 import { MONO_FONT } from '../fonts'
 import { loadSkiaWeb } from '../loadSkiaWeb'
 import { loadSkiaWeb as loadSkiaWebForWeb } from '../loadSkiaWeb.web'
+import { locateSkiaWebFile } from '../locateSkiaWebFile'
 
 describe('MONO_FONT', () => {
   it('resolves to Menlo under the mocked ios Platform.select', () => {
@@ -21,5 +22,10 @@ describe('loadSkiaWeb.web (web wrapper)', () => {
   it('delegates to LoadSkiaWeb and resolves', async () => {
     await expect(loadSkiaWebForWeb()).resolves.toBeUndefined()
     expect(LoadSkiaWeb).toHaveBeenCalledTimes(1)
+  })
+
+  it('hands LoadSkiaWeb locateSkiaWebFile, so the wasm comes from the base URL', async () => {
+    await loadSkiaWebForWeb()
+    expect(LoadSkiaWeb).toHaveBeenCalledWith({ locateFile: locateSkiaWebFile })
   })
 })

@@ -14,6 +14,7 @@ export { MONO_FONT } from './fonts'
 export { getInlineColorPickerContentSize, InlineColorPicker } from './InlineColorPicker'
 export { getLabeledDropdownContentHeight, LABELED_DROPDOWN_POPOVER_WIDTH, LabeledDropdown, type LabeledDropdownOption } from './LabeledDropdown'
 export { loadSkiaWeb } from './loadSkiaWeb'
+export { locateSkiaWebFile } from './locateSkiaWebFile'
 export { overlayActionStyles, overlayStyles } from './overlayCard'
 export { OverlayBackdrop, type OverlayBackdropProps, OverlayCard, type OverlayCardProps, type OverlayCardThemeColors, useOverlayCardColors } from './OverlaySurface'
 export { getColorPopoverId, getCpuDifficultyPopoverId, getProfilePopoverId, PlayerSetupPanel, type PlayerSetupPanelProps } from './PlayerSetupPanel'
@@ -23,12 +24,11 @@ export { ReadyButton } from './ReadyButton'
 export { RotatedFrame, type RotatedFrameProps } from './RotatedFrame'
 export { type MenuOption, type MenuSection, type MultiSelectSection, SectionedDropdown, type SingleSelectSection } from './SectionedDropdown'
 export { SharedActionBand } from './SharedActionBand'
-export { SkiaGate, type SkiaGateProps } from './SkiaGate'
 export { getStaggeredWordDuration, StaggeredWord, type StaggeredWordProps } from './StaggeredWord'
 export { StatRow } from './StatRow'
 export { StatSection } from './StatSection'
 // TriggerGauge itself (the raw Skia-based component) is deliberately NOT exported here, even
-// though a native-only consumer could safely skip TriggerGaugeHost's SkiaGate indirection. A
+// though a native-only consumer could safely skip TriggerGaugeHost's lazy indirection. A
 // value re-export forces the bundler to fold TriggerGauge.tsx's own `Skia` import into a chunk
 // that this entry point imports eagerly at the top level - since that chunk is then shared with
 // TriggerGaugeHost's own dynamic import too, it defeats TriggerGaugeHost's deferred loading for

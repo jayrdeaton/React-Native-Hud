@@ -1,5 +1,5 @@
 // The how-to-play entry point (`@tastic/hud/guide`) - a standalone build reachable without ever
-// touching the main barrel, the same reason `@tastic/hud/skia-gate` is. This file and everything it
+// touching the main barrel, the same reason `@tastic/hud/skia` is. This file and everything it
 // imports must stay free of @tastic/core, @tastic/profile, @tastic/split-screen, @tastic/achievements,
 // @rific/updater and Skia: those are optional peers of this package (see package.json's
 // peerDependenciesMeta) precisely so an app with none of them can install @tastic/hud and use only

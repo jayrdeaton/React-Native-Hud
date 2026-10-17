@@ -74,73 +74,102 @@ Re-run `npm run build && yalc push` after any change to propagate it to every li
 | `ControlSchemePicker.tsx` | A `SectionedDropdown` opinionated for one job: picking which physical input (a keyboard layout - the raw layouts themselves live in `@tastic/input`, this repo has no opinion on which exist - or something else entirely, e.g. "keep using pointer input") drives a local seat in a couch-multiplayer game. Fixes the trigger icon/accessibility label and, the actual reason it's its own component rather than a usage snippet, bakes in the `Platform.OS === 'web' && !useIsTouchPrimaryDevice()` gate every consumer was independently re-deriving - renders `null` outside that (a physical-key scheme has no meaning on native or a touch-primary device), so it's safe to mount unconditionally inside a caller's own per-seat layout. Generic over `T`, same as `SectionedDropdown`'s own `MenuOption<T>` - a caller always supplies its own `options`. |
 | `InlineColorPicker.tsx` | Swatch-grid color popover. Auto-computes column count from screen width (4-5 columns - clamped to whichever fills a complete row of `defaultColors`' 20 swatches). Supports a "taken" color shown disabled or swappable. |
 | `TriggerGauge.tsx` | Skia-drawn (`Canvas`/`Path`/`Skia`) decorative ring of animated (`react-native-reanimated`) tick marks around a trigger, showing which option(s) are active without opening the popover. Pure presentational, no popover/host coupling. Not exported directly - see `TriggerGaugeHost` and Public API below. |
-| `TriggerGaugeHost.tsx` | The only supported way to render a trigger gauge - and `SkiaGate`'s own canonical usage example. Mounts `TriggerGauge.tsx` through `SkiaGate` so its `Skia`-binding import is never evaluated before Skia is actually ready (real on native, WASM-loaded on web) and never eagerly bundled into this package's own top-level import graph. Default export, re-exported as a named export from `index.ts`. |
-| `SkiaGate.tsx` | Generic version of the lazy-mount-behind-Skia-readiness pattern `TriggerGaugeHost.tsx` needs - extracted so consuming apps don't each hand-roll their own copy (see the "Why SkiaGate exists" note below). Takes `getComponent` (a dynamic import, hoisted to module scope by the caller), `componentProps`, and an optional `fallback`. Deliberately avoids `React.lazy()` - a generic `getComponent` prop can't safely feed one inline during render (`react-hooks/static-components`) - in favor of `useEffect`+`useState` awaiting the import directly. |
-| `SkiaGate.web.tsx` | Web counterpart - a direct re-export of `@shopify/react-native-skia`'s own `WithSkiaWeb` (same `/src/web` subpath as `loadSkiaWeb.web.ts`), which gates the same mount behind `LoadSkiaWeb()` first. Metro's platform-extension resolution (this file vs. `SkiaGate.tsx`) is what picks the right one per platform - a consumer just imports `SkiaGate` from `'@tastic/hud'` and never names either file directly. |
-| `loadSkiaWeb.ts` | Native counterpart to `loadSkiaWeb.web.ts` - resolves immediately, since Skia-on-native (JSI, no WASM) needs nothing awaited. Must never import `@shopify/react-native-skia/src/web`, even conditionally - see the file's own comment on why Metro would still pull `canvaskit-wasm`'s `require('fs')` into the native bundle graph. Independent of `SkiaGate`/`SkiaGate.web.tsx` - exported separately for consumers that need to know CanvasKit is ready without going through a `SkiaGate`-mounted component. |
-| `loadSkiaWeb.web.ts` | Web counterpart - thin wrapper around `@shopify/react-native-skia`'s own `LoadSkiaWeb` (imported from its `/src/web` subpath), which fetches the CanvasKit WASM build Skia's web target renders through. Metro's platform-extension resolution (this file vs. `loadSkiaWeb.ts`) is what keeps this out of the native bundle. |
+| `TriggerGaugeHost.tsx` | The only supported way to render a trigger gauge. A module-scope `React.lazy` that awaits `loadSkiaWeb()` (a no-op on native) and then imports `TriggerGauge.tsx`, inside a `Suspense`, so Skia is only evaluated once a gauge mounts: never when an app imports the barrel (real Skia throws at import in every app's Jest run, and no app mocks it) and never before CanvasKit has loaded on web. It's the web half of the fleet's Skia host pair, used on both platforms (see "One way to load Skia" below). Default export, re-exported as a named export from `index.ts`. |
+| `loadSkiaWeb.ts` | Native counterpart to `loadSkiaWeb.web.ts` - resolves immediately, since Skia-on-native (JSI, no WASM) needs nothing awaited. Must never import `@shopify/react-native-skia/src/web`, even conditionally - see the file's own comment on why Metro would still pull `canvaskit-wasm`'s `require('fs')` into the native bundle graph. Exported from the barrel and from `@tastic/hud/skia`; every app's `.web.tsx` Skia host awaits it (see "One way to load Skia" below). |
+| `loadSkiaWeb.web.ts` | Web counterpart - thin wrapper around `@shopify/react-native-skia`'s own `LoadSkiaWeb` (imported from its `/src/web` subpath), which fetches the CanvasKit WASM build Skia's web target renders through, called with `{ locateFile: locateSkiaWebFile }`. Metro's platform-extension resolution (this file vs. `loadSkiaWeb.ts`) is what keeps this out of the native bundle. |
+| `locateSkiaWebFile.ts` | `locateSkiaWebFile(file)`: `${process.env.EXPO_BASE_URL ?? ''}/${file}`, the `locateFile` `loadSkiaWeb.web.ts` hands CanvasKit. No imports, so it's exported from the barrel and from `@tastic/hud/skia`, for code that calls Skia's own `LoadSkiaWeb` or `WithSkiaWeb`. See "Skia's wasm comes from the base URL" below. |
+| `skia/index.ts` | The `@tastic/hud/skia` entry: `loadSkiaWeb` and `locateSkiaWebFile`, with none of the barrel's peers, so every app's Skia host files can import from it. See "One way to load Skia" below. |
 | `ReadyButton.tsx` | Per-player or standalone ready toggle - outlined until ready, then fills solid with the player's own color. |
 | `PressAwayOverlay.tsx` | Invisible full-bleed `Pressable` for press-away-to-close. Rendered as an early sibling of real content so paint order keeps every real control directly tappable; only genuinely empty space falls through to it. |
 | `fonts.ts` | `MONO_FONT` - the system-monospace default every component's `labelFontFamily` prop falls back to. |
 | `index.ts` | Public export barrel - see Public API below. |
 
-### Why `SkiaGate` exists, and why it also has its own subpath export
+### One way to load Skia: the host pair and `@tastic/hud/skia` (2026-10-17)
 
-Before this was extracted (2026-09), at least 7 apps in the fleet (ArcheryDuel, Asteroids, RampantRats,
-Ember-Vein, HexFleet, FreeRide, HowBig) each carried their own hand-copied `SkiaGate.tsx`/
-`SkiaGate.web.tsx` pair for lazily mounting a Skia-drawn board/component behind CanvasKit readiness on
-web - the exact same problem `TriggerGaugeHost.tsx` already solved internally, just never generalized
-or shared. The copies had drifted: some (HexFleet, Asteroids) still used a `React.lazy()`-based
-version with a known, unfixed `react-hooks/static-components` lint error; others had independently
-rewritten around it. `SkiaGate`/`SkiaGate.web.tsx` here are that fix, generalized once and shared -
-`TriggerGaugeHost.tsx` was rewritten on top of them as proof (and to stop carrying its own bespoke
-copy of the same mechanism). A consuming app's own local `SkiaGate.tsx`/`SkiaGate.web.tsx` should be
-deleted in favor of importing this instead.
+`SkiaGate` was extracted in 2026-09 from hand-copied `SkiaGate.tsx`/`SkiaGate.web.tsx` pairs in seven apps
+(ArcheryDuel, Asteroids, RampantRats, Ember-Vein, HexFleet, FreeRide, HowBig), with its own `./skia-gate`
+subpath so apps without the barrel's peers could reach it. By 2026-10-17 the fleet still loaded Skia on web
+four ways: the host pair below (LightCycles, BoxHockey, Pong, AirHockey), `SkiaGate` (the seven above plus
+Minesweeper and OttosOrchard), Shopify's `WithSkiaWeb` in a platform pair (Snake, Mancala), and a private
+copy of `loadSkiaWeb` (Swirlio). Jay picked one, the host pair, and **`SkiaGate` and `./skia-gate` were
+removed** (breaking).
 
-**Import `SkiaGate` from `@tastic/hud/skia-gate`, not the bare `@tastic/hud`.** Both work at compile
-time, but they are not equivalent at runtime. The package's main `"."` export routes through
-`src/index.ts` - a single barrel re-exporting every component in this kit, several of which (
-`ReadyButton`, `BaseSettingsDialog`, `ControlSchemePicker`, etc.) import `@rific/feedback-press` and/or
-`@tastic/core`. Under this fleet's shared tsconfig (`customConditions: ["react-native"]`, matching
-Metro's own real resolution), *both* `tsc` and Metro follow the package's `"react-native"`/`"browser"`
-export conditions straight to that raw barrel - not the compiled `dist/`. A consumer that only wants
-`SkiaGate` and doesn't otherwise depend on `@rific/feedback-press`/`@tastic/core` (Ember-Vein, HowBig)
-hits real failures either way: `tsc` fails typecheck on the raw `.tsx` source needing those peers, and
-(the more serious one, confirmed via an actual `expo export -p web` run, not just typecheck) **Metro
-fails to bundle at all**, `Unable to resolve module @rific/feedback-press`, because it independently
-resolves the exact same barrel via the exact same export condition. A `tsconfig.json` `paths` redirect
-to the compiled `dist/index.d.ts` (the fix tried first, and the same trick already used fleet-wide for
-`@shopify/react-native-skia`'s identical resolution quirk) only ever fixes the `tsc` half - `paths` is
-TypeScript-only and Metro never consults it for a specifier that already resolves to a real package.
+- **The host pair**, two files per Skia component (code in the README's "Skia on web"): `BoardHost.tsx`
+  renders the Skia component directly; `BoardHost.web.tsx` is a module-scope
+  `lazy(() => loadSkiaWeb().then(() => import('./Board')))` inside a `Suspense`. Why it won over
+  `SkiaGate`: native draws on the first frame (`SkiaGate`'s native side mounted through a dynamic import
+  and a state update, so every `SkiaGate` app had a blank first render on native for nothing); the lazy
+  component sits at module scope by construction (`SkiaGate` remounted whenever a caller forgot to hoist
+  `getComponent`); and every app goes through hud's one loader, so one cached load and one place for the
+  base-URL rule. The pair can't move into hud: rendering on the first frame on native needs a static
+  import of the app's own component, which only the app can write.
+- **`TriggerGaugeHost` stays lazy on native.** It uses the web half on both platforms (`loadSkiaWeb()` is a
+  no-op on native). A static import would evaluate Skia whenever an app imports the barrel, and real Skia
+  throws at import under Jest ("Native Skia Module failed to correctly install JSI Bindings!"), checked
+  2026-10-17 by requiring it inside Snake's jest-expo setup. No app mocks Skia, so every app suite that
+  imports `@tastic/hud` would fail. The same applies to an app's own native host: a test that imports it
+  imports Skia.
+- **`@tastic/hud/skia`** (`src/skia/index.ts`, its own tsup entry) exports `loadSkiaWeb` and
+  `locateSkiaWebFile` with none of the barrel's peers: Ember-Vein, FreeRide, HowBig, Mancala, RampantRats
+  and Swirlio lack `@tastic/profile` and/or `@tastic/split-screen`, so importing `@tastic/hud` there fails
+  to bundle ("Unable to resolve module"). Both are also still in the barrel, but every app's host files
+  import from `@tastic/hud/skia`, so the files match across the fleet. `src/__tests__/skiaImports.test.ts`
+  walks the entry's imports (both platform files) and fails if it reaches anything but
+  `loadSkiaWeb.ts`/`.web.ts` and `locateSkiaWebFile.ts`, or imports any package except
+  `@shopify/react-native-skia/src/web` from the `.web` file.
+- **Exports-map gotcha (from `./skia-gate`):** Metro does not platform-resolve an exports-map target.
+  `./skia` points `"react-native"` and `"browser"` at the same `src/skia/index.ts`, which is fine only
+  because that file has no `.web` twin: the split happens one relative import down, which Metro does
+  resolve per platform (the same way the main barrel reaches `loadSkiaWeb.web.ts`). An extensionless
+  target fails to resolve at all, and pointing `"browser"` at a file whose twin holds the web code
+  bundles fine and then fails in the browser (`./skia-gate` shipped that briefly: `ReferenceError:
+  CanvasKit is not defined` at the first mount). Grepping a bundle for `canvaskit` proves nothing (any
+  Skia import mentions it); the only real check is a web export clicked through in a browser.
+- **Rollout:** apps on `^0.23.0` don't take the removal until they bump (a 0.x caret stops at the next
+  minor). Each app that still uses `SkiaGate` or `WithSkiaWeb` moves to the host pair when it takes this
+  release: ArcheryDuel, Asteroids, Ember-Vein, FreeRide, HexFleet, HowBig, Minesweeper, OttosOrchard,
+  RampantRats, Snake, Mancala and Swirlio (Swirlio also drops its own `loadSkiaWeb` copy). The four
+  host-pair games only switch their import to `@tastic/hud/skia`. Molkky has no web loader at all and is
+  out of scope (Jay, 2026-10-17).
+- Removed with it: `SkiaGate.tsx`, `SkiaGate.web.tsx`, their two test files, the barrel's `SkiaGate`/
+  `SkiaGateProps` exports and the mock `WithSkiaWeb`.
 
-`./skia-gate` (`package.json`'s `exports["./skia-gate"]`, built from its own `src/SkiaGate.tsx` tsup
-entry point - see `tsup.config.cjs`) is the real fix: a standalone build reachable without ever
-touching `src/index.ts`, so it carries none of the barrel's peer-dependency surface at either
-typecheck or bundle time - confirmed by grepping the compiled `dist/SkiaGate.mjs`, which imports
-nothing but `react`. Apps that already carry `@tastic/hud`'s full peer set (RampantRats, ArcheryDuel,
-Asteroids, FreeRide, HexFleet) don't strictly *need* this subpath - the bare `@tastic/hud` import
-works for them today - but all of them were switched to `/skia-gate` anyway for consistency and so a
-peer dependency being dropped later (exactly what happened to Ember-Vein) can't silently reintroduce
-this failure mode.
+### Skia's wasm comes from the base URL (2026-10-17)
 
-**Gotcha if you ever touch `exports["./skia-gate"]` again:** the `"react-native"`/`"browser"` targets
-must each name their own file with its real extension (`"./src/SkiaGate.tsx"` for `"react-native"`,
-`"./src/SkiaGate.web.tsx"` for `"browser"`) - never the extensionless form (`"./src/SkiaGate"`) used
-inside `index.ts`'s own relative `export { SkiaGate } from './SkiaGate'`, and never the *same* file
-for both conditions. Metro does not apply its own platform-extension search to an **exports-map
-target** the way it does to a plain relative import from already-resolved source: an extensionless
-target just fails to resolve at all (confirmed: `Metro ... however this file does not exist. Falling
-back to file-based resolution`, then a hard "could not be found" bundling error), and - the costlier
-mistake, because it fails silently instead - pointing `"browser"` at the same `SkiaGate.tsx` as
-`"react-native"` (what this exports block actually shipped, briefly) resolves fine and typechecks
-fine, then crashes every real browser session at the first `SkiaGate` mount:
-`ReferenceError: CanvasKit is not defined`, because the native file never calls `LoadSkiaWeb()`.
-Grepping the bundle for `CanvasKit`/`canvaskit` as a presence check is **not** a valid way to verify
-this - it was tried, found 363 hits, and was wrong. Any consumer's own direct
-`@shopify/react-native-skia` import (e.g. a Skia `<Canvas>` inside whatever component `SkiaGate` lazy-
-mounts) references that same API surface regardless of which `SkiaGate` file got bundled, so its
-presence proves nothing about `WithSkiaWeb` specifically. The only real check is exporting for web and
-actually clicking through to the `SkiaGate`-mounted screen in a browser and watching the console.
+The web games are moving from `<game>.infinitetoken.com` to `games.infinitetoken.com/<game>/`, built
+with Expo's `experiments.baseUrl` (set only for web builds). An export serves the app's
+`public/canvaskit.wasm` at `<baseUrl>/canvaskit.wasm`, but hud's web loaders called `LoadSkiaWeb` with
+no `locateFile`, so canvaskit-wasm 0.41 looked for the file next to the running script, or next to the
+page when none was running: `/canvaskit.wasm` from `/snake` (no trailing slash), and under
+`/_expo/static/js/web/` in a static-output app. `LoadSkiaWeb` keeps its first promise, a failed one
+included, so a wrong URL broke every Skia view on the page until a reload.
+
+- **`locateSkiaWebFile(file: string): string`** (`src/locateSkiaWebFile.ts`) returns
+  `${process.env.EXPO_BASE_URL ?? ''}/${file}`. `loadSkiaWeb.web.ts` passes it
+  (`LoadSkiaWeb({ locateFile })`), so `TriggerGaugeHost` and every app host that calls `loadSkiaWeb()`
+  gets it with no change. With no base URL it's `/canvaskit.wasm`, the same file the site root fetched
+  before.
+- **Exported** from the barrel and from `@tastic/hud/skia`, for code that calls Skia's own `LoadSkiaWeb`
+  or renders `WithSkiaWeb`: `opts={{ locateFile: locateSkiaWebFile }}`. Such code needs it even when
+  hud's loader also runs: `LoadSkiaWeb`'s cached promise is per module instance, and Snake and Mancala
+  import `lib/module/web` while hud imports `src/web`, two instances that share only
+  `global.CanvasKit`. Jay confirmed the name on 2026-10-17.
+- **`process.env.EXPO_BASE_URL` is inlined in node_modules too.** babel-preset-expo 58
+  (`build/configs/expo.js`, `getInlinesFromOptions`) adds it to the `define-plugin` inlines, and that
+  plugin runs on every file; only `warn-on-deep-rn-imports` is limited to first-party paths
+  (`EXCLUDED_FIRST_PARTY_PATHS`). `@expo/metro-config`'s babel-transformer fills the caller's
+  `baseUrl` from `customTransformOptions.baseUrl` ('' when absent), and Expo CLI's
+  `getBaseUrlFromExpoConfig` strips trailing slashes, so the template never doubles a slash. The
+  opt-in `unstable_noxcturnalTransformWorker` path inlines it as well (`noxcturnal/plugins/define.js`).
+  Checked by running Snake's own babel-transformer on this template under a
+  `node_modules/@tastic/hud/src/` filename: `"/snake"` with `baseUrl: '/snake'`, `""` without. It is
+  not inlined when the bundler runs with `NODE_ENV=test`, which is why the function reads it at call
+  time and the tests set the env var.
+- **Not checked live:** no game has been exported or run in a browser with this build (they're on the
+  published hud).
+- Tests: `locateSkiaWebFile.test.ts` (no base URL, `''`, `/snake`, canvaskit's second `prefix`
+  argument ignored, the same function from the barrel and `@tastic/hud/skia`) and
+  `fontsAndSkiaLoaders.test.ts` (`LoadSkiaWeb` called with `{ locateFile: locateSkiaWebFile }`).
 
 ### `getInlineColorPickerContentSize` (2026-09-18)
 
@@ -523,7 +552,7 @@ app's own layout.
 A paged, skippable "how to play" flow (`src/guide/`): `HowToPlayDialog` (controlled card), `GuideProvider` +
 `useGuide()` + `useAutoShowGuide()` (context, once-per-session auto-show), `createGuideSlice` (the persisted
 "seen version" flag), `createReturningPlayerMigrate` (see below), and the shared illustrations `SwipeHint` (finger or
-`pointer='mouse'`), `DirectionKeysHint` (inverted T, or `axis='vertical'`), `SeatDiagram` and `SeatDevicesHint`. Built exactly like `./skia-gate`
+`pointer='mouse'`), `DirectionKeysHint` (inverted T, or `axis='vertical'`), `SeatDiagram` and `SeatDevicesHint`. Built exactly like `./skia`
 and for the same reason - a standalone tsup entry (`src/guide/index.ts` → `dist/guide/index.*`; esbuild keeps
 an entry's path relative to the common `src/` root) reachable without touching the barrel, so it carries none
 of the barrel's peer-dependency surface. `BaseSettingsDialog` also gained an optional `onShowHowToPlay` (a
@@ -651,8 +680,9 @@ package it reaches must be `react`, `react-native`, `react-native-paper`, `react
 `react-native-safe-area-context`, `@rific/auto-paper`, `@rific/core` (since 2026-10-17, for the Keep
 Awake row), `@rific/feedback-press`, `@rific/updater` or `@tastic/core`, plus `@tastic/achievements` as `import type` only. It also fails if the walk reaches
 `src/index.ts` or `AchievementUnlockList.tsx` (it renders `@tastic/profile`'s `ProfileChip`), or a module
-with a `.web` twin (one source target serves both platforms; a `.web` twin would need its own `browser`
-target, the way `./skia-gate` has one). Checked 2026-10-14 by planting `import '@tastic/profile'` in
+with a `.web` twin (one source target serves both platforms; the retired `./skia-gate` needed a second
+`browser` target because its entry file itself had a `.web` twin. Metro does resolve a twin further down,
+as `./skia` and the main barrel's `loadSkiaWeb` show, but chrome has none). Checked 2026-10-14 by planting `import '@tastic/profile'` in
 `StatRow.tsx`, a value import of `@tastic/achievements`, and a dynamic Skia import: each one failed it. So
 before adding an import to any shared file this entry reaches, check it against that list.
 
@@ -665,22 +695,21 @@ so a fleet app's tsc resolves `@tastic/hud/chrome` to this package's raw source 
 
 The complete `src/index.ts` export barrel, reachable at the package's main `"."` entry point.
 `package.json`'s `exports` map also has three subpaths, each a standalone build with less of this
-barrel's peer-dependency surface: `"./skia-gate"` (the `SkiaGate` build; see "Why SkiaGate exists"
-above for why that's a real, not cosmetic, difference), `"./guide"` and `"./chrome"` (see their own
-sections above). Prefer `import { SkiaGate } from '@tastic/hud/skia-gate'`
-over pulling it from the bare `'@tastic/hud'` barrel below, even in an app that already has every
-peer this kit needs.
+barrel's peer-dependency surface: `"./skia"` (the web Skia loader; see "One way to load Skia" above),
+`"./guide"` and `"./chrome"` (see their own sections above). Skia host files import `loadSkiaWeb` from
+`@tastic/hud/skia`, not the bare `'@tastic/hud'` barrel below, even in an app that already has every
+peer this kit needs, so the host files match across the fleet.
 
 ```ts
 export { MONO_FONT } from './fonts'
 export { ControlSchemePicker, type ControlSchemePickerProps } from './ControlSchemePicker'
 export { InlineColorPicker } from './InlineColorPicker'
 export { loadSkiaWeb } from './loadSkiaWeb'
+export { locateSkiaWebFile } from './locateSkiaWebFile'
 export { PopoverBody } from './PopoverBody'
 export { PressAwayOverlay } from './PressAwayOverlay'
 export { ReadyButton } from './ReadyButton'
 export { type MenuOption, type MenuSection, type MultiSelectSection, SectionedDropdown, type SingleSelectSection } from './SectionedDropdown'
-export { SkiaGate, type SkiaGateProps } from './SkiaGate'
 export type { TriggerGaugeProps } from './TriggerGauge'
 export { default as TriggerGaugeHost } from './TriggerGaugeHost'
 export { type PopoverAlign, type PopoverVerticalAlign, useAutoAlign } from './useAutoAlign'
@@ -742,7 +771,7 @@ Unrelated to the peer deps above - the fleet's own shared tooling, pulled in as 
   (bundled by the shared preset, not a direct dependency of this repo) + `@testing-library/react`
 - **Location:** `src/__tests__/*.test.ts`
 - **Mocks:** `src/__mocks__/` - `react-native`, `react-native-paper`
-- **Current suite** (2026-10-17): 41 test files, 451 tests, all passing. (As of the `SkiaGate` addition, 2026-09: 24 test files, 160 tests -
+- **Current suite** (2026-10-17): 41 test files, 475 tests, all passing. (As of the `SkiaGate` addition, 2026-09: 24 test files, 160 tests -
   now covers component rendering too, not just hooks (this doc previously said otherwise; that was
   already stale before this edit).)
 - **Coverage** (`npm test`, freshly run): ~99.6% statements / ~90% branches / ~99% functions overall,
