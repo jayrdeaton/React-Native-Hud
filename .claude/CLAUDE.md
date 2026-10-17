@@ -480,7 +480,9 @@ an opt-in Keep Awake (see its README): a persisted setting (`KeepAwakeProvider`,
   Wake Lock API. Where that API is missing, core's `KeepAwakeProvider` withholds the module, so
   `useExpoKeepAwake()` is undefined and the row hides with no change to this gate. Core also asks for
   the lock again when the page is visible again (browsers drop it on every tab or app switch). Both
-  are in core's next release after 0.4.0 (unreleased as of this note); see its CLAUDE.md, "Keep Awake on web".
+  are in core 0.4.1 (released 2026-10-17; the devDependency here is `^0.4.1`, the peer floor stays
+  `>=0.4.0` since nothing here needs the new behavior to compile or run); see its CLAUDE.md, "Keep
+  Awake on web".
 - **`@rific/core` is a new, non-optional peer (`>=0.4.0`)**, and allowed in `./chrome`
   (`chromeImports.test.ts`): every app already depends on it (feedback-press peers on it). 0.4.0 is
   the release that added Keep Awake (published 2026-10-17); the devDependency is `^0.4.0`.
