@@ -157,9 +157,11 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
 
   const showLockOrientation = isTouchPrimary && lockOrientation !== undefined && onLockOrientationChange !== undefined
   const showEdgeGuard = Platform.OS === 'ios' && deferBottomEdgeGestures !== undefined && onDeferBottomEdgeGestures !== undefined
-  // Only in an app that opted in by handing expo-keep-awake to @rific/core's KeepAwakeProvider:
-  // without the module the setting would do nothing. On the same devices as Lock Orientation, since a
-  // desktop/laptop browser stays awake on its own while someone plays with its keyboard or mouse.
+  // Only in an app that opted in by handing expo-keep-awake to @rific/core's KeepAwakeProvider, and
+  // only where it can work: core withholds the module from a browser without the Screen Wake Lock
+  // API (core's release after 0.4.0), so without it the setting would do nothing. On the same
+  // devices as Lock Orientation, since a desktop/laptop browser stays awake on its own while someone
+  // plays with its keyboard or mouse.
   const showKeepAwake = isTouchPrimary && expoKeepAwake !== undefined
   const showHaptics = Platform.OS !== 'web' && !hideHaptics
   const showSound = !hideSound
