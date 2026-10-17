@@ -3,6 +3,7 @@ import { Icon, ProgressBar, Text } from 'react-native-paper'
 
 import { mockViewRender } from '../__mocks__/react-native'
 import { AchievementRow, LOCKED_BADGE_COLOR } from '../AchievementRow'
+import { WELL_SHADOW } from '../wellSurface'
 
 // See StatRow.test.tsx's own header comment for why this inspects the Text mock directly rather
 // than screen.getByText - this package's own View/Text mocks leave no per-Text DOM boundary once
@@ -67,7 +68,18 @@ describe('AchievementRow', () => {
     expect(checkCall![0].color).toBe('#00FF00')
   })
 
-  it('accepts fg/fgMuted/sectionBg overrides in place of the dark-mode-derived defaults', () => {
+  it("is a well: the theme's surface on the level-1 shadow, with onSurface and onSurfaceVariant text", () => {
+    render(<AchievementRow icon='trophy' title='First Win' description='Win a match' badgeColor='#FFD54F' unlockedLabel='Unlocked today' />)
+
+    // The auto-paper mock's surface, onSurface and onSurfaceVariant.
+    expect(viewStyles().some((entries) => entries.some((e) => e.backgroundColor === '#00000f') && entries.some((e) => e.boxShadow === WELL_SHADOW))).toBe(true)
+    const titleProps = (Text as jest.Mock).mock.calls.find((c) => c[0].children === 'First Win')![0]
+    expect([titleProps.style].flat().some((s: Record<string, unknown>) => s?.color === '#000002')).toBe(true)
+    const descriptionProps = (Text as jest.Mock).mock.calls.find((c) => c[0].children === 'Win a match')![0]
+    expect([descriptionProps.style].flat().some((s: Record<string, unknown>) => s?.color === '#000003')).toBe(true)
+  })
+
+  it("accepts fg/fgMuted/sectionBg overrides in place of the well's defaults", () => {
     render(<AchievementRow icon='trophy' title='First Win' description='Win a match' badgeColor='#FFD54F' unlockedLabel='Unlocked today' fg='#111111' fgMuted='#222222' sectionBg='#333333' />)
 
     const titleProps = (Text as jest.Mock).mock.calls.find((c) => c[0].children === 'First Win')![0]

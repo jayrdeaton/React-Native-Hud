@@ -15,12 +15,13 @@ import { MONO_FONT } from './fonts'
 interface Props {
   rows: AchievementCatalogRow[]
   label?: string
-  // Independently optional overrides for this section's own heading/row colors - default to the
-  // same useAutoPaperTheme()-derived formula as AchievementRow/StatSection/StatRow/BaseStatsScreen
-  // (see BaseStatsScreen's own doc for why) when omitted, so every existing caller renders
-  // identically to before. Passed straight through to each <AchievementRow>.
+  // Independently optional overrides for the heading's and rows' colors. fg and sectionBg go to each
+  // <AchievementRow> (whose own defaults are the well's, see wellSurface.ts). fgMuted goes to the heading and
+  // the rows; omitted, the heading (drawn on the screen, not on a well) keeps its own screen-derived default
+  // and the rows theirs.
   fg?: string
   fgMuted?: string
+  sectionBg?: string
 }
 
 // The "ALL ACHIEVEMENTS" heading + one <AchievementRow> per row - extracted verbatim from every
@@ -42,7 +43,7 @@ interface Props {
 // about 1.4:1 and 1.8:1 against the light screen's white, so a bar or check in either barely shows;
 // mixed, they're about 5:1 and 6:1 (bronze goes from about 3:1 to 9:1). The badge keeps the true tier
 // color: its glyph is black, which reads on all three.
-export function AchievementCatalogSection({ rows, label = 'ALL ACHIEVEMENTS', fg, fgMuted: fgMutedOverride }: Props) {
+export function AchievementCatalogSection({ rows, label = 'ALL ACHIEVEMENTS', fg, fgMuted: fgMutedOverride, sectionBg }: Props) {
   const { dark } = useAutoPaperTheme()
   const fgMuted = fgMutedOverride ?? (dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)')
   const tierAccent = (tierColor: string) => (dark ? tierColor : getBlendedColor('#000000', tierColor, 0.5))
@@ -53,7 +54,7 @@ export function AchievementCatalogSection({ rows, label = 'ALL ACHIEVEMENTS', fg
         {label}
       </Text>
       {rows.map((row) => (
-        <AchievementRow key={row.id} icon={row.icon} title={row.title} description={row.description} badgeColor={row.unlockedAt !== undefined ? row.tierColor : LOCKED_BADGE_COLOR} checkColor={tierAccent(row.tierColor)} unlockedLabel={row.unlockedLabel} progress={row.progress} deviceMarker={row.deviceMarker} fg={fg} fgMuted={fgMutedOverride} />
+        <AchievementRow key={row.id} icon={row.icon} title={row.title} description={row.description} badgeColor={row.unlockedAt !== undefined ? row.tierColor : LOCKED_BADGE_COLOR} checkColor={tierAccent(row.tierColor)} unlockedLabel={row.unlockedLabel} progress={row.progress} deviceMarker={row.deviceMarker} fg={fg} fgMuted={fgMutedOverride} sectionBg={sectionBg} />
       ))}
     </Fragment>
   )

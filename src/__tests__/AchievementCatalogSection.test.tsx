@@ -93,6 +93,12 @@ describe('AchievementCatalogSection', () => {
     expect(renderedTexts()).toEqual(['ALL ACHIEVEMENTS'])
   })
 
+  it('passes sectionBg through to every row', () => {
+    render(<AchievementCatalogSection rows={[lockedRow, unlockedRow]} sectionBg='#333333' />)
+
+    expect(viewBackgrounds().filter((bg) => bg === '#333333')).toHaveLength(2)
+  })
+
   it('accepts fg/fgMuted overrides in place of the dark-mode-derived defaults', () => {
     render(<AchievementCatalogSection rows={[unlockedRow]} fg='#111111' fgMuted='#222222' />)
 

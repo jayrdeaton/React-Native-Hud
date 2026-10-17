@@ -483,6 +483,7 @@ interface AchievementCatalogSectionProps {
   label?: string // default 'ALL ACHIEVEMENTS'
   fg?: string
   fgMuted?: string
+  sectionBg?: string // passed to every row
 }
 ```
 
@@ -495,8 +496,16 @@ stats object with these three fields satisfies it:
 ```ts
 interface ActivityStatSectionProps {
   stats: { distinctDaysPlayed: number; currentDayStreak: number; bestDayStreak: number }
+  fg?: string
+  fgMuted?: string
+  sectionBg?: string
 }
 ```
+
+**Wells.** Every `StatSection` and `AchievementRow` is a well: the theme's `surface` (the same surface as the dialogs)
+on MD3's level-1 shadow, with `onSurface`/`onSurfaceVariant` text. `useWellColors()` returns those colors and
+`WELL_SHADOW` the shadow, for an app's own cards (a menu tile) to match. Each component's `fg`/`fgMuted`/`sectionBg`
+props still override them.
 
 Composing both with `@tastic/achievements`' own row computation:
 
@@ -625,7 +634,7 @@ touches the main barrel. It's for an app that has `@tastic/core` and `@rific/upd
 
 - Dialogs: `BaseSettingsDialog`, `ConfirmDialog`, `UpdateDialog`, `RotatedFrame`
 - Stats: `BaseStatsScreen`, `StatSection`, `StatRow`, `AchievementRow`, `LOCKED_BADGE_COLOR`,
-  `AchievementCatalogSection`, `ActivityStatSection`
+  `AchievementCatalogSection`, `ActivityStatSection`, `useWellColors`, `WELL_SHADOW`
 - Chrome: `CornerActionButtons`, `ContentGutter`, `StaggeredWord`, `getStaggeredWordDuration`
 - Overlay cards: `OverlayCard`, `OverlayBackdrop`, `useOverlayCardColors`, `DialogHeader`, `useCompactDialog`, `isCompactDialogHeight`, `COMPACT_DIALOG_HEIGHT`
 - Style tokens: `overlayStyles`, `overlayActionStyles`, `MONO_FONT`

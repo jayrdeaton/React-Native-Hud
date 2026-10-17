@@ -3,6 +3,7 @@ import { Text } from 'react-native-paper'
 
 import { mockViewRender } from '../__mocks__/react-native'
 import { StatSection } from '../StatSection'
+import { WELL_SHADOW } from '../wellSurface'
 
 // See StatRow.test.tsx's own header comment for why this inspects the Text mock directly rather
 // than screen.getByText - this package's own View/Text mocks leave no per-Text DOM boundary once
@@ -28,7 +29,20 @@ describe('StatSection', () => {
     expect(rendered).toContain('child content')
   })
 
-  it('accepts fg/sectionBg overrides in place of the dark-mode-derived defaults', () => {
+  it("is a well: the theme's surface on the level-1 shadow, its label in onSurface", () => {
+    render(
+      <StatSection label='OVERALL'>
+        <Text>child content</Text>
+      </StatSection>
+    )
+
+    // The auto-paper mock's surface and onSurface.
+    expect(viewStyles().some((entries) => entries.some((e) => e.backgroundColor === '#00000f') && entries.some((e) => e.boxShadow === WELL_SHADOW))).toBe(true)
+    const labelProps = (Text as jest.Mock).mock.calls.find((c) => c[0].children === 'OVERALL')![0]
+    expect([labelProps.style].flat().some((s: Record<string, unknown>) => s?.color === '#000002')).toBe(true)
+  })
+
+  it("accepts fg/sectionBg overrides in place of the well's defaults", () => {
     render(
       <StatSection label='OVERALL' fg='#222222' sectionBg='#333333'>
         <Text>child content</Text>

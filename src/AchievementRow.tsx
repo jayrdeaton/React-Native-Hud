@@ -1,6 +1,7 @@
-import { useAutoPaperTheme } from '@rific/auto-paper'
 import { StyleSheet, View } from 'react-native'
 import { Icon, ProgressBar, Text } from 'react-native-paper'
+
+import { useWellColors, WELL_SHADOW } from './wellSurface'
 
 // A neutral gray for a locked badge's own background - exported so a caller computing its own
 // badge color (unlocked ? tierColor : LOCKED_BADGE_COLOR, matching LightCycles' own achievements.tsx)
@@ -32,10 +33,9 @@ interface Props {
   // from a specific profile's own tab - optional since only an app with per-profile stat views has
   // this concept at all.
   deviceMarker?: boolean
-  // Independently optional overrides for this row's own text/background colors - each defaults to
-  // the same dark-mode-derived formula as StatRow/StatSection/BaseStatsScreen (see that component's
-  // own doc for why) when omitted, so every existing caller renders identically to before. A caller
-  // with its own app-wide chrome palette passes whichever of the three it needs.
+  // Independently optional overrides for this row's own text/background colors - each defaults to the well's
+  // (wellSurface.ts: the theme's surface and its onSurface/onSurfaceVariant text), like StatSection/StatRow. A
+  // caller with its own app-wide chrome palette passes whichever of the three it needs.
   fg?: string
   fgMuted?: string
   sectionBg?: string
@@ -44,16 +44,15 @@ interface Props {
 // One row per achievement - a tier-colored (or locked-gray) badge, title/description, an optional
 // progress bar while locked, and either an unlocked check-mark+label or a lock icon. Extracted
 // verbatim from LightCycles' own achievements.tsx, where this exact row shape backed its entire
-// "ALL ACHIEVEMENTS" list. fg/fgMuted/its own section background default to the same
-// useAutoPaperTheme()-derived formula as StatRow/StatSection/BaseStatsScreen (see BaseStatsScreen's
-// own doc for why), each independently overridable via the matching prop for a caller with its own
-// chrome palette. Has no opinion on what an achievement actually IS (id, unlock predicate, catalog)
+// "ALL ACHIEVEMENTS" list. Each row is its own well (wellSurface.ts: the theme's surface on MD3's level-1 shadow);
+// fg/fgMuted/its own background default to the well's colors, each independently overridable via the matching
+// prop for a caller with its own chrome palette. Has no opinion on what an achievement actually IS (id, unlock predicate, catalog)
 // - that stays entirely app-local; this is purely the presentational row.
 export function AchievementRow({ icon, title, description, badgeColor, unlockedLabel, checkColor, progress, deviceMarker, fg: fgOverride, fgMuted: fgMutedOverride, sectionBg: sectionBgOverride }: Props) {
-  const { dark } = useAutoPaperTheme()
-  const fg = fgOverride ?? (dark ? '#FFFFFF' : '#000000')
-  const fgMuted = fgMutedOverride ?? (dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)')
-  const sectionBg = sectionBgOverride ?? (dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)')
+  const well = useWellColors()
+  const fg = fgOverride ?? well.fg
+  const fgMuted = fgMutedOverride ?? well.fgMuted
+  const sectionBg = sectionBgOverride ?? well.bg
   const unlocked = unlockedLabel !== undefined
 
   return (
@@ -116,6 +115,7 @@ const styles = StyleSheet.create({
   row: {
     alignItems: 'center',
     borderRadius: 12,
+    boxShadow: WELL_SHADOW,
     flexDirection: 'row',
     gap: 12,
     padding: 12

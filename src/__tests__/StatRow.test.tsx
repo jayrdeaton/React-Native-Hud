@@ -17,16 +17,18 @@ describe('StatRow', () => {
     expect(rendered).toContain('42')
   })
 
-  it('colors the value bold and full-contrast, the label muted', () => {
+  it("colors the value bold in the well's onSurface, the label in its onSurfaceVariant", () => {
     render(<StatRow label='Wins' value='42' />)
 
     const labelProps = (Text as jest.Mock).mock.calls.find((c) => c[0].children === 'Wins')![0]
     const valueProps = (Text as jest.Mock).mock.calls.find((c) => c[0].children === '42')![0]
-    expect([labelProps.style].flat().some((s: Record<string, unknown>) => s?.color === 'rgba(0,0,0,0.5)')).toBe(true)
+    // The auto-paper mock's onSurfaceVariant and onSurface.
+    expect([labelProps.style].flat().some((s: Record<string, unknown>) => s?.color === '#000003')).toBe(true)
+    expect([valueProps.style].flat().some((s: Record<string, unknown>) => s?.color === '#000002')).toBe(true)
     expect([valueProps.style].flat().some((s: Record<string, unknown>) => s?.fontWeight === 'bold')).toBe(true)
   })
 
-  it('accepts fg/fgMuted overrides in place of the dark-mode-derived defaults', () => {
+  it("accepts fg/fgMuted overrides in place of the well's defaults", () => {
     render(<StatRow label='Wins' value='42' fg='#111111' fgMuted='#222222' />)
 
     const labelProps = (Text as jest.Mock).mock.calls.find((c) => c[0].children === 'Wins')![0]

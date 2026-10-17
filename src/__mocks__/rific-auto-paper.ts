@@ -34,6 +34,7 @@ export const useAutoPaperTheme = jest.fn(() => ({
     secondary: '#000005',
     secondaryContainer: '#000006',
     onSecondary: '#00000a',
+    surface: '#00000f',
     surfaceVariant: '#000007',
     tertiary: '#000008',
     tertiaryContainer: '#000009'

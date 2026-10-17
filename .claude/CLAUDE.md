@@ -457,6 +457,33 @@ gaps, each fixed here for every game at once:
   above it since. In the games' Paused card, Cancel is Quit, so back still leaves the match, as it did
   before through the router.
 
+### Wells are the dialog surface on a shadow (2026-10-17)
+
+Prompted by Solitaire, whose Achievements wells (a translucent tint) read as a different thing from its Home tiles
+(an opaque card). Jay: every raised card should be the surface the dialogs use, fleet-wide; MD3's tonal elevation
+was offered and turned down (it washes the surface with the primary, like the dialogs no longer are), so a well is
+the plain surface plus MD3's level-1 SHADOW. `src/wellSurface.ts`:
+
+- **`WELL_SHADOW`** is MD3's level-1 elevation shadow as a `boxShadow` (its web spec's two layers). `StatSection`'s
+  section and every `AchievementRow` carry it. An app's own wells (Solitaire's Home tiles) use the same constant.
+- **`useWellColors()`** gives `{ bg: surface, fg: onSurface, fgMuted: onSurfaceVariant }`, the dialogs' roles
+  (`useOverlayCardColors`). It is the default for `StatSection`, `StatRow` (which sits in one) and `AchievementRow`.
+  Every override prop still works.
+- **Why the shadow, not just the surface:** react-native-paper's MD3 themes (which auto-paper keeps) give
+  `background` and `surface` the same tone (#FFFBFE light, #1C1B1F dark), and BaseStatsScreen's light-mode #FFFFFF is
+  the same to the eye, so a plain surface well vanishes on a light screen. In dark mode the surface is already lighter
+  than BaseStatsScreen's black and the shadow barely shows. Before this, the defaults were a 6% white / 4% black tint.
+- **`AchievementCatalogSection` and `ActivityStatSection` take `sectionBg`** (and ActivityStatSection `fg`/`fgMuted`),
+  passed to their rows: an app with its own palette couldn't reach those two before. The catalog's heading is drawn on
+  the screen, not a well, so its default is still the screen-derived muted color.
+- **Not changed:** `BaseStatsScreen`'s own background (#000/#FFF by default), the badge colors, `LOCKED_BADGE_COLOR`.
+- **Per app, when it takes this version:** Hangman passes `bg={theme.colors.surface}` to BaseStatsScreen, so its wells
+  are surface on surface (the shadow alone shows them in light mode; in dark mode, little at all), and should drop that
+  `bg`. LightCycles' own ColorStatRow/ProfileRankingRow repeat the old `#FFF`/`#000` text formula and should read
+  `useWellColors()`.
+- Seen on Solitaire's web build only (yalc-linked; light and dark on its felt, plus light with the felt covered white
+  to stand in for a plain screen). Not on a device, not in another game.
+
 ### The press-away pattern for split-screen (no component for this - it's a wiring pattern)
 
 A single full-screen `PressAwayOverlay` works for one player. For two players sharing a screen, the
