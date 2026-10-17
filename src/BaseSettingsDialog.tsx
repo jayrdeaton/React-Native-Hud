@@ -1,4 +1,5 @@
 import { AutoAppearancePicker, Dialog, FadingScrollView, useAutoPaperTheme, useBlurModule, useThemeSettings } from '@rific/auto-paper'
+import { useExpoKeepAwake, useKeepAwakeSettings } from '@rific/core'
 import { Button, SoundContext, TouchableRipple, useHapticSettings, useSoundSettings, useVibration } from '@rific/feedback-press'
 import { useUpdater } from '@rific/updater'
 import { rotateInsets, useIsTouchPrimaryDevice, useRotation, type ViewRotation } from '@tastic/core'
@@ -56,13 +57,7 @@ export interface BaseSettingsDialogProps {
   // @tastic/edge-guard's own swizzle is a no-op on every other platform.
   deferBottomEdgeGestures?: boolean
   onDeferBottomEdgeGestures?: (value: boolean) => void
-  // Optional, and always passed as a pair - omit both for an app that doesn't keep the screen awake.
-  // This dialog only shows and reports the toggle; the app itself keeps the screen on while it's set
-  // (expo-keep-awake on its match screen), so this package needs no native dependency for it. Shown
-  // on the same devices as Lock Orientation (see isTouchPrimary below): a desktop/laptop browser
-  // stays awake on its own while someone is playing with its keyboard or mouse.
-  keepAwake?: boolean
-  onKeepAwakeChange?: (value: boolean) => void
+  // No Keep Awake props: that row reads @rific/core's Keep Awake setting itself (see showKeepAwake).
   // Explicit opt-outs for the rows that pull their own state straight from @rific/feedback-press,
   // @rific/auto-paper, and @rific/updater's own shared contexts/hooks rather than from anything the
   // caller passes in - unlike Lock Orientation/Edge Guard above, there's no "value" to omit for
@@ -97,7 +92,7 @@ export interface BaseSettingsDialogProps {
 // is the seam for whatever isn't shared: a game with its own board/difficulty settings (or a stats
 // backup flow, or anything else genuinely specific to it) renders those below Appearance, not by
 // forking this component.
-export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverride, version, lockOrientation, onLockOrientationChange, deferBottomEdgeGestures, onDeferBottomEdgeGestures, keepAwake, onKeepAwakeChange, hideSound = false, hideHaptics = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, onShowHowToPlay, children }: BaseSettingsDialogProps) {
+export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverride, version, lockOrientation, onLockOrientationChange, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, onShowHowToPlay, children }: BaseSettingsDialogProps) {
   const { colors } = useAutoPaperTheme()
   const ambientRotation = useRotation()
   const rotation = rotationOverride ?? ambientRotation
@@ -113,7 +108,7 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   // Dialog's own 32pt padding is simply overhung.
   const insets = rotateInsets(useSafeAreaInsets(), rotation)
   const sheetWidth = Math.min(overlayStyles.card.maxWidth, (turned ? window.height : window.width) - 2 * Math.max(insets.left, insets.right, SHEET_GUTTER))
-  // Also gates the Lock Orientation and Keep Awake rows below (alongside their own props) - true
+  // Also gates the Lock Orientation and Keep Awake rows below (alongside their own conditions) - true
   // unconditionally on native (see the hook's own doc), so this only actually excludes a
   // desktop/laptop browser, where a mouse-driven window has no physical orientation to lock
   // against; a resize there would just make the setting silently stop reflowing the layout instead
@@ -121,6 +116,8 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   const isTouchPrimary = useIsTouchPrimaryDevice()
   const { settings: hapticSettings, set: setHapticSettings } = useHapticSettings()
   const { settings: soundSettings, set: setSoundSettings } = useSoundSettings()
+  const { settings: keepAwakeSettings, set: setKeepAwakeSettings } = useKeepAwakeSettings()
+  const expoKeepAwake = useExpoKeepAwake()
   // Sound/Haptics toggle themselves: the ripple's automatic press feedback fires on onPressIn,
   // before onPress applies the toggle, so it reflects the OLD enabled value - backwards from what
   // a settings toggle should confirm (turning off would click/buzz, turning on would go silent).
@@ -160,7 +157,10 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
 
   const showLockOrientation = isTouchPrimary && lockOrientation !== undefined && onLockOrientationChange !== undefined
   const showEdgeGuard = Platform.OS === 'ios' && deferBottomEdgeGestures !== undefined && onDeferBottomEdgeGestures !== undefined
-  const showKeepAwake = isTouchPrimary && keepAwake !== undefined && onKeepAwakeChange !== undefined
+  // Only in an app that opted in by handing expo-keep-awake to @rific/core's KeepAwakeProvider:
+  // without the module the setting would do nothing. On the same devices as Lock Orientation, since a
+  // desktop/laptop browser stays awake on its own while someone plays with its keyboard or mouse.
+  const showKeepAwake = isTouchPrimary && expoKeepAwake !== undefined
   const showHaptics = Platform.OS !== 'web' && !hideHaptics
   const showSound = !hideSound
   const showAppearance = !hideAppearance
@@ -243,11 +243,11 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
                     </TouchableRipple>
                   )}
 
-                  {/* See the keepAwake prop's own doc: the app does the keeping awake, this only toggles it. */}
+                  {/* The app's own useKeepAwake('game') does the keeping awake; this only flips the shared setting. */}
                   {showKeepAwake && (
-                    <TouchableRipple onPress={() => onKeepAwakeChange!(!keepAwake)} style={styles.toggleButton} accessibilityLabel={`Keep awake ${keepAwake ? 'on' : 'off'}`}>
+                    <TouchableRipple onPress={() => setKeepAwakeSettings({ enabled: !keepAwakeSettings.enabled })} style={styles.toggleButton} accessibilityLabel={`Keep awake ${keepAwakeSettings.enabled ? 'on' : 'off'}`}>
                       <View style={styles.toggleContent}>
-                        <SettingIcon source={keepAwake ? 'eye' : 'eye-closed'} color={keepAwake ? colors.tertiary : colors.onSurfaceVariant} containerColor={keepAwake ? colors.tertiaryContainer : colors.surfaceVariant} />
+                        <SettingIcon source={keepAwakeSettings.enabled ? 'eye' : 'eye-closed'} color={keepAwakeSettings.enabled ? colors.tertiary : colors.onSurfaceVariant} containerColor={keepAwakeSettings.enabled ? colors.tertiaryContainer : colors.surfaceVariant} />
                         <View style={styles.flexShrink}>
                           <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
                             Keep Awake

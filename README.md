@@ -209,12 +209,16 @@ its own `useGameSettings()` hook internally instead of taking it as props. Snake
 the fleet with real Redux Toolkit state - reads `lockOrientation`/`deferBottomEdgeGestures` via
 `useSelector` and writes them back via `dispatch(gameActions.setLockOrientation(...))` directly
 inside the adapter, with nothing threaded through props at all. `BaseSettingsDialog` doesn't care
-which of these an app uses: sound, haptics, appearance, and update-checking are identical across
-every app and live entirely inside this package now, so `lockOrientation`/`onLockOrientationChange`,
-`deferBottomEdgeGestures`/`onDeferBottomEdgeGestures` and `keepAwake`/`onKeepAwakeChange` are the only
-settings an adapter actually needs to source itself, however it does that. Each pair is optional: omit
-one and its row doesn't show. The Keep Awake row only toggles the value; the app keeps the screen awake
-itself while it's on (for example with `expo-keep-awake` on its match screen).
+which of these an app uses: sound, haptics, appearance, update-checking and Keep Awake are identical
+across every app and read their own shared settings, so `lockOrientation`/`onLockOrientationChange`
+and `deferBottomEdgeGestures`/`onDeferBottomEdgeGestures` are the only settings an adapter actually
+needs to source itself, however it does that. Each pair is optional: omit one and its row doesn't show.
+
+The Keep Awake row reads `@rific/core`'s Keep Awake setting (`useKeepAwakeSettings()`), the same way
+the Sound row reads `@rific/feedback-press`. It shows on touch-first devices (where Lock Orientation
+shows) in any app whose `KeepAwakeProvider` was given `expo-keep-awake` (`useExpoKeepAwake()` returns
+it), and is hidden otherwise. The app opts in once at its root and calls `useKeepAwake('game')` on the
+screen that should stay awake; see `@rific/core`'s README for the bridge.
 
 Every adapter also passes `version={release.otaVersion}` (so the dialog's own update-check button
 knows what it's currently running) and `onUpdateError`, wired to a real `useToast()` call. Wire this
@@ -239,8 +243,6 @@ export function SettingsDialog({ visible, onDismiss, rotation = 0, settings, set
       onLockOrientationChange={(value) => setSettings({ lockOrientation: value })}
       deferBottomEdgeGestures={settings.deferBottomEdgeGestures}
       onDeferBottomEdgeGestures={(value) => setSettings({ deferBottomEdgeGestures: value })}
-      keepAwake={settings.keepAwake}
-      onKeepAwakeChange={(value) => setSettings({ keepAwake: value })}
       onUpdateError={(message) => error('Update check failed', message)}
     />
   )
@@ -655,8 +657,8 @@ import { BaseSettingsDialog, ConfirmDialog, CornerActionButtons } from '@tastic/
 ```
 
 It pulls in only `react`, `react-native`, `react-native-paper`, `react-native-reanimated`,
-`react-native-safe-area-context`, `@rific/auto-paper`, `@rific/feedback-press`, `@rific/updater` and
-`@tastic/core`. `AchievementCatalogSection` uses `@tastic/achievements` for types only, so nothing loads it at
+`react-native-safe-area-context`, `@rific/auto-paper`, `@rific/core`, `@rific/feedback-press`,
+`@rific/updater` and `@tastic/core`. `AchievementCatalogSection` uses `@tastic/achievements` for types only, so nothing loads it at
 runtime, but an app whose TypeScript resolves the `react-native` export condition (the fleet's tsconfig does)
 type-checks hud's source and needs it installed. `AchievementUnlockList` isn't here because it renders
 `@tastic/profile`'s `ProfileChip`. A test (`src/__tests__/chromeImports.test.ts`) walks the import graph from
@@ -702,6 +704,7 @@ resolve module".
 | `react-native-reanimated` | >=3.0.0 | main entry (`StaggeredWord`), `./guide`, `./chrome` (`StaggeredWord`) |
 | `@rific/auto-paper` | >=0.12.2 | main entry (`BaseSettingsDialog` needs the nested `Portal.Host` first shipped in 0.12.2; `OverlayCard` uses `BlurView` and `useBlur`, and `BaseSettingsDialog`'s Blur row uses `useBlurModule` and `useThemeSettings`, all in 0.12.2), `./guide`, `./chrome` |
 | `@rific/feedback-press` | >=0.10.2 | main entry (`useSoundSettings` first shipped in 0.10.2), `./guide`, `./chrome` |
+| `@rific/core` | >=0.4.0 | main entry and `./chrome`: `BaseSettingsDialog`'s Keep Awake row (`useKeepAwakeSettings`, `useExpoKeepAwake`, first shipped in 0.4.0) |
 | `react-native-safe-area-context` | >=5.0.0 | main entry (`useZoneClampedAlign`), `./chrome` (`RotatedFrame`, `BaseSettingsDialog`) |
 | `@tastic/core` | >=0.12.0, optional | main entry: `useRotation()` and most dialogs; `RotatedFrame` and `BaseSettingsDialog` need `FakeLandscapeView`'s `rotation`/`passThrough`, first shipped in 0.12.0; `./chrome` (the same dialogs, and `InlineColorPicker`) |
 | `@rific/updater` | >=0.4.0, optional | main entry and `./chrome`: `BaseSettingsDialog`, `UpdateDialog` |

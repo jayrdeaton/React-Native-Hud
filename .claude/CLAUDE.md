@@ -414,6 +414,9 @@ cards read as a different shade from the Settings sheet. So:
 
 ### Keep Awake row in BaseSettingsDialog (2026-10-15)
 
+(Superseded on 2026-10-17: the row reads `@rific/core`'s setting and the prop pair is gone. See "Keep
+Awake reads @rific/core" below. Kept for the history.)
+
 - **`keepAwake`/`onKeepAwakeChange`**, an optional pair like Lock Orientation's: the "Keep Awake" row
   (caption "Stop auto-lock mid-match", icon `eye`/`eye-closed`) sits after Edge Guard. Jay asked for it
   while the five games were adding `expo-keep-awake` to `/game` (audit F086: Pong's tilt steering never
@@ -427,6 +430,27 @@ cards read as a different shade from the Settings sheet. So:
 - Tested in `BaseSettingsDialog.test.tsx` (shown and reported, hidden on desktop, omitted without the
   props, tertiary accent while on). Needs a release before the games can use it from npm (a new prop
   pair, so a minor).
+
+### Keep Awake reads @rific/core (2026-10-17)
+
+The 10-15 design (the dialog only toggled a value the app passed in) made every game copy a settings
+field, the prop pair, and an identical `expo-keep-awake` effect, and every game still without it would
+need all three. Jay: upstream is always preferred, and not worth its own package, so `@rific/core` got
+an opt-in Keep Awake (see its README): a persisted setting (`KeepAwakeProvider`, `keepAwakeReducer`),
+`useKeepAwake(tag)` for the screen that needs it, and `expo-keep-awake` injected by the app.
+
+- **The row reads core, no props.** `useKeepAwakeSettings()` for the value (`set({ enabled })` on
+  press), same as the Sound row reads feedback-press. **`keepAwake`/`onKeepAwakeChange` are removed**
+  (breaking): the five games passing them have to drop them when they take this hud.
+- **Shown when `isTouchPrimary && useExpoKeepAwake() !== undefined`**, i.e. the app handed
+  `expo-keep-awake` to core's `KeepAwakeProvider`. Same opt-in signal as the Blur row's
+  `useBlurModule()`. Caption, icon and accent are unchanged.
+- **`@rific/core` is a new, non-optional peer (`>=0.4.0`)**, and allowed in `./chrome`
+  (`chromeImports.test.ts`): every app already depends on it (feedback-press peers on it). 0.4.0 is
+  the release that added Keep Awake (published 2026-10-17); the devDependency is `^0.4.0`.
+- **Tests mock `@rific/core`** (`src/__mocks__/rific-core.ts`, mapped in `jest.config.cjs`): the real
+  package resolves to raw `.ts` under node_modules, the same reason `@tastic/core` is mocked. The mock
+  returns no module by default, so the row only appears in tests that hand one back.
 
 ### Stats screen gaps found in Hangman's review (2026-10-16)
 
@@ -624,8 +648,8 @@ screen and corner buttons, but importing anything from the main barrel would mak
 barrel-only ones, so `src/__tests__/chromeImports.test.ts` walks the relative-import graph from
 `src/chrome/index.ts` (static imports and re-exports, bare imports, dynamic `import()`, `require()`). Every
 package it reaches must be `react`, `react-native`, `react-native-paper`, `react-native-reanimated`,
-`react-native-safe-area-context`, `@rific/auto-paper`, `@rific/feedback-press`, `@rific/updater` or
-`@tastic/core`, plus `@tastic/achievements` as `import type` only. It also fails if the walk reaches
+`react-native-safe-area-context`, `@rific/auto-paper`, `@rific/core` (since 2026-10-17, for the Keep
+Awake row), `@rific/feedback-press`, `@rific/updater` or `@tastic/core`, plus `@tastic/achievements` as `import type` only. It also fails if the walk reaches
 `src/index.ts` or `AchievementUnlockList.tsx` (it renders `@tastic/profile`'s `ProfileChip`), or a module
 with a `.web` twin (one source target serves both platforms; a `.web` twin would need its own `browser`
 target, the way `./skia-gate` has one). Checked 2026-10-14 by planting `import '@tastic/profile'` in
@@ -696,6 +720,7 @@ Real `peerDependencies` from `package.json`, with their actual version floors:
 **Internal fleet:**
 - `@rific/auto-paper` - `>=0.13.0`, the first release with `FadingScrollView` (the Settings sheet's rows), and after 0.12.2, whose Provider mounts a nested `Portal.Host` inside its own contexts, which `BaseSettingsDialog`'s outer Portal relies on (see "BaseSettingsDialog lays out in a turned frame" above). Uses `AutoAppearancePicker`, `BlurView`, `useBlur`, `useBlurModule`, `useThemeSettings` (all in 0.12.2, for `OverlayCard` and the Blur row), `defaultColors`, `getContrastColor`, `getBlendedColor`, `getColorRoles`, `SeedColor`
 - `@rific/feedback-press` - `>=0.10.2`, the first release with `useSoundSettings` (`IconButton`, `TouchableRipple`, `useSoundSettings`)
+- `@rific/core` - `>=0.4.0`, the first release with Keep Awake (`useKeepAwakeSettings`, `useExpoKeepAwake` in `BaseSettingsDialog`). See "Keep Awake reads @rific/core" above.
 - `@tastic/achievements` - `>=0.2.0` (`AchievementCatalogRow` type, in `AchievementCatalogSection.tsx`
   only - type-only, no value/runtime import; see "AchievementCatalogSection + ActivityStatSection"
   above). The newest peer here (added in the same 2026-09-18 pass as that component) and currently

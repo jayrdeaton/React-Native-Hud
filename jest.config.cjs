@@ -17,6 +17,9 @@ module.exports = require('@infinitetoken/jest-config/react-native')({
     // area-context at module scope for components this package never imports - mocked to just the
     // color utilities actually used (getContrastColor, getBlendedColor, getColorRoles, defaultColors).
     '^@rific/auto-paper$': '<rootDir>/src/__mocks__/rific-auto-paper.ts',
+    // Real @rific/core resolves to raw .ts source under node_modules through the same export
+    // condition as @tastic/core below - mocked to just the Keep Awake hooks BaseSettingsDialog reads.
+    '^@rific/core$': '<rootDir>/src/__mocks__/rific-core.ts',
     // Real reanimated's shared-value/worklet machinery has no jsdom equivalent (it's designed to
     // run off the JS thread) and its official mock is ESM, which this ts-jest-only config (no
     // babel-jest) can't transform - mocked with a synchronous stand-in instead (see that file).

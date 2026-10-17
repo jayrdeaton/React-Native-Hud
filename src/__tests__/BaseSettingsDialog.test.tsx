@@ -1,4 +1,5 @@
 import { Dialog, useBlurModule, useThemeSettings } from '@rific/auto-paper'
+import { useExpoKeepAwake, useKeepAwakeSettings } from '@rific/core'
 import { Button, SoundContext, TouchableRipple, useHapticSettings, useSoundSettings } from '@rific/feedback-press'
 import { useUpdater } from '@rific/updater'
 import { FakeLandscapeView, useIsTouchPrimaryDevice, useRotation } from '@tastic/core'
@@ -48,6 +49,9 @@ function flatStyle(style: unknown): Record<string, unknown> {
   return Object.assign({}, ...[style].flat(Infinity))
 }
 
+// What an app that opted into @rific/core's Keep Awake hands its KeepAwakeProvider.
+const mockExpoKeepAwake = { activateKeepAwakeAsync: jest.fn(() => Promise.resolve()), deactivateKeepAwake: jest.fn(() => Promise.resolve()) }
+
 describe('BaseSettingsDialog', () => {
   const originalOS = Platform.OS
 
@@ -56,6 +60,8 @@ describe('BaseSettingsDialog', () => {
     ;(useIsTouchPrimaryDevice as jest.Mock).mockReturnValue(true)
     ;(useRotation as jest.Mock).mockReturnValue(0)
     ;(useBlurModule as jest.Mock).mockReturnValue(undefined)
+    ;(useExpoKeepAwake as jest.Mock).mockReturnValue(undefined)
+    ;(useKeepAwakeSettings as jest.Mock).mockReturnValue({ settings: { enabled: true }, set: jest.fn() })
   })
 
   it('renders nothing while not visible', () => {
@@ -123,25 +129,43 @@ describe('BaseSettingsDialog', () => {
     webRender.unmount()
   })
 
-  it('shows Keep Awake on a touch-primary device and reports the toggle', () => {
-    const onKeepAwakeChange = jest.fn()
-    const { container, unmount } = render(<BaseSettingsDialog {...baseProps} keepAwake onKeepAwakeChange={onKeepAwakeChange} />)
+  it("shows Keep Awake when the app injected expo-keep-awake, and flips @rific/core's setting", () => {
+    const set = jest.fn()
+    ;(useExpoKeepAwake as jest.Mock).mockReturnValue(mockExpoKeepAwake)
+    ;(useKeepAwakeSettings as jest.Mock).mockReturnValue({ settings: { enabled: true }, set })
+    const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
 
     expect(container.textContent).toContain('Keep Awake')
     expect(container.textContent).toContain('Stop auto-lock mid-match')
     findRippleByLabel('Keep awake on').onPress()
 
-    expect(onKeepAwakeChange).toHaveBeenCalledWith(false)
+    expect(set).toHaveBeenCalledWith({ enabled: false })
     unmount()
   })
 
-  it('hides Keep Awake on a desktop browser and omits it when the props are not passed', () => {
+  it('turns Keep Awake back on from off', () => {
+    const set = jest.fn()
+    ;(useExpoKeepAwake as jest.Mock).mockReturnValue(mockExpoKeepAwake)
+    ;(useKeepAwakeSettings as jest.Mock).mockReturnValue({ settings: { enabled: false }, set })
+    ;(Icon as jest.Mock).mockClear()
+    const { unmount } = render(<BaseSettingsDialog {...baseProps} />)
+
+    expect((Icon as jest.Mock).mock.calls.some(([props]) => props.source === 'eye-closed')).toBe(true)
+    findRippleByLabel('Keep awake off').onPress()
+
+    expect(set).toHaveBeenCalledWith({ enabled: true })
+    unmount()
+  })
+
+  it('hides Keep Awake on a desktop browser and in an app that never injected expo-keep-awake', () => {
+    ;(useExpoKeepAwake as jest.Mock).mockReturnValue(mockExpoKeepAwake)
     ;(useIsTouchPrimaryDevice as jest.Mock).mockReturnValue(false)
-    const desktopRender = render(<BaseSettingsDialog {...baseProps} keepAwake onKeepAwakeChange={jest.fn()} />)
+    const desktopRender = render(<BaseSettingsDialog {...baseProps} />)
     expect(desktopRender.container.textContent).not.toContain('Keep Awake')
     desktopRender.unmount()
 
     ;(useIsTouchPrimaryDevice as jest.Mock).mockReturnValue(true)
+    ;(useExpoKeepAwake as jest.Mock).mockReturnValue(undefined)
     const omittedRender = render(<BaseSettingsDialog {...baseProps} />)
     expect(omittedRender.container.textContent).not.toContain('Keep Awake')
     omittedRender.unmount()
@@ -293,8 +317,9 @@ describe('BaseSettingsDialog', () => {
     Platform.OS = 'ios'
     ;(useSoundSettings as jest.Mock).mockReturnValue({ settings: { enabled: true }, set: jest.fn() })
     ;(useHapticSettings as jest.Mock).mockReturnValue({ settings: { vibrate: true }, set: jest.fn() })
+    ;(useExpoKeepAwake as jest.Mock).mockReturnValue(mockExpoKeepAwake)
     ;(Icon as jest.Mock).mockClear()
-    const { unmount } = render(<BaseSettingsDialog {...baseProps} lockOrientation deferBottomEdgeGestures onDeferBottomEdgeGestures={jest.fn()} keepAwake onKeepAwakeChange={jest.fn()} />)
+    const { unmount } = render(<BaseSettingsDialog {...baseProps} lockOrientation deferBottomEdgeGestures onDeferBottomEdgeGestures={jest.fn()} />)
 
     // '#000008' is the rific-auto-paper mock's tertiary (its secondary is '#000005').
     const iconColor = (source: string) => (Icon as jest.Mock).mock.calls.find(([props]) => props.source === source)?.[0].color
