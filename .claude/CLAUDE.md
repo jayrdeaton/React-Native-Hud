@@ -659,7 +659,7 @@ Gotchas worth knowing:
 `BaseSettingsDialog`, `ConfirmDialog`, `UpdateDialog`, `RotatedFrame`, `BaseStatsScreen`, `StatSection`,
 `StatRow`, `AchievementRow`, `LOCKED_BADGE_COLOR`, `AchievementCatalogSection`, `ActivityStatSection`,
 `CornerActionButtons`, `ContentGutter`, `StaggeredWord`, `getStaggeredWordDuration`, `OverlayCard`,
-`OverlayBackdrop`, `useOverlayCardColors`, `DialogHeader`, `useCompactDialog`, `isCompactDialogHeight`, `COMPACT_DIALOG_HEIGHT`, `overlayStyles`,
+`OverlayBackdrop`, `useOverlayCardColors`, `SecondaryButton`, `DialogHeader`, `useCompactDialog`, `isCompactDialogHeight`, `COMPACT_DIALOG_HEIGHT`, `overlayStyles`,
 `overlayActionStyles`, `MONO_FONT`, `useWellColors` and `WELL_SHADOW`, plus (since 0.23.0) the popover
 pieces `PopoverBody`, `PressAwayOverlay`, `usePopoverHost` (with its `PopoverHost` type) and `useAutoAlign`
 (with `AlignResult`, `PopoverAlign`, `PopoverRotation` and `PopoverVerticalAlign`), and `InlineColorPicker`
@@ -780,7 +780,7 @@ Unrelated to the peer deps above - the fleet's own shared tooling, pulled in as 
   (bundled by the shared preset, not a direct dependency of this repo) + `@testing-library/react`
 - **Location:** `src/__tests__/*.test.ts`
 - **Mocks:** `src/__mocks__/` - `react-native`, `react-native-paper`
-- **Current suite** (2026-10-17): 41 test files, 475 tests, all passing. (As of the `SkiaGate` addition, 2026-09: 24 test files, 160 tests -
+- **Current suite** (2026-10-22): 42 test files, 488 tests, all passing. (As of the `SkiaGate` addition, 2026-09: 24 test files, 160 tests -
   now covers component rendering too, not just hooks (this doc previously said otherwise; that was
   already stale before this edit).)
 - **Coverage** (`npm test`, freshly run): ~99.6% statements / ~90% branches / ~99% functions overall,
@@ -892,3 +892,25 @@ Audit of the other raw `useWindowDimensions()` / `useSafeAreaInsets()` consumers
 - `guide/HowToPlayDialog`: card width from raw window width; correct as long as the dialog mounts at the
   root (outside the rotated view). If it is ever mounted inside a rotated ancestor, switch it to
   `useRotatedWindowDimensions` (would need a core import in that entry point, which it avoids on purpose).
+
+## Strict ref types, placement bounds and drawn swatches (2026-10-22)
+
+For `@tastic/profile`'s TODOs (Jay wanted them all done before its next release), whose fixes needed these first. A minor release: new props and exports, nothing removed.
+
+- **React Native 0.88's strict types:** a bare `RefObject<View>` there is a ref to the View function, with no `measureInWindow`. `useAutoAlign.ts` exports `ViewInstance = ComponentRef<typeof View>` (a View's instance under the legacy types and the strict ones alike) and types `AlignResult.triggerRef` and its own ref with it; `HowToPlayDialog`'s page scroller is `ComponentRef<typeof ScrollView>`. That cleared every error in `src` (the TODO's nine, in `InlineColorPicker`, `LabeledDropdown`, `SectionedDropdown`, `HowToPlayDialog`, `useAutoAlign` and `useZoneClampedAlign`) and the tests' (their fake triggers are `as unknown as ViewInstance`, their ScrollView mocks `as unknown as jest.Mock`). Under the legacy types `ViewInstance` is exactly the old `View`, so no consumer's types change. Checked with `npx tsc --noEmit -p tsconfig.json --customConditions <anything>` (a condition that drops `react-native-legacy-deep-imports`). Two kinds of error are left under that check, neither this repo's own: `PlayerSetupPanel` hands hud's `AlignResult` to `@tastic/profile`'s pickers, whose published types (0.16.2) still say `RefObject<View>` (it clears once the devDependency moves to the profile release that adopts `ViewInstance`), and `@shopify/react-native-skia`'s own `src` (`NodeHandle`, `ViewComponent`).
+- **`useAutoAlign`'s `bounds`** (a fifth, optional parameter, `RefObject<ViewInstance | null>`): a View the popover can't leave. A popover in a scroll view is clipped at its edges, so a picker in a roster capped to a column in a wide window could open centred against the window and be cut off (Solitaire's Profiles screen on desktop web). With it, the bounds view is measured and rotated like the trigger, kept inside the window, and its edges stand in for the window's on every side, for the horizontal choice and the room above and below. Unmounted (`current` null) or omitted, it's the window, as before. The measurement moved from a `useCallback` into the effect itself (the React Compiler lint can't keep a memoized callback that reads `bounds.current`); it re-measures on the same changes as before, plus a new `bounds`.
+- **`InlineColorPicker`'s `bounds`** passes straight to its `useAutoAlign` (an `alignOverride` still replaces that placement whole), and **`renderSwatch?: (color, size, place) => ReactNode`** (`InlineColorPickerSwatchRenderer`, `place` an `InlineColorPickerSwatchPlace`, `'trigger' | 'swatch'`) draws the trigger and each grid swatch in place of its flat fill: `color` is the drawn color (after `previewValue`) and stays the one marks take their contrast from; the drawing (`SwatchDrawing`, absolute at the swatch's top left, clipped round, no pointer events) sits behind the trigger's tag or icon and each swatch's check, X or swap icon; the selected swatch's drawing is 24pt, inside its 2pt white ring (`SWATCH_RING_WIDTH`); a TouchableRipple takes one child, so a drawn swatch's child is a face View holding the drawing and the mark. Null or undefined keeps that swatch flat. The same shape as `@tastic/profile`'s `renderSwatch`, which `ProfilesManager` now hands here.
+- Exports (main and `./chrome`): `ViewInstance`, `InlineColorPickerSwatchPlace`, `InlineColorPickerSwatchRenderer`.
+- Tests: `useAutoAlign.test.ts`'s bounds describe (4: sides, top and bottom, bounds past the window, unmounted bounds) and `InlineColorPicker.test.tsx`'s renderSwatch describe (3) and bounds case. Five fail on the old files. Not seen on a device or the web.
+
+## SecondaryButton (2026-10-20)
+
+`SecondaryButton` (`src/SecondaryButton.tsx`, in the main barrel and `./chrome`) is an overlay card's
+secondary action: outlined, labeled in `useOverlayCardColors().fg`, styled `overlayActionStyles.actionButton`,
+with every prop overriding those defaults (a `style` is laid over the row's). Paper's outlined label is the
+theme's primary by default, which on a 2 Player result card read as the other seat's color; Jay wanted the
+secondary neutral everywhere, as a default rather than a `textColor` each card has to remember. `ConfirmDialog`'s
+Cancel and the guide's Skip/Back use it (the guide may import it: it only pulls in `@rific/feedback-press`,
+`overlayCard` and `OverlaySurface`, pinned by `guideImports.test.ts`). The games' result-card Quit buttons
+pass `textColor` by hand until they move to it.
+

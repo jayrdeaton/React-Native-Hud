@@ -1,12 +1,13 @@
 import { defaultColors, getContrastColor, SeedColor } from '@rific/auto-paper'
 import { TouchableRipple } from '@rific/feedback-press'
 import { clamp, useRotation } from '@tastic/core'
+import { type ReactNode, type RefObject } from 'react'
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { Icon, Text } from 'react-native-paper'
 
 import { MONO_FONT } from './fonts'
 import { PopoverBody } from './PopoverBody'
-import { AlignResult, PopoverRotation, useAutoAlign } from './useAutoAlign'
+import { AlignResult, PopoverRotation, useAutoAlign, type ViewInstance } from './useAutoAlign'
 import { PopoverHost } from './usePopoverHost'
 
 // Presence check, not a full-string "is this exactly one emoji" validation - this only decides a
@@ -16,6 +17,8 @@ const EMOJI_PATTERN = /\p{Extended_Pictographic}/u
 
 const DEFAULT_SIZE = 48
 const SWATCH_SIZE = 28
+// The selected swatch's white ring, drawn inside its SWATCH_SIZE.
+const SWATCH_RING_WIDTH = 2
 const SWATCHES_PADDING = 8
 const SWATCHES_GAP = 6
 const SWATCHES_BORDER_WIDTH = 2
@@ -54,6 +57,15 @@ export function getInlineColorPickerContentSize(swatchCount: number, windowWidth
   const height = SWATCHES_BORDER_WIDTH * 2 + SWATCHES_PADDING * 2 + SWATCH_SIZE * rows + SWATCHES_GAP * (rows - 1)
   return { width, height }
 }
+
+// Where a `renderSwatch` drawing goes: the trigger (the color in effect, with its tag or icon on
+// it) or a swatch in the popover's grid.
+export type InlineColorPickerSwatchPlace = 'trigger' | 'swatch'
+
+// Draws one color's swatch in place of its flat fill: a circle `size` across. `color` is the drawn
+// color (after `previewValue`) and stays the primary one: the tag, icon, check, X or swap icon on
+// top takes its contrast from it. Returning null or undefined keeps that swatch's flat fill.
+export type InlineColorPickerSwatchRenderer = (color: string, size: number, place: InlineColorPickerSwatchPlace) => ReactNode
 
 interface Props {
   id: string
@@ -115,12 +127,25 @@ interface Props {
   // with other fixed-size elements can line this trigger up with them instead of standing out at a
   // mismatched size.
   size?: number
+  // Draws the trigger and each grid swatch in place of the flat fill (a host's three-color pie, say),
+  // behind its tag, icon or mark and clipped to the circle; the selected swatch's drawing sits
+  // inside its ring. Omit for flat swatches, as before.
+  renderSwatch?: InlineColorPickerSwatchRenderer
+  // A View the popover can't leave (see useAutoAlign's `bounds`): the scroll view this picker sits
+  // in, which clips the popover at its edges. Ignored when `alignOverride` places the popover.
+  bounds?: RefObject<ViewInstance | null>
+}
+
+// A renderSwatch drawing: at the swatch's top left (inside any border), behind the mark drawn after
+// it, and clipped to the circle so a square drawing still reads round.
+function SwatchDrawing({ size, children }: { size: number; children: ReactNode }) {
+  return <View style={[styles.drawing, { borderRadius: size / 2, height: size, width: size }]}>{children}</View>
 }
 
 // Renders inline rather than as a full-screen modal, scoped to its own panel - a modal color
 // picker would block the whole screen for one player while another can't touch their own panel at
 // the same time, which defeats the point of a split-screen lobby.
-export function InlineColorPicker({ id, host, value, onChange, previewValue, swatches = defaultColors, takenValue, allowSwapTaken, dark, align: forcedAlign, alignOverride, rotation: rotationOverride, icon = 'palette', tag, labelFontFamily = MONO_FONT, autoDismiss = true, columns, size = DEFAULT_SIZE }: Props) {
+export function InlineColorPicker({ id, host, value, onChange, previewValue, swatches = defaultColors, takenValue, allowSwapTaken, dark, align: forcedAlign, alignOverride, rotation: rotationOverride, icon = 'palette', tag, labelFontFamily = MONO_FONT, autoDismiss = true, columns, size = DEFAULT_SIZE, renderSwatch, bounds }: Props) {
   const ambientRotation = useRotation()
   const rotation = rotationOverride ?? ambientRotation
   const menuBg = dark ? '#000000' : '#FFFFFF'
@@ -130,7 +155,7 @@ export function InlineColorPicker({ id, host, value, onChange, previewValue, swa
   const open = host.openId === id
   // Always called, even when alignOverride is supplied and this result goes unused - hooks can't be
   // called conditionally. See LabeledDropdown's identical comment for the same tradeoff.
-  const auto = useAutoAlign(open, swatchesWidth, swatchesHeight, rotation)
+  const auto = useAutoAlign(open, swatchesWidth, swatchesHeight, rotation, bounds)
   const placement = alignOverride ?? auto
   const { maxHeight, measured, triggerRef, verticalAlign } = placement
   const align = forcedAlign ?? placement.align
@@ -142,11 +167,13 @@ export function InlineColorPicker({ id, host, value, onChange, previewValue, swa
   // still looks small for an emoji tag at the identical size - this bumps emoji up to the icon's own
   // ratio instead, since a single emoji is closer in visual weight to an icon glyph than to text.
   const tagFontSize = size * (tag && EMOJI_PATTERN.test(tag) ? 0.6 : 0.4)
+  const triggerDrawing = renderSwatch?.(displayValue, size, 'trigger') ?? null
 
   return (
     <View style={[styles.anchor, open && styles.anchorOpen]}>
-      <TouchableRipple onPress={() => host.toggle(id)} borderless style={[styles.trigger, { backgroundColor: displayValue, borderRadius: size / 2, height: size, width: size }]}>
+      <TouchableRipple onPress={() => host.toggle(id)} borderless style={[styles.trigger, triggerDrawing === null && { backgroundColor: displayValue }, { borderRadius: size / 2, height: size, width: size }]}>
         <View ref={triggerRef} collapsable={false} style={styles.triggerMeasure}>
+          {triggerDrawing !== null && <SwatchDrawing size={size}>{triggerDrawing}</SwatchDrawing>}
           {/* Sized as a fraction of the trigger's own diameter rather than a fixed pixel size, so
           the glyph still reads as a deliberate part of the circle instead of shrinking toward its
           center on a larger trigger. */}
@@ -176,6 +203,10 @@ export function InlineColorPicker({ id, host, value, onChange, previewValue, swa
             const taken = !selected && !!takenValue && swatch.value.toLowerCase() === takenValue.toLowerCase()
             const swappable = taken && allowSwapTaken
             const swatchDisplay = displayFor(swatch.value)
+            const contrast = getContrastColor(swatchDisplay)
+            const drawnSize = selected ? SWATCH_SIZE - 2 * SWATCH_RING_WIDTH : SWATCH_SIZE
+            const drawing = renderSwatch?.(swatchDisplay, drawnSize, 'swatch') ?? null
+            const mark = selected ? <Icon source='check' size={16} color={contrast} /> : swappable ? <Icon source='swap-horizontal' size={16} color={contrast} /> : taken ? <Icon source='close' size={16} color={contrast} /> : <View />
             return (
               <TouchableRipple
                 key={swatch.value}
@@ -185,9 +216,18 @@ export function InlineColorPicker({ id, host, value, onChange, previewValue, swa
                   if (autoDismiss) host.close()
                 }}
                 borderless
-                style={[styles.swatch, { backgroundColor: swatchDisplay }, selected && styles.swatchSelected, taken && !swappable && styles.swatchTaken]}
+                style={[styles.swatch, drawing === null && { backgroundColor: swatchDisplay }, selected && styles.swatchSelected, taken && !swappable && styles.swatchTaken]}
               >
-                {selected ? <Icon source='check' size={16} color={getContrastColor(swatchDisplay)} /> : swappable ? <Icon source='swap-horizontal' size={16} color={getContrastColor(swatchDisplay)} /> : taken ? <Icon source='close' size={16} color={getContrastColor(swatchDisplay)} /> : <View />}
+                {/* TouchableRipple takes one child, so a drawing and its mark share a face that fills
+                the circle inside the ring. */}
+                {drawing !== null ? (
+                  <View style={styles.swatchFace}>
+                    <SwatchDrawing size={drawnSize}>{drawing}</SwatchDrawing>
+                    {mark}
+                  </View>
+                ) : (
+                  mark
+                )}
               </TouchableRipple>
             )
           })}
@@ -207,6 +247,14 @@ const styles = StyleSheet.create({
   anchorOpen: {
     zIndex: 100
   },
+  // A renderSwatch drawing (see SwatchDrawing).
+  drawing: {
+    left: 0,
+    overflow: 'hidden',
+    pointerEvents: 'none',
+    position: 'absolute',
+    top: 0
+  },
   swatch: {
     alignItems: 'center',
     borderRadius: SWATCH_SIZE / 2,
@@ -214,9 +262,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: SWATCH_SIZE
   },
+  // A drawn swatch (see SwatchDrawing) and its mark: the whole circle inside the selected one's ring.
+  swatchFace: {
+    alignItems: 'center',
+    bottom: 0,
+    justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0
+  },
   swatchSelected: {
     borderColor: '#ffffff',
-    borderWidth: 2
+    borderWidth: SWATCH_RING_WIDTH
   },
   swatchTaken: {
     opacity: 0.35

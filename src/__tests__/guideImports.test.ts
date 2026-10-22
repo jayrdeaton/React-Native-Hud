@@ -12,7 +12,7 @@ const GUIDE_DIR = join(__dirname, '..', 'guide')
 // Everything a file under src/guide/ is allowed to pull in: this entry point's own peers, and hud's own
 // dependency-light shared card styles.
 const ALLOWED = new Set(['react', 'react-native', 'react-native-paper', 'react-native-reanimated', '@rific/auto-paper', '@rific/feedback-press'])
-const ALLOWED_RELATIVE = new Set(['../DialogHeader', '../overlayCard', '../OverlaySurface'])
+const ALLOWED_RELATIVE = new Set(['../DialogHeader', '../overlayCard', '../OverlaySurface', '../SecondaryButton'])
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? sourceFiles(join(dir, entry.name)) : /\.tsx?$/.test(entry.name) ? [join(dir, entry.name)] : []))
@@ -50,6 +50,13 @@ describe('@tastic/hud/guide import boundary', () => {
     const dialogHeader = join(__dirname, '..', 'DialogHeader.tsx')
     for (const specifier of specifiersOf(dialogHeader)) {
       expect(['react-native', 'react-native-paper', '@rific/auto-paper']).toContain(specifier)
+    }
+  })
+
+  it('the shared secondary button it borrows imports only guide-safe modules', () => {
+    const secondaryButton = join(__dirname, '..', 'SecondaryButton.tsx')
+    for (const specifier of specifiersOf(secondaryButton)) {
+      expect(['@rific/feedback-press', './overlayCard', './OverlaySurface']).toContain(specifier)
     }
   })
 

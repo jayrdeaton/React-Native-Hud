@@ -42,6 +42,8 @@ interface HarnessProps {
   columns?: number
   rotation?: 0 | 90 | -90 | 180
   alignOverride?: Parameters<typeof InlineColorPicker>[0]['alignOverride']
+  renderSwatch?: Parameters<typeof InlineColorPicker>[0]['renderSwatch']
+  bounds?: Parameters<typeof InlineColorPicker>[0]['bounds']
 }
 
 function Harness({ onHost, id = 'picker', ...rest }: HarnessProps) {
@@ -85,7 +87,7 @@ function lastRippleWithColor(color: string) {
 // own render) - the only element of its style array with a `width` key, same "find the one style
 // object with this particular key" approach as styleBackgroundColor above.
 function lastScrollViewSize(): { width?: number; maxHeight?: number } {
-  const calls = (ScrollView as jest.Mock).mock.calls
+  const calls = (ScrollView as unknown as jest.Mock).mock.calls
   const props = calls[calls.length - 1][0] as { style?: unknown }
   const flat = [props.style].flat()
   const match = flat.find((s) => s && typeof s === 'object' && 'width' in (s as object))
@@ -442,6 +444,51 @@ describe('InlineColorPicker', () => {
       const calls = (useAutoAlign as jest.Mock).mock.calls
       expect(calls[calls.length - 1][3]).toBe(-90)
     })
+  })
+
+  // A host's drawn swatches (Hangman's three-color pie, through @tastic/profile's ProfilesManager).
+  describe('renderSwatch', () => {
+    const Drawn = () => null
+    const open = (props: Partial<HarnessProps>) => {
+      render(<Harness onHost={() => {}} value={defaultColors[0].value} onChange={jest.fn()} {...props} />)
+      act(() => triggerOnPress()())
+    }
+    const ripples = () => (TouchableRipple as jest.Mock).mock.calls.map((call) => call[0] as { style?: unknown; children?: { type?: unknown; props?: { children?: unknown[] } } })
+
+    it('draws the trigger and every swatch in place of their flat fill, the selected one inside its ring', () => {
+      const renderSwatch = jest.fn(() => <Drawn />)
+      open({ renderSwatch, tag: 'A' })
+
+      expect(renderSwatch).toHaveBeenCalledWith(defaultColors[0].value, 48, 'trigger')
+      expect(renderSwatch).toHaveBeenCalledWith(defaultColors[0].value, 24, 'swatch')
+      expect(renderSwatch).toHaveBeenCalledWith(defaultColors[1].value, 28, 'swatch')
+      // No flat fill anywhere: the drawing stands in for it.
+      for (const color of defaultColors) expect(lastRippleWithColor(color.value)).toBeUndefined()
+      // Each swatch's one child is a face holding the drawing and then its mark, so the mark is on top.
+      const swatch = ripples()
+        .filter((props) => props.children?.props?.children)
+        .pop()!
+      expect(swatch.children!.props!.children).toHaveLength(2)
+    })
+
+    it('keeps the flat fill wherever it returns null', () => {
+      const renderSwatch = jest.fn((_color: string, _size: number, place: 'trigger' | 'swatch') => (place === 'swatch' ? <Drawn /> : null))
+      open({ renderSwatch })
+      expect(styleBackgroundColor(ripples()[0])).toBe(defaultColors[0].value)
+      expect(lastRippleWithColor(defaultColors[1].value)).toBeUndefined()
+    })
+
+    it('draws flat swatches without it, as before', () => {
+      open({})
+      for (const color of defaultColors) expect(lastRippleWithColor(color.value)).toBeDefined()
+    })
+  })
+
+  it("hands useAutoAlign the bounds the popover can't leave", () => {
+    const bounds = { current: null }
+    render(<Harness onHost={() => {}} value={defaultColors[0].value} onChange={jest.fn()} bounds={bounds} />)
+    const calls = (useAutoAlign as jest.Mock).mock.calls
+    expect(calls[calls.length - 1][4]).toBe(bounds)
   })
 
   describe('alignOverride', () => {

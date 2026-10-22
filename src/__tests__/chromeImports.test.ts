@@ -74,6 +74,7 @@ describe('@tastic/hud/chrome import boundary', () => {
         'UpdateDialog.tsx',
         'AchievementCatalogSection.tsx',
         'overlayCard.ts',
+        'SecondaryButton.tsx',
         // The popover pieces and color picker @tastic/profile 0.16+ imports from here.
         'PopoverBody.tsx',
         'PressAwayOverlay.tsx',

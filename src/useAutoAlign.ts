@@ -1,10 +1,18 @@
 import { type ViewRotation } from '@tastic/core'
-import { RefObject, useCallback, useEffect, useRef, useState } from 'react'
+import { type ComponentRef, RefObject, useEffect, useRef, useState } from 'react'
 import { useWindowDimensions, View } from 'react-native'
 
 // Minimum breathing room between a popover's outer edge and the screen edge - matches the general
 // "don't butt content right up against the bezel" margin used elsewhere in this app.
 const EDGE_MARGIN = 12
+
+// The edges a popover has room up to: the window's, or a bounds view's (see useAutoAlign).
+interface Limits {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
 
 export type PopoverAlign = 'left' | 'right' | 'center'
 export type PopoverVerticalAlign = 'below' | 'above'
@@ -26,8 +34,13 @@ export interface AlignResult {
   verticalAlign: PopoverVerticalAlign
   maxHeight: number
   measured: boolean
-  triggerRef: RefObject<View | null>
+  triggerRef: RefObject<ViewInstance | null>
 }
+
+// What a ref on a View holds. React Native 0.88's strict types make View a function, so a bare
+// `RefObject<View>` there names a ref to the function itself, with no measureInWindow; this is the
+// instance in both its legacy and strict types.
+export type ViewInstance = ComponentRef<typeof View>
 
 // Reflects a rect from the PRE-rotation layout frame measureInWindow actually reports (see
 // useAutoAlign's own comment below for why that's what it reports, not the post-rotation visual
@@ -84,8 +97,15 @@ export function rotateRect(x: number, y: number, width: number, height: number, 
 //
 // Re-measures on every open (not continuously) - the trigger's screen position can't change while
 // its own popover is showing anyway, so there's nothing to gain from tracking it beyond that.
-export function useAutoAlign(open: boolean, contentWidth: number, contentHeight: number, rotation: PopoverRotation = 0) {
-  const triggerRef = useRef<View>(null)
+//
+// `bounds` is a View the popover can't leave, when that's narrower or shorter than the window: a
+// scroll view the trigger sits in clips its popover at the scroll view's edges, so a popover
+// centred against the window can be cut off by a column narrower than it (a roster capped to a
+// column in a wide window). With it the room on every side is measured to the bounds' edges
+// instead of the window's (measured and rotated the same way as the trigger). Omit it for the
+// window, as before.
+export function useAutoAlign(open: boolean, contentWidth: number, contentHeight: number, rotation: PopoverRotation = 0, bounds?: RefObject<ViewInstance | null>) {
+  const triggerRef = useRef<ViewInstance>(null)
   const { width: windowWidth, height: windowHeight } = useWindowDimensions()
   const [align, setAlign] = useState<PopoverAlign>('center')
   const [verticalAlign, setVerticalAlign] = useState<PopoverVerticalAlign>('below')
@@ -108,12 +128,20 @@ export function useAutoAlign(open: boolean, contentWidth: number, contentHeight:
     if (open) setMeasured(false)
   }
 
-  const measure = useCallback(() => {
-    triggerRef.current?.measureInWindow((rawX, rawY, rawWidth, rawHeight) => {
+  // Re-measures whenever `open` flips true, and also if the content size, the window, the rotation or
+  // the bounds change while already open - e.g. a live window resize, or the device being physically
+  // turned while the popover is showing - so it never goes stale while the popover is actually
+  // showing. `measured` only resets on a genuine (re)open, via the render-phase check above - not here
+  // on every re-measure, so an already-visible popover never flickers hidden again just because the
+  // window resized (or rotated) under it. (The measurement lives in the effect itself, not a
+  // useCallback, so the bounds view is read when it runs.)
+  useEffect(() => {
+    if (!open) return
+    const place = (limits: Limits) => (rawX: number, rawY: number, rawWidth: number, rawHeight: number) => {
       const { x, y, width: triggerWidth, height: triggerHeight } = rotateRect(rawX, rawY, rawWidth, rawHeight, rotation, windowWidth, windowHeight)
       const centerX = x + triggerWidth / 2
-      const overflowsRight = centerX + contentWidth / 2 > windowWidth - EDGE_MARGIN
-      const overflowsLeft = centerX - contentWidth / 2 < EDGE_MARGIN
+      const overflowsRight = centerX + contentWidth / 2 > limits.right - EDGE_MARGIN
+      const overflowsLeft = centerX - contentWidth / 2 < limits.left + EDGE_MARGIN
       // Both directions overflowing means the popover is simply wider than the screen has room for
       // either way - 'center' is the least-bad choice there (symmetric clipping beats asymmetric).
       if (overflowsRight && !overflowsLeft) setAlign('right')
@@ -123,24 +151,25 @@ export function useAutoAlign(open: boolean, contentWidth: number, contentHeight:
       // Below is the default/preferred direction - only flips to above when there's genuinely more
       // room that way, not merely whenever below is imperfect, so a popover close to fitting either
       // way doesn't flip-flop from a one-pixel margin difference.
-      const roomBelow = windowHeight - (y + triggerHeight) - EDGE_MARGIN
-      const roomAbove = y - EDGE_MARGIN
+      const roomBelow = limits.bottom - (y + triggerHeight) - EDGE_MARGIN
+      const roomAbove = y - limits.top - EDGE_MARGIN
       const above = contentHeight > roomBelow && roomAbove > roomBelow
       setVerticalAlign(above ? 'above' : 'below')
       setMaxHeight(Math.max(above ? roomAbove : roomBelow, 0))
       setMeasured(true)
+    }
+    const screen: Limits = { left: 0, top: 0, right: windowWidth, bottom: windowHeight }
+    const boundsView = bounds?.current
+    if (!boundsView) {
+      triggerRef.current?.measureInWindow(place(screen))
+      return
+    }
+    boundsView.measureInWindow((rawX, rawY, rawWidth, rawHeight) => {
+      const b = rotateRect(rawX, rawY, rawWidth, rawHeight, rotation, windowWidth, windowHeight)
+      // Kept inside the window: a bounds view running past it doesn't make room past the screen.
+      triggerRef.current?.measureInWindow(place({ left: Math.max(b.x, 0), top: Math.max(b.y, 0), right: Math.min(b.x + b.width, windowWidth), bottom: Math.min(b.y + b.height, windowHeight) }))
     })
-  }, [contentWidth, contentHeight, windowWidth, windowHeight, rotation])
-
-  // Re-measures whenever `open` flips true, and also if `measure` itself changes identity (i.e.
-  // contentWidth/contentHeight/windowWidth/windowHeight/rotation changed) while already open - e.g.
-  // a live window resize, or the device being physically turned while the popover is showing - so it
-  // never goes stale while the popover is actually showing. `measured` only resets on a genuine
-  // (re)open, via the render-phase check above - not here on every re-measure, so an already-visible
-  // popover never flickers hidden again just because the window resized (or rotated) under it.
-  useEffect(() => {
-    if (open) measure()
-  }, [open, measure])
+  }, [open, contentWidth, contentHeight, windowWidth, windowHeight, rotation, bounds])
 
   return { align, maxHeight, measured, triggerRef, verticalAlign }
 }

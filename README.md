@@ -26,7 +26,10 @@ corner of the screen.
   and `InlineColorPicker` are built on it.
 - **`useAutoAlign`**: measures a trigger's actual on-screen position and picks whichever alignment
   (left/right/center, above/below) keeps a popover from overflowing a screen edge - including a
-  `maxHeight` for the caller to cap content and scroll when neither direction has enough room.
+  `maxHeight` for the caller to cap content and scroll when neither direction has enough room. An
+  optional `bounds` View (a scroll view that clips the popover) stands in for the window's edges.
+  Its `triggerRef` holds a `ViewInstance` (a View's instance in React Native's legacy and strict
+  types alike).
 - **`SectionedDropdown`**: a popover holding any mix of single-select ("pick one", radio-style) and
   multi-select ("pick some", checkbox-style, optional all/clear footer) sections, divided by rules.
 - **`InlineColorPicker`**: swatch-grid color popover, columns auto-clamped to 4 or 5 (the default
@@ -34,7 +37,10 @@ corner of the screen.
   with an optional "taken" color (shown disabled, or swappable). The trigger itself is a `size`-
   configurable circle showing either an `icon` or a short `tag` (e.g. a saved player identity's own
   initial or emoji) - `tag` renders at a larger ratio automatically when it's an emoji, since an
-  emoji glyph reads visually smaller than a bold letter at the same font size.
+  emoji glyph reads visually smaller than a bold letter at the same font size. `renderSwatch`
+  draws the trigger and each grid swatch in place of the flat fill (told `'trigger'` or
+  `'swatch'`; null keeps a swatch flat), and `bounds` keeps the popover inside a scroll view it
+  sits in (see `useAutoAlign`).
 - **`TriggerGauge`**: decorative ring of tick marks around a trigger, showing which option(s) are
   active without opening the popover.
 - **`ReadyButton`**: a per-player or standalone ready toggle.
@@ -255,9 +261,9 @@ export function SettingsDialog({ visible, onDismiss, rotation = 0, settings, set
 own overlay (a result banner, a game-over card) should too, so every card in the fleet looks the same:
 
 ```tsx
-import { DialogHeader, OverlayBackdrop, OverlayCard, overlayActionStyles, useCompactDialog, useOverlayCardColors } from '@tastic/hud'
+import { DialogHeader, OverlayBackdrop, OverlayCard, overlayActionStyles, SecondaryButton, useCompactDialog, useOverlayCardColors } from '@tastic/hud'
 
-function GameOverCard({ onRestart }: { onRestart: () => void }) {
+function GameOverCard({ onRestart, onQuit }: { onRestart: () => void; onQuit: () => void }) {
   const { fgMuted } = useOverlayCardColors()
   const { compact, onLayout } = useCompactDialog()
   return (
@@ -265,7 +271,10 @@ function GameOverCard({ onRestart }: { onRestart: () => void }) {
       <OverlayCard accessibilityViewIsModal>
         <DialogHeader icon='flag-checkered' title='Game Over' compact={compact} />
         <Text style={{ color: fgMuted }}>Score 42</Text>
-        <View style={overlayActionStyles.actions}>...</View>
+        <View style={overlayActionStyles.actions}>
+          <SecondaryButton onPress={onQuit}>Quit</SecondaryButton>
+          <Button mode='contained' onPress={onRestart} style={overlayActionStyles.actionButton}>Play Again</Button>
+        </View>
       </OverlayCard>
     </OverlayBackdrop>
   )
@@ -285,6 +294,12 @@ function GameOverCard({ onRestart }: { onRestart: () => void }) {
   is compact when the space the dialog lays out in is under `COMPACT_DIALOG_HEIGHT` (528pt) along the
   card's own vertical axis, so a phone held sideways. One-button dialogs end in a single contained
   primary button (`overlayActionStyles.actionButtonSingle`), the Settings sheet's Done included.
+- **The secondary action is `SecondaryButton`.** Cancel, Skip, Back, a result card's Quit: outlined,
+  labeled in the card's text color (`fg`) instead of Paper's default (the theme's primary), and sized
+  as one of the action row's buttons. It takes no theme or seat color, so the contained primary beside
+  it is the card's only colored button and a seat's card never shows another seat's color. Every prop
+  overrides those defaults; a `style` is laid over the row's button style. `ConfirmDialog` and the
+  how-to-play card use it.
 - **Blur is automatic.** The card blurs what's behind it when the player's Blur setting is on and the
   app hands `expo-blur` to auto-paper's `Provider` (`expoBlur={ExpoBlur}`). Otherwise it paints that
   raised surface color instead: on Android (`BlurView` needs a blur target there, which a card has
@@ -639,7 +654,7 @@ their props types:
 - Stats: `BaseStatsScreen`, `StatSection`, `StatRow`, `AchievementRow`, `LOCKED_BADGE_COLOR`,
   `AchievementCatalogSection`, `ActivityStatSection`, `useWellColors`, `WELL_SHADOW`
 - Chrome: `CornerActionButtons`, `ContentGutter`, `StaggeredWord`, `getStaggeredWordDuration`
-- Overlay cards: `OverlayCard`, `OverlayBackdrop`, `useOverlayCardColors`, `DialogHeader`, `useCompactDialog`, `isCompactDialogHeight`, `COMPACT_DIALOG_HEIGHT`
+- Overlay cards: `OverlayCard`, `OverlayBackdrop`, `useOverlayCardColors`, `SecondaryButton`, `DialogHeader`, `useCompactDialog`, `isCompactDialogHeight`, `COMPACT_DIALOG_HEIGHT`
 - Popovers (0.23.0+): `PopoverBody`, `PressAwayOverlay`, `usePopoverHost` (and its `PopoverHost` type),
   `useAutoAlign` (and its `AlignResult`, `PopoverAlign`, `PopoverRotation` and `PopoverVerticalAlign`
   types), `InlineColorPicker`, `getInlineColorPickerContentSize`

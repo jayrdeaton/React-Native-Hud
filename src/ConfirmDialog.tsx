@@ -8,6 +8,7 @@ import { Portal, Text } from 'react-native-paper'
 import { DialogHeader } from './DialogHeader'
 import { overlayActionStyles } from './overlayCard'
 import { OverlayBackdrop, OverlayCard, useOverlayCardColors } from './OverlaySurface'
+import { SecondaryButton } from './SecondaryButton'
 import { useCompactDialog } from './useCompactDialog'
 
 export interface ConfirmDialogProps {
@@ -81,11 +82,7 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLab
             {message}
           </Text>
           <View style={overlayActionStyles.actions}>
-            {showCancel && (
-              <Button mode='outlined' onPress={onCancel} style={overlayActionStyles.actionButton}>
-                {cancelLabel}
-              </Button>
-            )}
+            {showCancel && <SecondaryButton onPress={onCancel}>{cancelLabel}</SecondaryButton>}
             <Button mode='contained' onPress={onConfirm} style={showCancel ? overlayActionStyles.actionButton : overlayActionStyles.actionButtonSingle} buttonColor={accent} textColor={onAccent}>
               {confirmLabel}
             </Button>

@@ -1,6 +1,6 @@
 import { useAutoPaperTheme } from '@rific/auto-paper'
 import { Button } from '@rific/feedback-press'
-import { useEffect, useRef, useState } from 'react'
+import { type ComponentRef, useEffect, useRef, useState } from 'react'
 import { BackHandler, type NativeScrollEvent, type NativeSyntheticEvent, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { Portal, Text } from 'react-native-paper'
 import { useReducedMotion } from 'react-native-reanimated'
@@ -8,6 +8,7 @@ import { useReducedMotion } from 'react-native-reanimated'
 import { DialogHeader, isCompactDialogHeight } from '../DialogHeader'
 import { overlayActionStyles } from '../overlayCard'
 import { OverlayBackdrop, OverlayCard, useOverlayCardColors } from '../OverlaySurface'
+import { SecondaryButton } from '../SecondaryButton'
 import type { GuideRotation, GuideStep } from './types'
 
 // The overlay's own breathing room and the card's own inner padding. Together with the card's max
@@ -71,7 +72,7 @@ function HowToPlayCard({ steps, onFinish, onSkip, rotation = 0, title = 'How to 
   const { width: windowWidth, height: windowHeight } = useWindowDimensions()
   const reducedMotion = useReducedMotion()
   const [index, setIndex] = useState(0)
-  const scrollRef = useRef<ScrollView>(null)
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null)
 
   // Android's hardware back would otherwise fall through to the router underneath and pop a screen
   // (or exit the app) with the guide still up. Treated as Skip, the same as the on-screen button.
@@ -165,11 +166,7 @@ function HowToPlayCard({ steps, onFinish, onSkip, rotation = 0, title = 'How to 
             offered on the first card; after that the way out is Next to the end (a short flow) or
             Android's hardware back, which skips from anywhere. */}
           <View style={overlayActionStyles.actions}>
-            {!isOnly && (
-              <Button mode='outlined' onPress={isFirst ? onSkip : () => goTo(index - 1)} style={overlayActionStyles.actionButton}>
-                {isFirst ? 'Skip' : 'Back'}
-              </Button>
-            )}
+            {!isOnly && <SecondaryButton onPress={isFirst ? onSkip : () => goTo(index - 1)}>{isFirst ? 'Skip' : 'Back'}</SecondaryButton>}
             <Button mode='contained' onPress={isLast ? onFinish : () => goTo(index + 1)} style={isOnly ? overlayActionStyles.actionButtonSingle : overlayActionStyles.actionButton} buttonColor={colors.primary} textColor={colors.onPrimary}>
               {isLast ? 'Ready' : 'Next'}
             </Button>

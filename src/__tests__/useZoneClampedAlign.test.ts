@@ -1,7 +1,7 @@
 import { useZoneBounds, type ZoneBounds } from '@tastic/split-screen'
 import { act, renderHook } from '@testing-library/react'
-import type { View } from 'react-native'
 
+import { type ViewInstance } from '../useAutoAlign'
 import { useZoneClampedAlign } from '../useZoneClampedAlign'
 
 // Same fixed mocked useWindowDimensions (402x874) and 12px EDGE_MARGIN this file's sibling
@@ -16,7 +16,7 @@ import { useZoneClampedAlign } from '../useZoneClampedAlign'
 const fakeTrigger = (x: number, y: number, width: number, height: number) =>
   ({
     measureInWindow: (cb: (x: number, y: number, width: number, height: number) => void) => cb(x, y, width, height)
-  }) as unknown as View
+  }) as unknown as ViewInstance
 
 describe('useZoneClampedAlign', () => {
   it("passes useAutoAlign's own decision through unchanged when there is no zone (useZoneBounds returns null)", () => {

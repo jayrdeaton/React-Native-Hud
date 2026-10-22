@@ -1,7 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
-import type { View } from 'react-native'
 
-import { rotateRect, useAutoAlign } from '../useAutoAlign'
+import { rotateRect, useAutoAlign, type ViewInstance } from '../useAutoAlign'
 
 // The mocked useWindowDimensions is fixed at width 402 / height 874 (see
 // src/__mocks__/react-native.ts), and useAutoAlign keeps a 12px EDGE_MARGIN off every screen edge.
@@ -14,9 +13,61 @@ import { rotateRect, useAutoAlign } from '../useAutoAlign'
 const fakeTrigger = (x: number, y: number, width: number, height: number) =>
   ({
     measureInWindow: (cb: (x: number, y: number, width: number, height: number) => void) => cb(x, y, width, height)
-  }) as unknown as View
+  }) as unknown as ViewInstance
 
 describe('useAutoAlign', () => {
+  // A popover inside a scroll view is clipped at its edges, so with `bounds` the room on every side
+  // is measured to the bounds' edges instead of the window's (a roster in a column capped in a wide
+  // window). The column here runs x 100-300, y 300-600, inside the 402 x 874 window.
+  describe('bounds', () => {
+    const column = () => ({ current: fakeTrigger(100, 300, 200, 300) })
+
+    it("aligns against the bounds' sides, not the window's", () => {
+      // centerX 120: the window has room for a 100-wide popover either side (70 > 12), the column
+      // doesn't on the left (70 < 100 + 12), so it opens to the right of the trigger's left edge.
+      const bounds = column()
+      const { result, rerender } = renderHook(({ open }) => useAutoAlign(open, 100, 100, 0, bounds), { initialProps: { open: false } })
+      result.current.triggerRef.current = fakeTrigger(110, 400, 20, 20)
+      act(() => rerender({ open: true }))
+      expect(result.current.align).toBe('left')
+
+      const right = column()
+      const second = renderHook(({ open }) => useAutoAlign(open, 100, 100, 0, right), { initialProps: { open: false } })
+      second.result.current.triggerRef.current = fakeTrigger(270, 400, 20, 20)
+      act(() => second.rerender({ open: true }))
+      expect(second.result.current.align).toBe('right')
+    })
+
+    it("measures the room above and below to the bounds' top and bottom", () => {
+      // Below the trigger: 600 - 540 - 12 = 48 (the window would give 322); above: 520 - 300 - 12 = 208.
+      const bounds = column()
+      const { result, rerender } = renderHook(({ open }) => useAutoAlign(open, 100, 100, 0, bounds), { initialProps: { open: false } })
+      result.current.triggerRef.current = fakeTrigger(190, 520, 20, 20)
+      act(() => rerender({ open: true }))
+      expect(result.current.verticalAlign).toBe('above')
+      expect(result.current.maxHeight).toBe(208)
+    })
+
+    it('keeps bounds that run past the window to the window', () => {
+      const bounds = { current: fakeTrigger(-50, -100, 600, 2000) }
+      const { result, rerender } = renderHook(({ open }) => useAutoAlign(open, 100, 100, 0, bounds), { initialProps: { open: false } })
+      result.current.triggerRef.current = fakeTrigger(350, 100, 20, 20)
+      act(() => rerender({ open: true }))
+      // The same as with no bounds: 410 > 390 on the right, and 874 - 120 - 12 below.
+      expect(result.current.align).toBe('right')
+      expect(result.current.maxHeight).toBe(742)
+    })
+
+    it('uses the window while the bounds view is not mounted', () => {
+      const bounds = { current: null }
+      const { result, rerender } = renderHook(({ open }) => useAutoAlign(open, 100, 100, 0, bounds), { initialProps: { open: false } })
+      result.current.triggerRef.current = fakeTrigger(110, 400, 20, 20)
+      act(() => rerender({ open: true }))
+      expect(result.current.measured).toBe(true)
+      expect(result.current.align).toBe('center')
+    })
+  })
+
   it('starts with the unmeasured defaults before ever opening', () => {
     const { result } = renderHook(() => useAutoAlign(false, 100, 100))
 

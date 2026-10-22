@@ -57,7 +57,7 @@ function currentStepLabel() {
 // vertical ScrollView of its own) - onMomentumScrollEnd is what syncs the page index after a swipe.
 type ScrollHandler = (e: { nativeEvent: { contentOffset: { x: number } } }) => void
 function scrollViewProps() {
-  const calls = (ScrollView as jest.Mock).mock.calls.filter(([props]) => props.horizontal)
+  const calls = (ScrollView as unknown as jest.Mock).mock.calls.filter(([props]) => props.horizontal)
   return calls[calls.length - 1][0] as { onScroll: ScrollHandler; onMomentumScrollEnd: ScrollHandler }
 }
 
