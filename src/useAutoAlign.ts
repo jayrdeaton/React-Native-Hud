@@ -104,7 +104,10 @@ export function rotateRect(x: number, y: number, width: number, height: number, 
 // column in a wide window). With it the room on every side is measured to the bounds' edges
 // instead of the window's (measured and rotated the same way as the trigger). Omit it for the
 // window, as before.
-export function useAutoAlign(open: boolean, contentWidth: number, contentHeight: number, rotation: PopoverRotation = 0, bounds?: RefObject<ViewInstance | null>) {
+// Annotated as AlignResult rather than inferred: the declaration build prints an inferred ref type
+// with the legacy types' name for it (`RefObject<View>`), which the strict types read as a ref to
+// the View function.
+export function useAutoAlign(open: boolean, contentWidth: number, contentHeight: number, rotation: PopoverRotation = 0, bounds?: RefObject<ViewInstance | null>): AlignResult {
   const triggerRef = useRef<ViewInstance>(null)
   const { width: windowWidth, height: windowHeight } = useWindowDimensions()
   const [align, setAlign] = useState<PopoverAlign>('center')
