@@ -5,6 +5,7 @@ import { ScrollView, StyleSheet, TextStyle, View } from 'react-native'
 import { Icon, Text } from 'react-native-paper'
 
 import { MONO_FONT } from './fonts'
+import type { MenuOption } from './menuOption'
 import { PopoverBody } from './PopoverBody'
 import TriggerGaugeHost from './TriggerGaugeHost'
 import { AlignResult, PopoverRotation, useAutoAlign } from './useAutoAlign'
@@ -34,17 +35,9 @@ const MENU_ITEM_HEIGHT_WITH_DESCRIPTION = 58
 const MENU_DIVIDER_HEIGHT = 9
 const MENU_VERTICAL_PADDING = 12
 
-export interface MenuOption<T extends string | number> {
-  value: T
-  label: string
-  description?: string
-  // Optional per-option icon - when every option in a single-select section has one, the trigger
-  // shows the currently selected option's icon instead of the static fallback, so the value is
-  // readable at a glance without opening the dropdown. Unused by multi-select sections (there's no
-  // single "the" selected option to show on the trigger).
-  icon?: string
-  iconSize?: number
-}
+// In a module of its own (menuOption.ts) so `@tastic/hud/lobby` can export the type without
+// reaching this file, which imports TriggerGaugeHost and so Skia.
+export type { MenuOption } from './menuOption'
 
 // Exactly one of these can be true at a time - radio-style. Tapping a row selects it; whether that
 // also closes the popover is controlled by the dropdown's own `autoDismiss` prop.

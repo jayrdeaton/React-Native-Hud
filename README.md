@@ -662,8 +662,9 @@ their props types:
 
 The popovers are here for `@tastic/profile`: from 0.16 its `ProfilePicker`, `ProfilesScreen` and the rest
 import them (and `ConfirmDialog`) from this entry instead of the main barrel, so a Skia-free app can use
-them. That's why `@tastic/profile` 0.16 needs hud 0.23.0 or later. `useZoneClampedAlign` (it needs `@tastic/split-screen`), `SectionedDropdown` (its trigger gauge
-loads Skia) and `PlayerSetupPanel` (it renders `@tastic/profile`'s pickers) stay main-entry only.
+them. That's why `@tastic/profile` 0.16 needs hud 0.23.0 or later. `useZoneClampedAlign` (it needs `@tastic/split-screen`) and
+`PlayerSetupPanel` (it renders `@tastic/profile`'s pickers) are in `@tastic/hud/lobby` (below), and
+`SectionedDropdown` (its trigger gauge loads Skia) stays main-entry only.
 
 Each is the same component the main entry exports and is documented above. Only the import path changes:
 
@@ -682,6 +683,31 @@ type-checks hud's source and needs it installed. `AchievementUnlockList` isn't h
 
 Metro resolves both entries to the same source files, so an app that imports some components from here and
 others from `@tastic/hud` still bundles each module once.
+
+## A loadout without Skia (`@tastic/hud/lobby`)
+
+The pieces a two-seat loadout or lobby screen is built from, from a standalone entry that never touches the
+main barrel (whose `TriggerGaugeHost` and `loadSkiaWeb` reach Skia). It's for an app that has `@tastic/profile`
+and `@tastic/split-screen` but no Skia: `@tastic/shell` loads its loadout through here, so a pack with no Skia
+(CardTastic) can install the shell. It exports, with their props types:
+
+- `PlayerSetupPanel` (and `getColorPopoverId`, `getProfilePopoverId`, `getCpuDifficultyPopoverId`)
+- `ReadyButton`, `SharedActionBand`, `useZoneClampedAlign`
+- the `MenuOption` type (the shape a CPU's difficulty menu is built from)
+
+```tsx
+import { PlayerSetupPanel, ReadyButton, SharedActionBand } from '@tastic/hud/lobby'
+import { PressAwayOverlay, usePopoverHost } from '@tastic/hud/chrome'
+```
+
+It pulls in `react`, `react-native`, `react-native-paper`, `react-native-reanimated`,
+`react-native-safe-area-context`, `@rific/auto-paper`, `@rific/feedback-press`, `@tastic/core`,
+`@tastic/profile` and `@tastic/split-screen`, none of which loads Skia.
+`SectionedDropdown` and `ControlSchemePicker` stay main-entry only: their trigger gauge loads Skia. A test
+(`src/__tests__/lobbyImports.test.ts`) walks the import graph from `src/lobby/index.ts` and fails if anything
+it reaches imports another package, reaches the main barrel or a Skia module, or has a `.web` twin, and if the
+installed `@tastic/profile` or `@tastic/split-screen` imports Skia or the bare `@tastic/hud`. Each piece is
+the same one the main entry exports, so Metro bundles it once whichever entry an app imports it from.
 
 ## Skia on web (`@tastic/hud/skia`)
 
@@ -764,8 +790,9 @@ when no rotation applies.
 
 None of these are bundled, so use whatever versions your app already has. Six are marked `optional` in
 `peerDependenciesMeta` so a light app can install hud without the ones it doesn't use: `./guide` needs
-none of the six, and `./chrome` needs only `@tastic/core` and `@rific/updater` (plus
-`@tastic/achievements` to type-check, see above). **npm does not install optional peers for you**, so an app that imports the
+none of the six, `./chrome` needs only `@tastic/core` and `@rific/updater` (plus
+`@tastic/achievements` to type-check, see above), and `./lobby` needs `@tastic/core`, `@tastic/profile` and
+`@tastic/split-screen` but never Skia. **npm does not install optional peers for you**, so an app that imports the
 main `@tastic/hud` entry must list every peer that entry loads in its own `dependencies`, including
 the four optional ones marked "main entry" below. Without them, Metro fails to bundle with "Unable to
 resolve module".
@@ -773,15 +800,15 @@ resolve module".
 | Peer | Floor | Needed by |
 | --- | --- | --- |
 | `react`, `react-native` | >=19.0.0, >=0.76.0 | every entry |
-| `react-native-paper` | >=5.0.0 | main entry, `./guide`, `./chrome` |
+| `react-native-paper` | >=5.0.0 | main entry, `./guide`, `./chrome`, `./lobby` |
 | `react-native-reanimated` | >=3.0.0 | main entry (`StaggeredWord`), `./guide`, `./chrome` (`StaggeredWord`) |
-| `@rific/auto-paper` | >=0.12.2 | main entry (`BaseSettingsDialog` needs the nested `Portal.Host` first shipped in 0.12.2; `OverlayCard` uses `BlurView` and `useBlur`, and `BaseSettingsDialog`'s Blur row uses `useBlurModule` and `useThemeSettings`, all in 0.12.2), `./guide`, `./chrome` |
-| `@rific/feedback-press` | >=0.10.2 | main entry (`useSoundSettings` first shipped in 0.10.2), `./guide`, `./chrome` |
+| `@rific/auto-paper` | >=0.12.2 | main entry (`BaseSettingsDialog` needs the nested `Portal.Host` first shipped in 0.12.2; `OverlayCard` uses `BlurView` and `useBlur`, and `BaseSettingsDialog`'s Blur row uses `useBlurModule` and `useThemeSettings`, all in 0.12.2), `./guide`, `./chrome`, `./lobby` |
+| `@rific/feedback-press` | >=0.10.2 | main entry (`useSoundSettings` first shipped in 0.10.2), `./guide`, `./chrome`, `./lobby` |
 | `@rific/core` | >=0.4.0 | main entry and `./chrome`: `BaseSettingsDialog`'s Keep Awake row (`useKeepAwakeSettings`, `useExpoKeepAwake`, first shipped in 0.4.0) |
-| `react-native-safe-area-context` | >=5.0.0 | main entry (`useZoneClampedAlign`), `./chrome` (`RotatedFrame`, `BaseSettingsDialog`) |
-| `@tastic/core` | >=0.12.0, optional | main entry: `useRotation()` and most dialogs; `RotatedFrame` and `BaseSettingsDialog` need `FakeLandscapeView`'s `rotation`/`passThrough`, first shipped in 0.12.0; `./chrome` (the same dialogs, and `InlineColorPicker`) |
+| `react-native-safe-area-context` | >=5.0.0 | main entry and `./lobby` (`useZoneClampedAlign`), `./chrome` (`RotatedFrame`, `BaseSettingsDialog`) |
+| `@tastic/core` | >=0.12.0, optional | main entry: `useRotation()` and most dialogs; `RotatedFrame` and `BaseSettingsDialog` need `FakeLandscapeView`'s `rotation`/`passThrough`, first shipped in 0.12.0; `./chrome` (the same dialogs, and `InlineColorPicker`); `./lobby` (`PlayerSetupPanel`'s color picker) |
 | `@rific/updater` | >=0.4.0, optional | main entry and `./chrome`: `BaseSettingsDialog`, `UpdateDialog` |
-| `@tastic/profile` | >=0.4.0, optional | main entry: `PlayerSetupPanel`, `AchievementUnlockList` (`ProfileChip`) |
-| `@tastic/split-screen` | >=0.5.0, optional | main entry: `useZoneClampedAlign` |
+| `@tastic/profile` | >=0.4.0, optional | main entry: `PlayerSetupPanel`, `AchievementUnlockList` (`ProfileChip`); `./lobby` (`PlayerSetupPanel`) |
+| `@tastic/split-screen` | >=0.5.0, optional | main entry and `./lobby`: `useZoneClampedAlign` |
 | `@shopify/react-native-skia` | >=2.6.0, optional | `TriggerGaugeHost`'s gauge (loaded when one mounts) and `./skia` |
 | `@tastic/achievements` | >=0.2.0, optional | `AchievementCatalogSection`, `AchievementUnlockList`, type-only (`AchievementCatalogRow`, first exported in 0.2.0; `AchievementTier`); `./chrome` needs it installed only to type-check |

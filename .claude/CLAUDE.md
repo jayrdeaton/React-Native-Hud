@@ -82,6 +82,8 @@ Re-run `npm run build && yalc push` after any change to propagate it to every li
 | `ReadyButton.tsx` | Per-player or standalone ready toggle - outlined until ready, then fills solid with the player's own color. |
 | `PressAwayOverlay.tsx` | Invisible full-bleed `Pressable` for press-away-to-close. Rendered as an early sibling of real content so paint order keeps every real control directly tappable; only genuinely empty space falls through to it. |
 | `fonts.ts` | `MONO_FONT` - the system-monospace default every component's `labelFontFamily` prop falls back to. |
+| `menuOption.ts` | The `MenuOption` type alone (a `SectionedDropdown` option, and a CPU's difficulty levels), out of `SectionedDropdown.tsx` so `@tastic/hud/lobby` can export it without reaching Skia. `SectionedDropdown.tsx` re-exports it, so every import of it from there still works. |
+| `lobby/index.ts` | The `@tastic/hud/lobby` entry: `PlayerSetupPanel`, `ReadyButton`, `SharedActionBand`, `useZoneClampedAlign` and `MenuOption`, with no Skia. See "The lobby subpath" below. |
 | `index.ts` | Public export barrel - see Public API below. |
 
 ### One way to load Skia: the host pair and `@tastic/hud/skia` (2026-10-17)
@@ -700,12 +702,41 @@ But `@infinitetoken/tsconfig`'s `/react-native` and `/expo` presets set `customC
 so a fleet app's tsc resolves `@tastic/hud/chrome` to this package's raw source and type-checks
 `AchievementCatalogSection`'s type import too.
 
+### The lobby subpath - `@tastic/hud/lobby` (2026-10-29)
+
+`src/lobby/index.ts` re-exports a two-seat loadout's pieces from the existing files in `src/`:
+`PlayerSetupPanel` (with `PlayerSetupPanelProps` and its three popover-id helpers), `ReadyButton`,
+`SharedActionBand`, `useZoneClampedAlign` and the `MenuOption` type. Built like `./chrome`: its own tsup
+entry (`dist/lobby/index.*`), and `react-native` and `browser` both point at the source entry.
+
+**Why it exists:** `@tastic/shell` is one barrel, and every pack on it loads the shell's loadout
+(`LoadoutScreen`, `SeatTwoPanel`), which imported these five names from the main entry. The main entry
+reaches Skia (`TriggerGaugeHost`, `loadSkiaWeb`), and Solitaire dropped Skia on 2026-10-18: putting it back
+is a native module (a new build) and a CanvasKit `.wasm` on the web. So the shell imports them from here
+(step 2 of Solitaire's move onto the shell, its `TODO.md`), and a pack with no Skia (CardTastic) can install
+it. No pack's own imports change.
+
+**`MenuOption` moved to `menuOption.ts`.** It was declared in `SectionedDropdown.tsx`, which imports
+`TriggerGaugeHost`. A type-only re-export is usually erased, but the boundary test follows type-only
+relative edges too (a bundler that kept one would load the file), so the type has a module of its own and
+`SectionedDropdown.tsx` re-exports it. `SectionedDropdown` and `ControlSchemePicker` stay main-entry only.
+
+**The boundary is a graph, like chrome's.** `src/__tests__/lobbyImports.test.ts` walks the relative-import
+graph from `src/lobby/index.ts` (the chrome test's walk). Every package it reaches must be `react`,
+`react-native`, `react-native-paper`, `react-native-reanimated`, `react-native-safe-area-context`,
+`@rific/auto-paper`, `@rific/feedback-press`, `@tastic/core`, `@tastic/profile` or `@tastic/split-screen`;
+it fails if the walk reaches `index.ts`, `SectionedDropdown.tsx`, either `TriggerGauge` file or a Skia
+loader, or a module with a `.web` twin. It also reads the installed `@tastic/profile` and
+`@tastic/split-screen` sources (the devDependencies, what an app's Metro and tsc read) and fails if either
+imports Skia or the bare `@tastic/hud`, since a release of either that did would undo the entry. Checked
+2026-10-29 by planting `import '../SectionedDropdown'` in the entry: four cases failed.
+
 ## Public API
 
 The complete `src/index.ts` export barrel, reachable at the package's main `"."` entry point.
-`package.json`'s `exports` map also has three subpaths, each a standalone build with less of this
+`package.json`'s `exports` map also has four subpaths, each a standalone build with less of this
 barrel's peer-dependency surface: `"./skia"` (the web Skia loader; see "One way to load Skia" above),
-`"./guide"` and `"./chrome"` (see their own sections above). Skia host files import `loadSkiaWeb` from
+`"./guide"`, `"./chrome"` and `"./lobby"` (see their own sections above). Skia host files import `loadSkiaWeb` from
 `@tastic/hud/skia`, not the bare `'@tastic/hud'` barrel below, even in an app that already has every
 peer this kit needs, so the host files match across the fleet.
 
@@ -780,7 +811,7 @@ Unrelated to the peer deps above - the fleet's own shared tooling, pulled in as 
   (bundled by the shared preset, not a direct dependency of this repo) + `@testing-library/react`
 - **Location:** `src/__tests__/*.test.ts`
 - **Mocks:** `src/__mocks__/` - `react-native`, `react-native-paper`
-- **Current suite** (2026-10-22): 42 test files, 488 tests, all passing. (As of the `SkiaGate` addition, 2026-09: 24 test files, 160 tests -
+- **Current suite** (2026-10-29): 43 test files, 516 tests, all passing (the lobby entry's boundary test, 28 cases, was the 43rd). (As of the `SkiaGate` addition, 2026-09: 24 test files, 160 tests -
   now covers component rendering too, not just hooks (this doc previously said otherwise; that was
   already stale before this edit).)
 - **Coverage** (`npm test`, freshly run): ~99.6% statements / ~90% branches / ~99% functions overall,

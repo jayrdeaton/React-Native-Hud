@@ -48,6 +48,13 @@
       "import": "./dist/guide/index.mjs",
       "require": "./dist/guide/index.js"
     },
+    "./lobby": {
+      "react-native": "./src/lobby/index.ts",
+      "browser": "./src/lobby/index.ts",
+      "types": "./dist/lobby/index.d.ts",
+      "import": "./dist/lobby/index.mjs",
+      "require": "./dist/lobby/index.js"
+    },
     "./skia": {
       "react-native": "./src/skia/index.ts",
       "browser": "./src/skia/index.ts",
