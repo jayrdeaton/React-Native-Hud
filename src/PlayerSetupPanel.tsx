@@ -1,7 +1,7 @@
 import { SeedColor } from '@rific/auto-paper'
 import { getOptionPickerContentSize, getProfilePickerContentSize, OptionPicker, Profile, ProfilePicker, type ProfilePickerColorSection } from '@tastic/profile'
 import { ReactNode } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native'
 import { Text } from 'react-native-paper'
 
 import { InlineColorPicker } from './InlineColorPicker'
@@ -93,6 +93,10 @@ export interface PlayerSetupPanelProps<C extends string = string> {
   // ProfilePicker's own doc for why it's never "Player"). Required whenever profiles is provided,
   // since the trigger always needs some idle text.
   guestLabel?: string
+  // The no-profile row's label in the seat button's dropdown (ProfilePicker's `nullLabel`), e.g.
+  // 'Guest' for a seat whose button reads 'GUEST' (guestLabel) until a profile is picked. Unset is
+  // ProfilePicker's own default.
+  nullLabel?: string
   onProfileSelect?: (profile: Profile | null) => void
   // Navigates to a profile-management screen - typically only ever wired up for one seat (a rotated
   // second zone often can't host a working text keyboard).
@@ -109,6 +113,21 @@ export interface PlayerSetupPanelProps<C extends string = string> {
   // than this component needing any opinion on what those states are.
   humanIcon?: string
   cpuIcon?: string
+  // How the seat's color is drawn, for a host that draws profile colors muted (Solitaire on its felt):
+  // the seat button's chip, its Color row and swatches (the color section's `previewValue`), the
+  // fallback swatch, the plain label and the Ready button all show previewValue(color), while `color`,
+  // `takenColor` and what onColorChange receives stay the saved values. Unset draws them as given.
+  previewValue?: (hex: string) => string
+  // Extra style for the seat button's trigger, e.g. a background behind its pill so it reads on a
+  // busy backdrop (ProfilePicker's and OptionPicker's `triggerStyle`).
+  triggerStyle?: StyleProp<ViewStyle>
+  // A placement of the host's own for the seat button's dropdown, in place of useZoneClampedAlign:
+  // called as a hook with whether the dropdown is open and the size it draws, and its result handed
+  // to the picker as `alignOverride` (for a screen turned by a fake landscape, whose button
+  // useAutoAlign would measure against the upright window). It replaces the zone clamp, so leave it
+  // unset for a panel inside a @tastic/split-screen zone. A hook: keep the same one for the panel's
+  // life, and remount the panel (a key) to change it.
+  useSeatPickerAlign?: (open: boolean, contentWidth: number, contentHeight: number) => AlignResult
 }
 
 // One panel per player slot in a local-multiplayer loadout/lobby screen: one seat button, an
@@ -125,7 +144,7 @@ export interface PlayerSetupPanelProps<C extends string = string> {
 // Owns its own popover host shared by its own pickers unless a `host` is passed in to share with
 // another panel (or a shared-controls row) instead - same convention as every popover-hosting
 // component in this package.
-export function PlayerSetupPanel<C extends string = string>({ idPrefix, host, label, labelFontFamily, color, onColorChange, swatches, takenColor, allowSwapTaken, colorCaption, showColor = true, colorAlignOverride, colorRotation, isHuman, secondPicker, secondPickerId, ready, onToggleReady, dark, showReadyButton = true, profiles, selectedProfileId, takenProfileId, guestLabel, onProfileSelect, onManageProfiles, cpuDifficulty, cpuDifficultyOptions, onCpuDifficultyChange, humanIcon = 'face-man', cpuIcon = 'robot' }: PlayerSetupPanelProps<C>) {
+export function PlayerSetupPanel<C extends string = string>({ idPrefix, host, label, labelFontFamily, color, onColorChange, swatches, takenColor, allowSwapTaken, colorCaption, showColor = true, colorAlignOverride, colorRotation, isHuman, secondPicker, secondPickerId, ready, onToggleReady, dark, showReadyButton = true, profiles, selectedProfileId, takenProfileId, guestLabel, nullLabel, onProfileSelect, onManageProfiles, cpuDifficulty, cpuDifficultyOptions, onCpuDifficultyChange, humanIcon = 'face-man', cpuIcon = 'robot', previewValue, triggerStyle, useSeatPickerAlign }: PlayerSetupPanelProps<C>) {
   const ownHost = usePopoverHost()
   const popover = host ?? ownHost
   // Checking *this panel's own* ids, not just "is anything open on the host" - when `host` is
@@ -144,26 +163,29 @@ export function PlayerSetupPanel<C extends string = string>({ idPrefix, host, la
   // Read live from the selected profile rather than snapshotted at selection time, since a caller
   // typically has no other editing surface for it on this same screen.
   const selectedProfile = profiles?.find((p) => p.id === selectedProfileId) ?? null
+  // The seat's color as it's drawn (see previewValue); `color` itself stays the saved one.
+  const drawn = previewValue ? previewValue(color) : color
 
-  const colorSection: ProfilePickerColorSection | undefined = showColor ? { value: color, onChange: onColorChange, swatches, takenValue: takenColor, allowSwapTaken, caption: showProfilePicker && selectedProfile ? colorCaption : undefined } : undefined
+  const colorSection: ProfilePickerColorSection | undefined = showColor ? { value: color, onChange: onColorChange, swatches, takenValue: takenColor, allowSwapTaken, caption: showProfilePicker && selectedProfile ? colorCaption : undefined, previewValue } : undefined
   // The seat button's dropdown is placed here rather than by the caller: inside a
   // @tastic/split-screen zone (2 Player) it has to stay in that player's half, which
-  // useZoneClampedAlign does, and outside one it's useAutoAlign's own placement. Sized from the same
-  // section and rows the picker draws. Rotation 0, the same as the profile, color and difficulty
-  // dropdowns this button replaced were all placed with.
+  // useZoneClampedAlign does, and outside one it's useAutoAlign's own placement (or the host's own,
+  // useSeatPickerAlign). Sized from the same section and rows the picker draws. Rotation 0, the same
+  // as the profile, color and difficulty dropdowns this button replaced were all placed with.
   const seatPickerId = showProfilePicker ? getProfilePopoverId(idPrefix) : getCpuDifficultyPopoverId(idPrefix)
   const seatPickerSize = showProfilePicker ? getProfilePickerContentSize(profiles!.length, !!onManageProfiles, colorSection) : getOptionPickerContentSize(cpuDifficultyOptions?.length ?? 0, colorSection)
-  const seatPickerAlign = useZoneClampedAlign(seatButton && popover.openId === seatPickerId, seatPickerSize.width, seatPickerSize.height)
+  const useSeatAlign = useSeatPickerAlign ?? useZoneClampedAlign
+  const seatPickerAlign = useSeatAlign(seatButton && popover.openId === seatPickerId, seatPickerSize.width, seatPickerSize.height)
 
   return (
     <View style={[styles.panel, ownPopoverOpen && styles.panelOpen]}>
       {showProfilePicker ? (
-        <ProfilePicker idPrefix={idPrefix} host={popover} profiles={profiles!} selectedId={selectedProfileId ?? null} takenId={takenProfileId} color={color} dark={dark} guestLabel={guestLabel ?? 'GUEST'} onSelect={(profile: Profile | null) => onProfileSelect?.(profile)} onManage={onManageProfiles} colorSection={colorSection} alignOverride={seatPickerAlign} />
+        <ProfilePicker idPrefix={idPrefix} host={popover} profiles={profiles!} selectedId={selectedProfileId ?? null} takenId={takenProfileId} color={drawn} dark={dark} guestLabel={guestLabel ?? 'GUEST'} nullLabel={nullLabel} onSelect={(profile: Profile | null) => onProfileSelect?.(profile)} onManage={onManageProfiles} colorSection={colorSection} alignOverride={seatPickerAlign} triggerStyle={triggerStyle} />
       ) : showCpuDifficulty ? (
-        <OptionPicker id={getCpuDifficultyPopoverId(idPrefix)} host={popover} options={cpuDifficultyOptions!} value={cpuDifficulty!} onChange={onCpuDifficultyChange!} color={color} dark={dark} icon={cpuIcon} colorSection={colorSection} alignOverride={seatPickerAlign} />
+        <OptionPicker id={getCpuDifficultyPopoverId(idPrefix)} host={popover} options={cpuDifficultyOptions!} value={cpuDifficulty!} onChange={onCpuDifficultyChange!} color={drawn} dark={dark} icon={cpuIcon} colorSection={colorSection} alignOverride={seatPickerAlign} triggerStyle={triggerStyle} />
       ) : (
         label && (
-          <Text variant='labelSmall' style={{ color, fontFamily: labelFontFamily }}>
+          <Text variant='labelSmall' style={{ color: drawn, fontFamily: labelFontFamily }}>
             {label}
           </Text>
         )
@@ -174,13 +196,13 @@ export function PlayerSetupPanel<C extends string = string>({ idPrefix, host, la
           {/* The fallback swatch, for a seat with no button: a human slot shows the selected
           profile's own tag when it has one, falling back to humanIcon; a non-human slot always
           falls back to cpuIcon. */}
-          {!seatButton && <InlineColorPicker id={getColorPopoverId(idPrefix)} host={popover} value={color} onChange={onColorChange} swatches={swatches} takenValue={takenColor} allowSwapTaken={allowSwapTaken} alignOverride={colorAlignOverride} rotation={colorRotation} dark={dark} tag={isHuman ? selectedProfile?.tag : undefined} icon={isHuman ? humanIcon : cpuIcon} />}
+          {!seatButton && <InlineColorPicker id={getColorPopoverId(idPrefix)} host={popover} value={color} onChange={onColorChange} swatches={swatches} takenValue={takenColor} allowSwapTaken={allowSwapTaken} previewValue={previewValue} alignOverride={colorAlignOverride} rotation={colorRotation} dark={dark} tag={isHuman ? selectedProfile?.tag : undefined} icon={isHuman ? humanIcon : cpuIcon} />}
 
           {secondPicker}
         </View>
       )}
 
-      {isHuman && showReadyButton && onToggleReady && <ReadyButton color={color} ready={ready ?? false} onToggleReady={onToggleReady} />}
+      {isHuman && showReadyButton && onToggleReady && <ReadyButton color={drawn} ready={ready ?? false} onToggleReady={onToggleReady} />}
     </View>
   )
 }

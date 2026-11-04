@@ -2,7 +2,7 @@ import { defaultColors } from '@rific/auto-paper'
 import { getOptionPickerContentSize, getProfilePickerContentSize, OptionPicker, ProfilePicker } from '@tastic/profile'
 import { render, screen } from '@testing-library/react'
 import { act, useEffect } from 'react'
-import { Icon } from 'react-native-paper'
+import { Icon, Text } from 'react-native-paper'
 
 import { mockViewRender } from '../__mocks__/react-native'
 import { getColorPopoverId, getCpuDifficultyPopoverId, getProfilePopoverId, PlayerSetupPanel, PlayerSetupPanelProps } from '../PlayerSetupPanel'
@@ -369,6 +369,92 @@ describe('PlayerSetupPanel', () => {
       // component's own test file for the identical assertion shape.
       const calls = (useAutoAlign as jest.Mock).mock.calls
       expect(calls[calls.length - 1][3]).toBe(180)
+    })
+  })
+
+  describe("the guest row's label", () => {
+    it("hands nullLabel to the profile picker, and leaves ProfilePicker's own default without one", () => {
+      const { unmount } = renderPanel({ profiles: [ADA], onProfileSelect: jest.fn(), guestLabel: 'GUEST', nullLabel: 'Guest' })
+      expect(profilePickerProps()).toEqual(expect.objectContaining({ guestLabel: 'GUEST', nullLabel: 'Guest' }))
+      unmount()
+
+      renderPanel({ profiles: [ADA], onProfileSelect: jest.fn() })
+      expect(profilePickerProps().nullLabel).toBeUndefined()
+    })
+  })
+
+  describe("a host's own look", () => {
+    const preview = (hex: string) => `${hex}/drawn`
+    // The color of the last Paper Text rendered with these children (its mock records its props).
+    const textColor = (children: string) =>
+      flatten(
+        (Text as unknown as jest.Mock).mock.calls
+          .map(([props]) => props as { children?: unknown; style?: unknown })
+          .filter((props) => props.children === children)
+          .pop()!.style
+      ).find((o) => 'color' in o)!.color
+
+    it("draws the seat's color through previewValue on either seat button, keeping the saved one as the Color row's value", () => {
+      const { unmount } = renderPanel({ profiles: [ADA], onProfileSelect: jest.fn(), previewValue: preview })
+      expect(profilePickerProps().color).toBe('#3366ff/drawn')
+      expect(profilePickerProps().colorSection.value).toBe('#3366ff')
+      expect(profilePickerProps().colorSection.previewValue('#ff0000')).toBe('#ff0000/drawn')
+      unmount()
+
+      renderPanel({ ...cpuSeat, previewValue: preview })
+      expect(optionPickerProps().color).toBe('#3366ff/drawn')
+      expect(optionPickerProps().colorSection.value).toBe('#3366ff')
+      expect(optionPickerProps().colorSection.previewValue).toBe(preview)
+    })
+
+    it('draws the Ready button and the plain label in the drawn color too', () => {
+      renderPanel({ label: 'P1', previewValue: preview, onToggleReady: jest.fn() })
+
+      expect(textColor('READY?')).toBe('#3366ff/drawn')
+      expect(textColor('P1')).toBe('#3366ff/drawn')
+    })
+
+    it('draws the saved color, with no preview, without one', () => {
+      renderPanel({ profiles: [ADA], onProfileSelect: jest.fn(), onToggleReady: jest.fn() })
+
+      expect(profilePickerProps().color).toBe('#3366ff')
+      expect(profilePickerProps().colorSection.previewValue).toBeUndefined()
+      expect(textColor('READY?')).toBe('#3366ff')
+    })
+
+    it("hands triggerStyle to either seat button's trigger", () => {
+      const triggerStyle = { backgroundColor: '#123456' }
+      const { unmount } = renderPanel({ profiles: [ADA], onProfileSelect: jest.fn(), triggerStyle })
+      expect(profilePickerProps().triggerStyle).toBe(triggerStyle)
+      unmount()
+
+      renderPanel({ ...cpuSeat, triggerStyle })
+      expect(optionPickerProps().triggerStyle).toBe(triggerStyle)
+    })
+  })
+
+  describe("a host's own placement", () => {
+    const placement = (open: boolean, width: number, height: number) => ({ align: 'center' as const, verticalAlign: open ? ('above' as const) : ('below' as const), maxHeight: width + height, measured: true, triggerRef: { current: null } })
+
+    it("places the seat button's dropdown with useSeatPickerAlign in place of the zone clamp, sized from the menu it draws and told when it opens", () => {
+      const useSeatPickerAlign = jest.fn(placement)
+      const { hostBoxRef } = renderPanel({ profiles: [ADA], onProfileSelect: jest.fn(), onManageProfiles: jest.fn(), useSeatPickerAlign })
+
+      expect(useSeatPickerAlign).toHaveBeenLastCalledWith(false, 220, 301)
+      expect(profilePickerProps().alignOverride).toEqual(expect.objectContaining({ verticalAlign: 'below', maxHeight: 521 }))
+      expect(useAutoAlign).not.toHaveBeenCalled()
+
+      act(() => hostBoxRef.current!.toggle(getProfilePopoverId('p1')))
+      expect(useSeatPickerAlign).toHaveBeenLastCalledWith(true, 220, 301)
+      expect(profilePickerProps().alignOverride.verticalAlign).toBe('above')
+    })
+
+    it("places the CPU seat button's dropdown with it too", () => {
+      const useSeatPickerAlign = jest.fn(placement)
+      renderPanel({ ...cpuSeat, useSeatPickerAlign })
+
+      expect(useSeatPickerAlign).toHaveBeenLastCalledWith(false, 220, 202)
+      expect(optionPickerProps().alignOverride.maxHeight).toBe(422)
     })
   })
 
