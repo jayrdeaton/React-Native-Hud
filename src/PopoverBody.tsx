@@ -43,11 +43,20 @@ interface Props {
 // Rendered inline as an absolutely-positioned sibling of its own trigger (never via Portal), so it
 // inherits any rotation transform the trigger's zone applies - a Portal-based popover renders at
 // the app root, outside that transform, and would end up upside-down relative to its own trigger
-// once a face-to-face zone gets flipped 180°. Positioned via percentage (`top:'100%'`/`bottom:'100%'`)
-// against the trigger's own wrapper rather than a measured pixel rect, so no onLayout/measurement
-// plumbing is needed here and it resolves correctly regardless of how deep the trigger sits in the
-// tree - the caller (useAutoAlign) is the one that actually measures, to decide which side to grow
-// toward in the first place.
+// once a face-to-face zone gets flipped 180°. Placed against the trigger's own wrapper rather than a
+// measured pixel rect, so no onLayout/measurement plumbing is needed here and it resolves correctly
+// regardless of how deep the trigger sits in the tree - the caller (useAutoAlign) is the one that
+// actually measures, to decide which side to grow toward in the first place.
+//
+// No percentage insets (2026-11-07): it used to sit at `top:'100%'`/`bottom:'100%'` of the wrapper,
+// and React Native's default Yoga errata (YGErrataAll, its "compatibility" layout conformance)
+// includes AbsolutePercentAgainstInnerSize, which resolves an absolute child's percentage insets
+// against the space its containing view was offered rather than its real size. In a wrapping row
+// (a loadout's options on a narrow phone) that space is the whole multi-line row, so a menu in the
+// first line opened a full row below its trigger. Plain insets use the view's measured size, so the
+// box now hangs off a zero-height strip pinned to the wrapper's bottom edge (`bottom: 0`) or top edge
+// (`top: 0`), spanning its width, and sits at the strip's `top: 0` or `bottom: 0`. The web never had
+// the errata and lands exactly where it did.
 export function PopoverBody({ visible, children, align = 'center', verticalAlign = 'below', caretColor, caretBorderColor, caretBorderWidth = 1, triggerSize = 0 }: Props) {
   if (!visible) return null
 
@@ -73,17 +82,19 @@ export function PopoverBody({ visible, children, align = 'center', verticalAlign
   const caretEdge = (size: number): ViewStyle => (above ? { bottom: -size + CARET_DIP } : { top: -size + CARET_DIP })
 
   return (
-    <View style={[styles.content, alignStyle, verticalStyle]}>
-      {children}
-      {/* Painted after (on top of) the box above, dipping into its edge - see CARET_DIP - so it
+    <View style={[styles.edge, above ? styles.edgeTop : styles.edgeBottom]}>
+      <View style={[styles.content, alignStyle, verticalStyle]}>
+        {children}
+        {/* Painted after (on top of) the box above, dipping into its edge - see CARET_DIP - so it
       reads as one continuous outline flowing from the trigger into the box, not a separate chip
       butted up against it. */}
-      {caretColor && (
-        <>
-          <View style={[styles.caret, caretOffset(ringSize), caretEdge(ringSize), { [caretFill]: caretBorderColor ?? caretColor, [caretWidthProp]: ringSize, borderLeftWidth: ringSize, borderRightWidth: ringSize }]} />
-          <View style={[styles.caret, caretOffset(CARET_SIZE), caretEdge(CARET_SIZE - CARET_RING_OFFSET), { [caretFill]: caretColor, [caretWidthProp]: CARET_SIZE, borderLeftWidth: CARET_SIZE, borderRightWidth: CARET_SIZE }]} />
-        </>
-      )}
+        {caretColor && (
+          <>
+            <View style={[styles.caret, caretOffset(ringSize), caretEdge(ringSize), { [caretFill]: caretBorderColor ?? caretColor, [caretWidthProp]: ringSize, borderLeftWidth: ringSize, borderRightWidth: ringSize }]} />
+            <View style={[styles.caret, caretOffset(CARET_SIZE), caretEdge(CARET_SIZE - CARET_RING_OFFSET), { [caretFill]: caretColor, [caretWidthProp]: CARET_SIZE, borderLeftWidth: CARET_SIZE, borderRightWidth: CARET_SIZE }]} />
+          </>
+        )}
+      </View>
     </View>
   )
 }
@@ -105,13 +116,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     zIndex: 50
   },
+  // The strip's bottom edge, which is the trigger's top: the box grows up from it.
   contentAbove: {
-    bottom: '100%',
+    bottom: 0,
     marginBottom: 8
   },
+  // The strip's top edge, which is the trigger's bottom: the box grows down from it.
   contentBelow: {
     marginTop: 8,
-    top: '100%'
+    top: 0
   },
   // Stretched to the anchor's own (trigger) width, with alignItems centering the actual (usually
   // much wider) popover box inside via plain flexbox - not `left:'50%'` plus a percentage
@@ -127,5 +140,21 @@ const styles = StyleSheet.create({
   },
   contentRight: {
     right: 0
+  },
+  // The zero-height strip the box hangs off, spanning the trigger's wrapper (see PopoverBody's
+  // comment for why it isn't a percentage inset). Its zIndex matches the box's, so on the web, where
+  // every positioned view is its own stacking context, the box still paints over later siblings.
+  edge: {
+    height: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    zIndex: 50
+  },
+  edgeBottom: {
+    bottom: 0
+  },
+  edgeTop: {
+    top: 0
   }
 })

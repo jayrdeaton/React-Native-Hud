@@ -15,7 +15,12 @@ const flatten = (style: unknown): Record<string, unknown>[] =>
 // so callers can tell them apart without depending on call order.
 const viewStyles = (): Record<string, unknown>[][] => (mockViewRender as jest.Mock).mock.calls.map((call) => flatten((call[0] as { style?: unknown }).style))
 
-const contentStyle = (): Record<string, unknown>[] | undefined => viewStyles().find((entries) => entries.some((e) => e.zIndex === 50))
+// The zero-height strip the box hangs off (styles.edge) carries zIndex: 50 too; it's the one with height: 0.
+const isEdge = (entries: Record<string, unknown>[]): boolean => entries.some((e) => e.height === 0)
+
+const contentStyle = (): Record<string, unknown>[] | undefined => viewStyles().find((entries) => entries.some((e) => e.zIndex === 50) && !isEdge(entries))
+
+const edgeStyle = (): Record<string, unknown> => Object.assign({}, ...(viewStyles().find(isEdge) ?? []))
 
 const caretStyles = (): Record<string, unknown>[][] => viewStyles().filter((entries) => entries.some((e) => e.zIndex === 1))
 
@@ -142,5 +147,34 @@ describe('PopoverBody', () => {
     expect(carets.some((entries) => entries.some((e) => e.left === 12))).toBe(true)
     // No caret entry should carry a `right` offset when align isn't 'right'.
     expect(carets.some((entries) => entries.some((e) => e.right !== undefined))).toBe(false)
+  })
+
+  // React Native's Yoga errata resolve an absolute child's percentage insets against the space its parent was offered, a whole multi-line
+  // row in a wrapping one, so a menu in the first line opened a row too low on native: the box hangs off a zero-height strip pinned with
+  // plain insets instead.
+  it('hangs the box below the trigger off a strip pinned to its bottom edge, with no percentage inset', () => {
+    render(
+      <PopoverBody visible caretColor='#abcdef' triggerSize={40} verticalAlign='below'>
+        PANEL_CONTENT
+      </PopoverBody>
+    )
+
+    expect(edgeStyle()).toMatchObject({ position: 'absolute', height: 0, left: 0, right: 0, bottom: 0 })
+    expect(edgeStyle().top).toBeUndefined()
+    expect(Object.assign({}, ...contentStyle()!)).toMatchObject({ position: 'absolute', top: 0, marginTop: 8 })
+    const values = viewStyles().flatMap((entries) => entries.flatMap((e) => Object.values(e)))
+    expect(values.filter((v) => typeof v === 'string' && v.endsWith('%'))).toEqual([])
+  })
+
+  it('hangs the box above the trigger off a strip pinned to its top edge', () => {
+    render(
+      <PopoverBody visible caretColor='#abcdef' triggerSize={40} verticalAlign='above'>
+        PANEL_CONTENT
+      </PopoverBody>
+    )
+
+    expect(edgeStyle()).toMatchObject({ position: 'absolute', height: 0, left: 0, right: 0, top: 0 })
+    expect(edgeStyle().bottom).toBeUndefined()
+    expect(Object.assign({}, ...contentStyle()!)).toMatchObject({ position: 'absolute', bottom: 0, marginBottom: 8 })
   })
 })

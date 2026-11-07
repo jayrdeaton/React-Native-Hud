@@ -43,7 +43,10 @@ corner of the screen.
   sits in (see `useAutoAlign`).
 - **`TriggerGauge`**: decorative ring of tick marks around a trigger, showing which option(s) are
   active without opening the popover.
-- **`ReadyButton`**: a per-player or standalone ready toggle.
+- **`ReadyButton`**: a per-player or standalone ready toggle: an outline and mono label in the seat's
+  color until ready, then filled with it. Over a backdrop (a felt) pass `surfaceColor` (the theme's
+  surface) and `dark`: it is then a pill the size of `@tastic/profile`'s chip pill, its label black or
+  white in the theme's font, filled with the seat's color (its label in that color's own ink) once ready.
 - **`PlayerSetupPanel`**: one panel per player slot in a local-multiplayer loadout/lobby screen: a
   name header (a saved-profile switcher for a human seat, a CPU-difficulty `LabeledDropdown` for a
   non-human one, or a plain label when neither applies), a color picker (`InlineColorPicker`)
@@ -51,12 +54,13 @@ corner of the screen.
   Ported from five apps' own near-identical `PlayerSetupPanel.tsx`/`LobbyPlayerPanel.tsx`
   (AirHockey, BoxHockey, Pong, LightCycles, Snake), which had all independently converged on this
   exact skeleton. See "The secondPicker slot" below before wiring up that one prop.
-  Four optional props fit it to a host that draws on a backdrop (a felt) with muted profile colors,
+  Five optional props fit it to a host that draws on a backdrop (a felt) with muted profile colors,
   each changing nothing when left unset: `nullLabel` (the no-profile row's label in the seat button's
   dropdown, e.g. `'Guest'` beside a `'GUEST'` `guestLabel`), `previewValue` (how the seat's color is
   drawn: the button's chip, its Color row and swatches, the fallback swatch, the plain label and the
   Ready button, while `color` and what `onColorChange` receives stay the saved values), `triggerStyle`
-  (the seat button's trigger, e.g. a surface behind its pill) and `useSeatPickerAlign` (a placement
+  (the seat button's trigger, e.g. a surface behind its pill), `readySurfaceColor` (the Ready button's
+  pill look, `ReadyButton`'s `surfaceColor`) and `useSeatPickerAlign` (a placement
   hook of the host's own for the seat button's dropdown, in place of `useZoneClampedAlign`, for a
   screen turned by a fake landscape; leave it unset inside a split-screen zone, and keep the same hook
   for the panel's life).

@@ -1,4 +1,5 @@
 import { defaultColors } from '@rific/auto-paper'
+import { TouchableRipple } from '@rific/feedback-press'
 import { getOptionPickerContentSize, getProfilePickerContentSize, OptionPicker, ProfilePicker } from '@tastic/profile'
 import { render, screen } from '@testing-library/react'
 import { act, useEffect } from 'react'
@@ -272,6 +273,17 @@ describe('PlayerSetupPanel', () => {
     it('is omitted when onToggleReady is not provided at all', () => {
       renderPanel({ isHuman: true })
       expect(screen.queryByText('READY?')).toBeNull()
+    })
+
+    it('draws the pill look on readySurfaceColor, labelled for dark mode, and the outline without it', () => {
+      const readyBox = () => Object.assign({}, ...flatten((TouchableRipple as jest.Mock).mock.calls.filter(([p]) => p.accessibilityLabel === 'READY?').at(-1)![0].style))
+      const { unmount } = renderPanel({ isHuman: true, onToggleReady: jest.fn(), readySurfaceColor: '#1d1b1e', dark: true })
+      expect(readyBox()).toMatchObject({ backgroundColor: '#1d1b1e', height: 44 })
+      expect(Object.assign({}, ...flatten((Text as jest.Mock).mock.calls.filter(([p]) => p.children === 'READY?').at(-1)![0].style)).color).toBe('#FFFFFF')
+      unmount()
+
+      renderPanel({ isHuman: true, onToggleReady: jest.fn() })
+      expect(Object.assign({}, ...flatten((Text as jest.Mock).mock.calls.filter(([p]) => p.children === 'READY?').at(-1)![0].style)).color).toBe('#3366ff')
     })
   })
 

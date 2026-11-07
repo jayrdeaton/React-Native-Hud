@@ -13,6 +13,8 @@ export const defaultColors: SeedColor[] = Array.from({ length: 20 }, (_, i) => (
 export const getContrastColor = jest.fn((_hex: string) => '#000000')
 export const getBlendedColor = jest.fn((a: string, _b: string, _t: number) => a)
 export const getColorRoles = jest.fn((_accent: string, _bg: string) => ({ onColor: '#ffffff' }))
+// ReadyButton's pill look: the ink on a filled seat color, tagged so a test can tell it came from here.
+export const getTintTextColor = jest.fn((tint: string, _backdrop: string, _opacity: number) => `${tint}/ink`)
 
 // Only the color keys BaseSettingsDialog.tsx/ConfirmDialog.tsx actually read - real
 // MD3Theme['colors'] carries many more, but a test double only needs to cover what's exercised,

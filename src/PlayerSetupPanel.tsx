@@ -121,6 +121,9 @@ export interface PlayerSetupPanelProps<C extends string = string> {
   // Extra style for the seat button's trigger, e.g. a background behind its pill so it reads on a
   // busy backdrop (ProfilePicker's and OptionPicker's `triggerStyle`).
   triggerStyle?: StyleProp<ViewStyle>
+  // The Ready button's pill look over a busy backdrop (ReadyButton's `surfaceColor`): pass the
+  // theme's surface, as `triggerStyle` puts one behind the seat button. Unset keeps the outline.
+  readySurfaceColor?: string
   // A placement of the host's own for the seat button's dropdown, in place of useZoneClampedAlign:
   // called as a hook with whether the dropdown is open and the size it draws, and its result handed
   // to the picker as `alignOverride` (for a screen turned by a fake landscape, whose button
@@ -144,7 +147,7 @@ export interface PlayerSetupPanelProps<C extends string = string> {
 // Owns its own popover host shared by its own pickers unless a `host` is passed in to share with
 // another panel (or a shared-controls row) instead - same convention as every popover-hosting
 // component in this package.
-export function PlayerSetupPanel<C extends string = string>({ idPrefix, host, label, labelFontFamily, color, onColorChange, swatches, takenColor, allowSwapTaken, colorCaption, showColor = true, colorAlignOverride, colorRotation, isHuman, secondPicker, secondPickerId, ready, onToggleReady, dark, showReadyButton = true, profiles, selectedProfileId, takenProfileId, guestLabel, nullLabel, onProfileSelect, onManageProfiles, cpuDifficulty, cpuDifficultyOptions, onCpuDifficultyChange, humanIcon = 'face-man', cpuIcon = 'robot', previewValue, triggerStyle, useSeatPickerAlign }: PlayerSetupPanelProps<C>) {
+export function PlayerSetupPanel<C extends string = string>({ idPrefix, host, label, labelFontFamily, color, onColorChange, swatches, takenColor, allowSwapTaken, colorCaption, showColor = true, colorAlignOverride, colorRotation, isHuman, secondPicker, secondPickerId, ready, onToggleReady, dark, showReadyButton = true, profiles, selectedProfileId, takenProfileId, guestLabel, nullLabel, onProfileSelect, onManageProfiles, cpuDifficulty, cpuDifficultyOptions, onCpuDifficultyChange, humanIcon = 'face-man', cpuIcon = 'robot', previewValue, triggerStyle, readySurfaceColor, useSeatPickerAlign }: PlayerSetupPanelProps<C>) {
   const ownHost = usePopoverHost()
   const popover = host ?? ownHost
   // Checking *this panel's own* ids, not just "is anything open on the host" - when `host` is
@@ -202,7 +205,7 @@ export function PlayerSetupPanel<C extends string = string>({ idPrefix, host, la
         </View>
       )}
 
-      {isHuman && showReadyButton && onToggleReady && <ReadyButton color={drawn} ready={ready ?? false} onToggleReady={onToggleReady} />}
+      {isHuman && showReadyButton && onToggleReady && <ReadyButton color={drawn} ready={ready ?? false} onToggleReady={onToggleReady} surfaceColor={readySurfaceColor} dark={dark} />}
     </View>
   )
 }

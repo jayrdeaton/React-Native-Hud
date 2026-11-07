@@ -66,4 +66,52 @@ describe('ReadyButton', () => {
     const entries = flatten(props.style)
     expect(entries).toContainEqual(distinctiveStyle)
   })
+
+  describe('the pill look (surfaceColor), for a loadout over a backdrop', () => {
+    const rippleProps = () => (TouchableRipple as jest.Mock).mock.calls.at(-1)![0]
+    const textProps = () => (Text as jest.Mock).mock.calls.at(-1)![0]
+
+    it('is a pill on the surface, the size of a seat button, its label black in light mode', () => {
+      render(<ReadyButton color='#9d2d53' ready={false} onToggleReady={jest.fn()} surfaceColor='#fffbff' />)
+
+      expect(screen.getByText('READY?')).toBeTruthy()
+      const box = Object.assign({}, ...flatten(rippleProps().style))
+      expect(box).toMatchObject({ backgroundColor: '#fffbff', borderRadius: 22, height: 44 })
+      expect(box.borderWidth).toBeUndefined()
+      const label = Object.assign({}, ...flatten(textProps().style))
+      expect(label).toMatchObject({ color: '#000000', fontSize: 13, fontWeight: '700', letterSpacing: 1 })
+    })
+
+    it("keeps the theme's font rather than the mono one, unless a font is passed", () => {
+      const { unmount } = render(<ReadyButton color='#9d2d53' ready={false} onToggleReady={jest.fn()} surfaceColor='#fffbff' />)
+      expect(flatten(textProps().style).some((entry) => 'fontFamily' in entry)).toBe(false)
+      unmount()
+
+      render(<ReadyButton color='#9d2d53' ready={false} onToggleReady={jest.fn()} surfaceColor='#fffbff' labelFontFamily='Serif' />)
+      expect(flatten(textProps().style).some((entry) => entry.fontFamily === 'Serif')).toBe(true)
+    })
+
+    it('labels white in dark mode', () => {
+      render(<ReadyButton color='#9d2d53' ready={false} onToggleReady={jest.fn()} surfaceColor='#1d1b1e' dark />)
+      expect(Object.assign({}, ...flatten(textProps().style)).color).toBe('#FFFFFF')
+    })
+
+    it("fills with the seat's color once ready, its label in that color's ink", () => {
+      render(<ReadyButton color='#9d2d53' ready onToggleReady={jest.fn()} surfaceColor='#fffbff' />)
+
+      expect(screen.getByText('READY ✓')).toBeTruthy()
+      expect(Object.assign({}, ...flatten(rippleProps().style)).backgroundColor).toBe('#9d2d53')
+      expect(Object.assign({}, ...flatten(textProps().style)).color).toBe('#9d2d53/ink')
+    })
+
+    it('toggles, and still takes the caller style last', () => {
+      const onToggleReady = jest.fn()
+      const hidden = { opacity: 0 }
+      render(<ReadyButton color='#9d2d53' ready={false} onToggleReady={onToggleReady} surfaceColor='#fffbff' style={hidden} />)
+
+      rippleProps().onPress()
+      expect(onToggleReady).toHaveBeenCalledTimes(1)
+      expect(flatten(rippleProps().style).at(-1)).toEqual(hidden)
+    })
+  })
 })
