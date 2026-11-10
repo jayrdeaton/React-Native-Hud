@@ -83,6 +83,12 @@ export interface BaseSettingsDialogProps {
   // rendered between Appearance and Check for Updates - this component only owns the settings
   // every game shares, never anything about how a particular game plays.
   children?: ReactNode
+  // App-specific sections shown FIRST, above every shared row: a game's own rules, which someone
+  // opening Settings from that game is most likely there for (Solitaire, Jay 2026-11-10: rules below
+  // Sound, How to Play and Appearance went unfound). When given, the shared rows get a GENERAL
+  // label, so every gap between sections is still followed by a label. Omit it (or pass null) where
+  // there is nothing to put first: the sheet is then exactly as before.
+  leading?: ReactNode
 }
 
 // The settings shell every @tastic game shares - orientation lock, the optional edge-guard and
@@ -92,7 +98,7 @@ export interface BaseSettingsDialogProps {
 // is the seam for whatever isn't shared: a game with its own board/difficulty settings (or a stats
 // backup flow, or anything else genuinely specific to it) renders those below Appearance, not by
 // forking this component.
-export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverride, version, lockOrientation, onLockOrientationChange, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, onShowHowToPlay, children }: BaseSettingsDialogProps) {
+export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverride, version, lockOrientation, onLockOrientationChange, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, onShowHowToPlay, children, leading }: BaseSettingsDialogProps) {
   const { colors } = useAutoPaperTheme()
   const ambientRotation = useRotation()
   const rotation = rotationOverride ?? ambientRotation
@@ -169,6 +175,7 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   // See the Blur row's own comment below for why it hides on Android and without expo-blur.
   const showBlur = showAppearance && Platform.OS !== 'android' && expoBlur !== undefined && expoBlur !== null
   const showUpdateCheck = Platform.OS !== 'web' && !hideUpdateCheck
+  const hasLeading = leading !== undefined && leading !== null && leading !== false
 
   // Laid out in its own turned frame rather than rotated in place. Paper's Portal mounts at the app
   // root, full screen and portrait-shaped, so a sheet that only rotated its card kept resolving its
@@ -197,11 +204,19 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
                 closes it too. */}
               <DialogHeader icon='cog' title='Settings' compact={compactHeader} />
               <View style={styles.content}>
+                {hasLeading && leading}
                 {/* Grouped tightly together (styles.toggleGroup's small internal gap, not the 24px gap
                 between sections below) - same bare-row shape for all of them, no segmented control
                 and no section heading (each row's own label already says what it is). Haptics only
                 joins on native - there's nothing for it to control on web. */}
                 <View style={styles.toggleGroup}>
+                  {/* Unlabeled while it opens the sheet (each row's own label says what it is); labeled
+                  once an app's leading sections sit above it, like every other section after a gap. */}
+                  {hasLeading && (
+                    <Text variant='labelMedium' style={[styles.sectionLabel, styles.toggleGroupLabel, { color: colors.onSurfaceVariant }]}>
+                      GENERAL
+                    </Text>
+                  )}
                   {/* Omitted entirely for a portrait-only game (no lockOrientation/onLockOrientationChange
                   passed at all - nothing to lock), and hidden (not just disabled) on a desktop/laptop
                   browser even when they are - see isTouchPrimary's own doc above. Still shown on
@@ -488,6 +503,10 @@ const styles = StyleSheet.create({
   },
   toggleGroup: {
     gap: 4
+  },
+  // The 12pt a section's label sits above its rows (styles.section), less the group's own 4pt gap.
+  toggleGroupLabel: {
+    marginBottom: 8
   },
   // No horizontal margin of its own now either - see toggleButton's identical note.
   toggleRow: {

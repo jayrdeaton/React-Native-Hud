@@ -202,6 +202,36 @@ describe('BaseSettingsDialog', () => {
     unmount()
   })
 
+  // Jay, 2026-11-10 (Solitaire): a game's rules below Sound, How to Play and Appearance went unfound.
+  it('renders leading sections first, above every shared row, and labels the shared rows under them', () => {
+    Platform.OS = 'ios'
+    const { container, unmount } = render(
+      <BaseSettingsDialog {...baseProps} onShowHowToPlay={jest.fn()} leading={<>KLONDIKE rules go here</>}>
+        <>Board settings go here</>
+      </BaseSettingsDialog>
+    )
+
+    const text = container.textContent ?? ''
+    const at = (needle: string) => text.indexOf(needle)
+    expect(at('Settings')).toBeLessThan(at('KLONDIKE rules go here'))
+    expect(at('KLONDIKE rules go here')).toBeLessThan(at('GENERAL'))
+    expect(at('GENERAL')).toBeLessThan(at('Lock Orientation'))
+    expect(at('Sound')).toBeLessThan(at('How to Play'))
+    expect(at('How to Play')).toBeLessThan(at('APPEARANCE'))
+    expect(at('APPEARANCE')).toBeLessThan(at('Board settings go here'))
+    unmount()
+  })
+
+  it('leaves the shared rows unlabeled when nothing leads (none passed, or null)', () => {
+    const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
+    expect(container.textContent).not.toContain('GENERAL')
+    unmount()
+
+    const { container: withNull, unmount: unmountNull } = render(<BaseSettingsDialog {...baseProps} leading={null} />)
+    expect(withNull.textContent).not.toContain('GENERAL')
+    unmountNull()
+  })
+
   // Jay, 2026-10-15: every dialog opens with the same header and closes with the same single button.
   it("opens with the fleet's dialog header, compact once the sheet is turned onto a phone's short edge", () => {
     const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
