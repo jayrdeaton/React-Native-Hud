@@ -78,7 +78,8 @@ Re-run `npm run build && yalc push` after any change to propagate it to every li
 | `loadSkiaWeb.ts` | Native counterpart to `loadSkiaWeb.web.ts` - resolves immediately, since Skia-on-native (JSI, no WASM) needs nothing awaited. Must never import `@shopify/react-native-skia/src/web`, even conditionally - see the file's own comment on why Metro would still pull `canvaskit-wasm`'s `require('fs')` into the native bundle graph. Exported from the barrel and from `@tastic/hud/skia`; every app's `.web.tsx` Skia host awaits it (see "One way to load Skia" below). |
 | `loadSkiaWeb.web.ts` | Web counterpart - thin wrapper around `@shopify/react-native-skia`'s own `LoadSkiaWeb` (imported from its `/src/web` subpath), which fetches the CanvasKit WASM build Skia's web target renders through, called with `{ locateFile: locateSkiaWebFile }`. Metro's platform-extension resolution (this file vs. `loadSkiaWeb.ts`) is what keeps this out of the native bundle. |
 | `locateSkiaWebFile.ts` | `locateSkiaWebFile(file)`: `${process.env.EXPO_BASE_URL ?? ''}/${file}`, the `locateFile` `loadSkiaWeb.web.ts` hands CanvasKit. No imports, so it's exported from the barrel and from `@tastic/hud/skia`, for code that calls Skia's own `LoadSkiaWeb` or `WithSkiaWeb`. See "Skia's wasm comes from the base URL" below. |
-| `skia/index.ts` | The `@tastic/hud/skia` entry: `loadSkiaWeb` and `locateSkiaWebFile`, with none of the barrel's peers, so every app's Skia host files can import from it. See "One way to load Skia" below. |
+| `skia/index.ts` | The `@tastic/hud/skia` entry: `loadSkiaWeb`, `locateSkiaWebFile` and `lazySkia`, with none of the barrel's peers, so every app's Skia host files can import from it. See "One way to load Skia" below. |
+| `skia/lazySkia.tsx` | `lazySkia(load)`: the web half of an app's Skia host pair as one call, a `React.lazy` over `loadSkiaWeb().then(load)` inside a `Suspense` with a `null` fallback. `./skia` only, not the barrel. See "`lazySkia` in `./skia`" below. |
 | `ReadyButton.tsx` | Per-player or standalone ready toggle - outlined until ready, then fills solid with the player's own color. With `surfaceColor` (a loadout over a felt) it is a pill on that surface instead; see "Ready on a felt". |
 | `PressAwayOverlay.tsx` | Invisible full-bleed `Pressable` for press-away-to-close. Rendered as an early sibling of real content so paint order keeps every real control directly tappable; only genuinely empty space falls through to it. |
 | `fonts.ts` | `MONO_FONT` - the system-monospace default every component's `labelFontFamily` prop falls back to. |
@@ -98,27 +99,29 @@ removed** (breaking).
 
 - **The host pair**, two files per Skia component (code in the README's "Skia on web"): `BoardHost.tsx`
   renders the Skia component directly; `BoardHost.web.tsx` is a module-scope
-  `lazy(() => loadSkiaWeb().then(() => import('./Board')))` inside a `Suspense`. Why it won over
+  `lazy(() => loadSkiaWeb().then(() => import('./Board')))` inside a `Suspense` (since 2026-11-12, one
+  `lazySkia(...)` call; see "`lazySkia` in `./skia`" below). Why it won over
   `SkiaGate`: native draws on the first frame (`SkiaGate`'s native side mounted through a dynamic import
   and a state update, so every `SkiaGate` app had a blank first render on native for nothing); the lazy
   component sits at module scope by construction (`SkiaGate` remounted whenever a caller forgot to hoist
   `getComponent`); and every app goes through hud's one loader, so one cached load and one place for the
   base-URL rule. The pair can't move into hud: rendering on the first frame on native needs a static
-  import of the app's own component, which only the app can write.
+  import of the app's own component, which only the app can write (the web half's wrapper could, and
+  did, as `lazySkia`).
 - **`TriggerGaugeHost` stays lazy on native.** It uses the web half on both platforms (`loadSkiaWeb()` is a
   no-op on native). A static import would evaluate Skia whenever an app imports the barrel, and real Skia
   throws at import under Jest ("Native Skia Module failed to correctly install JSI Bindings!"), checked
   2026-10-17 by requiring it inside Snake's jest-expo setup. No app mocks Skia, so every app suite that
   imports `@tastic/hud` would fail. The same applies to an app's own native host: a test that imports it
   imports Skia.
-- **`@tastic/hud/skia`** (`src/skia/index.ts`, its own tsup entry) exports `loadSkiaWeb` and
-  `locateSkiaWebFile` with none of the barrel's peers: Ember-Vein, FreeRide, HowBig, Mancala, RampantRats
+- **`@tastic/hud/skia`** (`src/skia/index.ts`, its own tsup entry) exports `loadSkiaWeb`,
+  `locateSkiaWebFile` and (since 2026-11-12) `lazySkia` with none of the barrel's peers: Ember-Vein, FreeRide, HowBig, Mancala, RampantRats
   and Swirlio lack `@tastic/profile` and/or `@tastic/split-screen`, so importing `@tastic/hud` there fails
   to bundle ("Unable to resolve module"). Both are also still in the barrel, but every app's host files
   import from `@tastic/hud/skia`, so the files match across the fleet. `src/__tests__/skiaImports.test.ts`
   walks the entry's imports (both platform files) and fails if it reaches anything but
-  `loadSkiaWeb.ts`/`.web.ts` and `locateSkiaWebFile.ts`, or imports any package except
-  `@shopify/react-native-skia/src/web` from the `.web` file.
+  `loadSkiaWeb.ts`/`.web.ts`, `locateSkiaWebFile.ts` and `skia/lazySkia.tsx`, or imports any package
+  except `react`, and `@shopify/react-native-skia/src/web` from the `.web` file.
 - **Exports-map gotcha (from `./skia-gate`):** Metro does not platform-resolve an exports-map target.
   `./skia` points `"react-native"` and `"browser"` at the same `src/skia/index.ts`, which is fine only
   because that file has no `.web` twin: the split happens one relative import down, which Metro does
@@ -135,6 +138,33 @@ removed** (breaking).
   out of scope (Jay, 2026-10-17).
 - Removed with it: `SkiaGate.tsx`, `SkiaGate.web.tsx`, their two test files, the barrel's `SkiaGate`/
   `SkiaGateProps` exports and the mock `WithSkiaWeb`.
+
+### `lazySkia` in `./skia` (2026-11-12)
+
+PuckTastic and DuelTastic each carried an identical `src/shared/lazySkia.tsx`, the web half of the host
+pair as one call; Labyrinth (`../Labyrinth`, plan sections 8 and 17) would have been a third copy, so it
+moved here (Jay approved 2026-11-12). Not released yet.
+
+- **`lazySkia<P extends object>(load: () => Promise<{ default: ComponentType<P> }>): ComponentType<P>`**
+  (`src/skia/lazySkia.tsx`): the packs' copy unchanged in behavior, a `React.lazy` over
+  `loadSkiaWeb().then(load)` inside a `Suspense` with a `null` fallback, with its comment on why (Skia binds
+  `global.CanvasKit` at module evaluation, and only a dynamic import defers that). The one change is the
+  import, `'../loadSkiaWeb'`, relative so Metro still picks the `.web` loader per platform. A web host is
+  `export default lazySkia<BoardProps>(() => import('./Board').then((m) => ({ default: m.Board })))`,
+  called at module scope. The native host is unchanged (it imports the component directly, so it draws on
+  the first frame).
+- **Exported from `@tastic/hud/skia` only, not the main barrel.** The README already sends every app's
+  host files to `./skia`; `loadSkiaWeb` and `locateSkiaWebFile` are also in the barrel only because they
+  were there before `./skia` existed.
+- **`./skia` now imports `react`** (a peer of every entry). `skiaImports.test.ts` allows `react` from any
+  file the entry reaches, and expects `skia/lazySkia.tsx` among them; Skia's `/src/web` is still allowed
+  only from `loadSkiaWeb.web.ts`.
+- **Rollout:** PuckTastic's and DuelTastic's `src/shared/lazySkia.tsx` switch to it (and are deleted) once
+  Jay releases this and they bump hud; neither was touched here. Labyrinth uses it from the start.
+- Tests: `lazySkia.test.tsx` (with `loadSkiaWeb` mocked and held open: nothing loads when `lazySkia` is
+  called; nothing is imported or drawn until `loadSkiaWeb` resolves, then the component draws with its
+  props; one load per host across renders, mounts and remounts; each call its own host; the same function
+  from `@tastic/hud/skia`).
 
 ### Skia's wasm comes from the base URL (2026-10-17)
 
@@ -811,7 +841,7 @@ Unrelated to the peer deps above - the fleet's own shared tooling, pulled in as 
   (bundled by the shared preset, not a direct dependency of this repo) + `@testing-library/react`
 - **Location:** `src/__tests__/*.test.ts`
 - **Mocks:** `src/__mocks__/` - `react-native`, `react-native-paper`
-- **Current suite** (2026-10-29): 43 test files, 516 tests, all passing (the lobby entry's boundary test, 28 cases, was the 43rd). (As of the `SkiaGate` addition, 2026-09: 24 test files, 160 tests -
+- **Current suite** (2026-11-12): 44 test files, 539 tests, all passing (`lazySkia.test.tsx` was the 44th; on 2026-10-29 it was 43 files and 516 tests, the lobby entry's boundary test, 28 cases, being the 43rd). (As of the `SkiaGate` addition, 2026-09: 24 test files, 160 tests -
   now covers component rendering too, not just hooks (this doc previously said otherwise; that was
   already stale before this edit).)
 - **Coverage** (`npm test`, freshly run): ~99.6% statements / ~90% branches / ~99% functions overall,
@@ -972,3 +1002,7 @@ Jay: the Ready buttons "don't work very well on the felt" in Solitaire (CardTast
 ## Leading sections in BaseSettingsDialog (2026-11-10)
 
 Jay, in Solitaire (CardTastic): a game's rules sat in `children`, below Keep Awake, Sound, How to Play and Appearance, where they went unfound. `BaseSettingsDialog` gained an optional `leading?: ReactNode`, drawn FIRST in the sheet's content, under the header and above every shared row. With something leading (anything but `undefined`, `null` or `false`), the shared toggle group gets a GENERAL label (`labelMedium`, letter-spaced 2, like APPEARANCE and VERSION; 8pt under it plus the group's 4pt gap makes a section's 12), so a label still follows every 24pt gap. Without it the sheet is exactly as before, unlabeled rows first, so nothing changes for an app that doesn't pass it (a minor release). `children` stays where it was, between Appearance and Check for Updates. The shell passes `leading` from `PackDefinition.useSettingsRules`. Tests: `BaseSettingsDialog.test.tsx`'s two leading cases (first, above GENERAL and every shared row, `children` still after Appearance; no GENERAL with nothing or `null` leading). Seen on Solitaire's web build (Gin Rummy's setup screen and Klondike's game: the rules, then GENERAL; Home: unchanged), with this package's build copied into its `node_modules`. Not on a device. Released in 0.29.0 (a minor), with the dev dependencies brought current (`@infinitetoken/tsconfig` 0.7, `@rific/auto-paper` 0.14, `@rific/updater` 0.8, `@tastic/core` 0.16, `@tastic/profile` 0.18; nothing in the source changed for them) and the `@rific/auto-paper` peer widened from `^0.13.0` to `>=0.13.0`, which shut out the apps already on 0.14.
+
+## Music toggle in BaseSettingsDialog (2026-11-14)
+
+HexFleet got menu and battle music, and Jay wanted Music as its own setting, apart from Sound, in the shared dialog so every game gets it. `@rific/feedback-press` 0.14.0 adds the setting (`useMusicSettings`, `musicReducer`, the provider's `musicInitialValue`/`onMusicChange`) and `useMusic`, a looping track that plays only while it's on. `BaseSettingsDialog` gained `showMusic?: boolean`: a Music toggle (`music`/`music-off`, tertiary while on like every on/off row) in the toggle row between Sound and Haptics. Opt in, unlike `hideSound`/`hideHaptics`, since most games have no music; nothing changes for an app that doesn't pass it. No sound of its own when switched on (Sound's row clicks; here the music fading in is the confirmation). The `@rific/feedback-press` peer is `>=0.14.0` now (the dialog calls `useMusicSettings` whether or not the row shows), so this is a minor release that needs feedback-press 0.14.0 published first. Tests: `BaseSettingsDialog.test.tsx`, hidden by default and toggling its own setting when shown; the feedback-press mock gained `useMusicSettings`. Released in 0.30.0 (a minor) with `lazySkia` in `./skia` (2026-11-12), and the `@rific/feedback-press` dev dependency on 0.14.0.

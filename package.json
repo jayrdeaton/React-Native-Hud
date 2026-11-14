@@ -96,7 +96,7 @@
     "@infinitetoken/tsconfig": "^0.7.0",
     "@rific/auto-paper": "^0.14.0",
     "@rific/core": "^0.5.0",
-    "@rific/feedback-press": "^0.13.1",
+    "@rific/feedback-press": "^0.14.0",
     "@rific/updater": "^0.8.0",
     "@shopify/react-native-skia": "^2.14.0",
     "@tastic/achievements": "^0.6.0",
@@ -125,7 +125,7 @@
   "peerDependencies": {
     "@rific/auto-paper": ">=0.13.0",
     "@rific/core": ">=0.4.0",
-    "@rific/feedback-press": ">=0.10.2",
+    "@rific/feedback-press": ">=0.14.0",
     "@rific/updater": ">=0.4.0",
     "@shopify/react-native-skia": ">=2.6.0",
     "@tastic/achievements": ">=0.2.0",

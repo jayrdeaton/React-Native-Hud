@@ -1,6 +1,6 @@
 import { Dialog, useBlurModule, useThemeSettings } from '@rific/auto-paper'
 import { useExpoKeepAwake, useKeepAwakeSettings } from '@rific/core'
-import { Button, SoundContext, TouchableRipple, useHapticSettings, useSoundSettings } from '@rific/feedback-press'
+import { Button, SoundContext, TouchableRipple, useHapticSettings, useMusicSettings, useSoundSettings } from '@rific/feedback-press'
 import { useUpdater } from '@rific/updater'
 import { FakeLandscapeView, useIsTouchPrimaryDevice, useRotation } from '@tastic/core'
 import { act, render } from '@testing-library/react'
@@ -450,6 +450,20 @@ describe('BaseSettingsDialog', () => {
     await expect(pending).resolves.toBe(true)
 
     unmount()
+  })
+
+  it('hides Music unless the app opts in, then toggles its own setting beside Sound', () => {
+    const set = jest.fn()
+    ;(useMusicSettings as jest.Mock).mockReturnValue({ settings: { enabled: false }, set })
+    const hidden = render(<BaseSettingsDialog {...baseProps} />)
+    expect(hidden.container.textContent).not.toContain('Music')
+    hidden.unmount()
+
+    const shown = render(<BaseSettingsDialog {...baseProps} showMusic />)
+    expect(shown.container.textContent).toContain('Sound')
+    findRippleByLabel('Music off').onPress()
+    expect(set).toHaveBeenCalledWith({ enabled: true })
+    shown.unmount()
   })
 
   it('hides Sound via hideSound, without hiding Haptics alongside it', () => {

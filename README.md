@@ -268,6 +268,11 @@ export function SettingsDialog({ visible, onDismiss, rotation = 0, settings, set
 }
 ```
 
+A game with music passes `showMusic`, which adds a Music toggle beside Sound and Haptics. It flips
+`@rific/feedback-press`'s Music setting (`useMusicSettings`, 0.14.0+), which its `useMusic` tracks
+follow; it's apart from Sound, so a player can keep the effects and turn the music off. Hidden unless
+asked for, since most games have no music.
+
 ## Overlay cards (`OverlayCard`, `OverlayBackdrop`, `useOverlayCardColors`)
 
 `ConfirmDialog` and `HowToPlayDialog` draw their card and the dim behind it with these, and a game's
@@ -742,11 +747,19 @@ export default function BoardHost(props: BoardProps) {
 
 ```tsx
 // BoardHost.web.tsx: web imports the board only once CanvasKit has loaded
-import { loadSkiaWeb } from '@tastic/hud/skia'
-import { lazy, Suspense } from 'react'
+import { lazySkia } from '@tastic/hud/skia'
 
 import type { BoardProps } from './Board'
 
+export default lazySkia<BoardProps>(() => import('./Board').then((m) => ({ default: m.Board })))
+```
+
+`lazySkia<P extends object>(load: () => Promise<{ default: ComponentType<P> }>): ComponentType<P>` returns a
+component that renders a `React.lazy` over `loadSkiaWeb().then(load)` inside a `Suspense` with a `null`
+fallback: nothing is drawn, and the board's module isn't even imported, until CanvasKit has loaded. Its
+props pass straight through to the board. Written out by hand, it is:
+
+```tsx
 const LazyBoard = lazy(() => loadSkiaWeb().then(() => import('./Board').then((m) => ({ default: m.Board }))))
 
 export default function BoardHost(props: BoardProps) {
@@ -759,9 +772,13 @@ export default function BoardHost(props: BoardProps) {
 ```
 
 - Import the host, never `Board` itself, everywhere else in the app.
-- Keep `lazy()` at module scope, as above, so the component is created once.
-- Import from `@tastic/hud/skia` (also exported from `@tastic/hud`). It carries none of the main entry's
-  heavier peers, so it works in every app.
+- Call `lazySkia` at module scope, as above, so the component is created once. Called during a render, it
+  would be a new component every time, remounting the board.
+- Import from `@tastic/hud/skia`. It carries none of the main entry's heavier peers (only `react`), so it
+  works in every app. `loadSkiaWeb` and `locateSkiaWebFile` are also exported from `@tastic/hud`;
+  `lazySkia` is only on `@tastic/hud/skia`.
+- PuckTastic and DuelTastic each had an identical copy of `lazySkia` (`src/shared/lazySkia.tsx`); they
+  switch to this one when they take the release that has it.
 - A test that imports a native host imports Skia, which throws under Jest (no native bindings). Mock the
   host, or don't import the screen that uses it.
 

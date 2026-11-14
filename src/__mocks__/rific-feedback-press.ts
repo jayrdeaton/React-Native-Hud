@@ -17,6 +17,10 @@ export const useSoundSettings = jest.fn(() => ({
   settings: { enabled: true },
   set: jest.fn()
 }))
+export const useMusicSettings = jest.fn(() => ({
+  settings: { enabled: true },
+  set: jest.fn()
+}))
 
 export const useVibration = jest.fn(() => ({
   isEnabled: true,

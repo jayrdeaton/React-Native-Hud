@@ -1,6 +1,6 @@
 import { AutoAppearancePicker, Dialog, FadingScrollView, useAutoPaperTheme, useBlurModule, useThemeSettings } from '@rific/auto-paper'
 import { useExpoKeepAwake, useKeepAwakeSettings } from '@rific/core'
-import { Button, SoundContext, TouchableRipple, useHapticSettings, useSoundSettings, useVibration } from '@rific/feedback-press'
+import { Button, SoundContext, TouchableRipple, useHapticSettings, useMusicSettings, useSoundSettings, useVibration } from '@rific/feedback-press'
 import { useUpdater } from '@rific/updater'
 import { rotateInsets, useIsTouchPrimaryDevice, useRotation, type ViewRotation } from '@tastic/core'
 import { ReactNode, useContext, useState } from 'react'
@@ -23,7 +23,7 @@ interface SettingIconProps {
 // Small colored badge per row (icon tinted on its own MD3 container color) - echoes the
 // primary/secondary/tertiary triad that's already each consuming app's own identity, so the
 // settings list picks up that same palette instead of introducing new colors of its own. Every
-// on/off row (Lock Orientation, Edge Guard, Sound, Haptics) is tertiary while on, and an app adding
+// on/off row (Lock Orientation, Edge Guard, Sound, Music, Haptics) is tertiary while on, and an app adding
 // its own toggle rows should match; secondary is for the always-on action row (How to Play).
 function SettingIcon({ source, color, containerColor }: SettingIconProps) {
   return (
@@ -67,6 +67,10 @@ export interface BaseSettingsDialogProps {
   // Haptics is already native-only (see the row's own Platform.OS check) - this hides it even
   // there, for a game that's deliberately silent on vibration.
   hideHaptics?: boolean
+  // Opt in, unlike the rows above: a Music toggle beside Sound, for a game with music
+  // (@rific/feedback-press's useMusic, gated on its own Music setting, apart from Sound). Most
+  // games have none, so it's hidden unless asked for.
+  showMusic?: boolean
   hideAppearance?: boolean
   // Check for Updates is already native-only (a web build has no OTA update concept at all) - this
   // hides it even there, for a native app that isn't wired up for EAS/OTA updates at all.
@@ -98,7 +102,7 @@ export interface BaseSettingsDialogProps {
 // is the seam for whatever isn't shared: a game with its own board/difficulty settings (or a stats
 // backup flow, or anything else genuinely specific to it) renders those below Appearance, not by
 // forking this component.
-export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverride, version, lockOrientation, onLockOrientationChange, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, onShowHowToPlay, children, leading }: BaseSettingsDialogProps) {
+export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverride, version, lockOrientation, onLockOrientationChange, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, showMusic = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, onShowHowToPlay, children, leading }: BaseSettingsDialogProps) {
   const { colors } = useAutoPaperTheme()
   const ambientRotation = useRotation()
   const rotation = rotationOverride ?? ambientRotation
@@ -122,6 +126,7 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   const isTouchPrimary = useIsTouchPrimaryDevice()
   const { settings: hapticSettings, set: setHapticSettings } = useHapticSettings()
   const { settings: soundSettings, set: setSoundSettings } = useSoundSettings()
+  const { settings: musicSettings, set: setMusicSettings } = useMusicSettings()
   const { settings: keepAwakeSettings, set: setKeepAwakeSettings } = useKeepAwakeSettings()
   const expoKeepAwake = useExpoKeepAwake()
   // Sound/Haptics toggle themselves: the ripple's automatic press feedback fires on onPressIn,
@@ -284,7 +289,7 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
                   inside it use toggleButtonInRow (flex: 1) instead so the two don't double up on it.
                   The row itself only renders when at least one of the two will - an empty flex row
                   still eats its own gap/margin otherwise. */}
-                  {(showSound || showHaptics) && (
+                  {(showSound || showMusic || showHaptics) && (
                     <View style={styles.toggleRow}>
                       {showSound && (
                         <TouchableRipple
@@ -301,6 +306,20 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
                             <SettingIcon source={soundSettings.enabled ? 'volume-high' : 'volume-off'} color={soundSettings.enabled ? colors.tertiary : colors.onSurfaceVariant} containerColor={soundSettings.enabled ? colors.tertiaryContainer : colors.surfaceVariant} />
                             <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
                               Sound
+                            </Text>
+                          </View>
+                        </TouchableRipple>
+                      )}
+
+                      {/* Music has its own setting, apart from Sound (feedback-press's useMusic plays only
+                      while it's on). No sound of its own when switched on: the music fading in is
+                      the confirmation. */}
+                      {showMusic && (
+                        <TouchableRipple onPress={() => setMusicSettings({ enabled: !musicSettings.enabled })} style={styles.toggleButtonInRow} accessibilityLabel={`Music ${musicSettings.enabled ? 'on' : 'off'}`}>
+                          <View style={styles.toggleContent}>
+                            <SettingIcon source={musicSettings.enabled ? 'music' : 'music-off'} color={musicSettings.enabled ? colors.tertiary : colors.onSurfaceVariant} containerColor={musicSettings.enabled ? colors.tertiaryContainer : colors.surfaceVariant} />
+                            <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
+                              Music
                             </Text>
                           </View>
                         </TouchableRipple>
