@@ -466,6 +466,20 @@ describe('BaseSettingsDialog', () => {
     shown.unmount()
   })
 
+  // Jay, 2026-11-14 (HexFleet): Sound, Music and Haptics in one row cut Haptics off on a 402pt iPhone.
+  it('lays the sound toggles out two to a row, so a third wraps instead of running off the dialog', () => {
+    Platform.OS = 'ios'
+    ;(useMusicSettings as jest.Mock).mockReturnValue({ settings: { enabled: false }, set: jest.fn() })
+    ;(useSoundSettings as jest.Mock).mockReturnValue({ settings: { enabled: false }, set: jest.fn() })
+    ;(useHapticSettings as jest.Mock).mockReturnValue({ settings: { vibrate: false }, set: jest.fn() })
+    const { unmount } = render(<BaseSettingsDialog {...baseProps} showMusic />)
+
+    for (const label of ['Sound off', 'Music off', 'Haptics off']) {
+      expect(flatStyle(findRippleByLabel(label).style)).toMatchObject({ flexBasis: '45%', flexGrow: 1 })
+    }
+    unmount()
+  })
+
   it('hides Sound via hideSound, without hiding Haptics alongside it', () => {
     Platform.OS = 'ios'
     const { container, unmount } = render(<BaseSettingsDialog {...baseProps} hideSound />)

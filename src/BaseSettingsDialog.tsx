@@ -507,11 +507,14 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingVertical: 10
   },
-  // Same shape as toggleButton, `flex: 1` instead of its own width - two of these side by side in
-  // toggleRow share the row's own edge alignment instead of each carrying their own.
+  // Same shape as toggleButton, half the row instead of its own width - two of these side by side in
+  // toggleRow share the row's own edge alignment instead of each carrying their own. Two to a row:
+  // three (Sound, Music, Haptics) don't fit across a phone's dialog (Haptics was cut off on a 402pt
+  // iPhone), so a third wraps onto its own row and grows to fill it, like the full-width rows above.
   toggleButtonInRow: {
     borderRadius: 12,
-    flex: 1,
+    flexBasis: '45%',
+    flexGrow: 1,
     overflow: 'hidden',
     paddingVertical: 10
   },
@@ -530,6 +533,7 @@ const styles = StyleSheet.create({
   // No horizontal margin of its own now either - see toggleButton's identical note.
   toggleRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 4
   }
 })
