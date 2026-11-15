@@ -233,6 +233,11 @@ across every app and read their own shared settings, so `lockOrientation`/`onLoc
 and `deferBottomEdgeGestures`/`onDeferBottomEdgeGestures` are the only settings an adapter actually
 needs to source itself, however it does that. Each pair is optional: omit one and its row doesn't show.
 
+The Edge Guard row ("Require second swipe") shows on iOS and Android, never on the web. The setting does
+nothing on its own: on iOS the app passes it to `@tastic/edge-guard`'s `useEdgeGestureGuard`, and on
+Android it spreads `edgeGuardScreenOptions(setting)` over its play screen's options. An app that wires
+only the iOS half shows a row on Android that does nothing. `@tastic/shell` wires both for its packs.
+
 The Keep Awake row reads `@rific/core`'s Keep Awake setting (`useKeepAwakeSettings()`), the same way
 the Sound row reads `@rific/feedback-press`. It shows on touch-first devices (where Lock Orientation
 shows) in any app whose `KeepAwakeProvider` was given `expo-keep-awake` (`useExpoKeepAwake()` returns
