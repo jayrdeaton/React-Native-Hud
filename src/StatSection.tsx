@@ -6,6 +6,9 @@ import { useWellColors, WELL_SHADOW } from './wellSurface'
 
 interface Props {
   label: string
+  // A short key at the right end of the heading line, over the rows' values (a record's "W-L-D"), in the
+  // well's muted text. Omit it and the heading is the label alone, as it always was.
+  caption?: string
   // Independently optional overrides for this section's own label color/background - default to the well's
   // (wellSurface.ts: the theme's surface and its onSurface text).
   fg?: string
@@ -19,22 +22,44 @@ interface Props {
 // overridable via the matching prop for a caller with its own chrome palette. It was a faint tint until
 // 2026-10-17 (6% white in dark mode, 4% black in light). The label itself carries the section's own meaning
 // (what it's a section OF), so this component has no opinion on that beyond rendering the string it's given.
-export function StatSection({ label, fg: fgOverride, sectionBg: sectionBgOverride, children }: Props) {
+export function StatSection({ label, caption, fg: fgOverride, sectionBg: sectionBgOverride, children }: Props) {
   const well = useWellColors()
   const fg = fgOverride ?? well.fg
   const sectionBg = sectionBgOverride ?? well.bg
+  const heading = (
+    <Text variant='labelMedium' style={[styles.label, { color: fg }]}>
+      {label}
+    </Text>
+  )
 
   return (
     <View style={[styles.section, { backgroundColor: sectionBg }]}>
-      <Text variant='labelMedium' style={[styles.label, { color: fg }]}>
-        {label}
-      </Text>
+      {caption ? (
+        <View style={styles.heading}>
+          {heading}
+          <Text variant='labelMedium' style={[styles.caption, { color: well.fgMuted }]}>
+            {caption}
+          </Text>
+        </View>
+      ) : (
+        heading
+      )}
       {children}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
+  // The label's spacing, without its weight: a key to the values, not a second heading
+  caption: {
+    letterSpacing: 2
+  },
+  heading: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between'
+  },
   // Bold and full-contrast (fg), not the original fontless/fgMuted treatment - that read at the
   // same visual weight as StatRow's own row labels below it (both used the identical muted color;
   // letterSpacing/variant alone didn't separate them enough to read as "this is the group header"

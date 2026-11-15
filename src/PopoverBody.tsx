@@ -10,6 +10,10 @@ const CARET_RING_OFFSET = 2
 // lets it paint over the box's own border there instead of butting up against it - a seam shows if
 // the two edges only touch, since neither is guaranteed to land on the exact same subpixel.
 const CARET_DIP = 1
+// The popover box's corner radius, every fleet menu's (12). A caret whose base reaches into the
+// rounded corner meets the box's curved border at an angle and leaves a jagged notch where they
+// cross, so a box aligned to one side keeps its caret's base on the straight part of the edge.
+const BOX_RADIUS = 12
 
 interface Props {
   visible: boolean
@@ -38,6 +42,11 @@ interface Props {
   // to the trigger's actual center via a fixed offset rather than the (usually much wider) content
   // box's own midpoint, which only coincides with the trigger's center by coincidence, if at all.
   triggerSize?: number
+  // The box's own corner radius (default BOX_RADIUS). With the box aligned 'left' or 'right', the
+  // caret's base stays clear of that corner: a trigger narrower than the corner needs (a short text
+  // trigger flush with the box's edge, like @tastic/profile's plain picker) gets its caret pointing a
+  // few px in from its center rather than a notch where the caret's outline crosses the curve.
+  cornerRadius?: number
 }
 
 // Rendered inline as an absolutely-positioned sibling of its own trigger (never via Portal), so it
@@ -57,7 +66,7 @@ interface Props {
 // box now hangs off a zero-height strip pinned to the wrapper's bottom edge (`bottom: 0`) or top edge
 // (`top: 0`), spanning its width, and sits at the strip's `top: 0` or `bottom: 0`. The web never had
 // the errata and lands exactly where it did.
-export function PopoverBody({ visible, children, align = 'center', verticalAlign = 'below', caretColor, caretBorderColor, caretBorderWidth = 1, triggerSize = 0 }: Props) {
+export function PopoverBody({ visible, children, align = 'center', verticalAlign = 'below', caretColor, caretBorderColor, caretBorderWidth = 1, triggerSize = 0, cornerRadius = BOX_RADIUS }: Props) {
   if (!visible) return null
 
   const above = verticalAlign === 'above'
@@ -73,7 +82,10 @@ export function PopoverBody({ visible, children, align = 'center', verticalAlign
   // back into the transform, which native has been unreliable about; plain flexbox centering
   // doesn't), so triggerSize/2 from that shared edge always lands on the trigger's true center,
   // however much wider the actual popover box grows.
-  const caretOffset = (halfFootprint: number): ViewStyle => (align === 'right' ? { right: triggerSize / 2 - halfFootprint } : { left: triggerSize / 2 - halfFootprint })
+  // A centered box is wider than its trigger, so its caret is never near a corner; a box aligned to
+  // a side keeps the caret's whole base (the ring's, the wider of the two) past its rounded corner.
+  const caretCenter = align === 'center' ? triggerSize / 2 : Math.max(triggerSize / 2, cornerRadius + ringSize)
+  const caretOffset = (halfFootprint: number): ViewStyle => (align === 'right' ? { right: caretCenter - halfFootprint } : { left: caretCenter - halfFootprint })
   // Below the trigger: caret sits at content's top edge, apex pointing up (a filled border-bottom
   // makes an apex-up triangle), dipping upward past that edge. Above the trigger: mirrored - caret
   // sits at content's bottom edge, apex pointing down (filled border-top), dipping downward past it.

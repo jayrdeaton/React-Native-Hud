@@ -23,7 +23,9 @@ corner of the screen.
 - **`usePopoverHost()`**: tracks which *one* popover (by id) is open within a group, so opening one
   closes any sibling already open in the same group.
 - **`PopoverBody`**: the low-level popover shell (position, caret, alignment). `SectionedDropdown`
-  and `InlineColorPicker` are built on it.
+  and `InlineColorPicker` are built on it. With the box aligned left or right, the caret keeps its
+  base clear of the box's rounded corner (`cornerRadius`, 12 by default, every fleet menu's), so a
+  narrow trigger gets a clean outline instead of a jagged notch where the caret crosses the curve.
 - **`useAutoAlign`**: measures a trigger's actual on-screen position and picks whichever alignment
   (left/right/center, above/below) keeps a popover from overflowing a screen edge - including a
   `maxHeight` for the caller to cap content and scroll when neither direction has enough room. An
@@ -546,6 +548,9 @@ interface ActivityStatSectionProps {
 on MD3's level-1 shadow, with `onSurface`/`onSurfaceVariant` text. `useWellColors()` returns those colors and
 `WELL_SHADOW` the shadow, for an app's own cards (a menu tile) to match. Each component's `fg`/`fgMuted`/`sectionBg`
 props still override them.
+
+**Captions.** `StatSection` takes an optional `caption`, a short key at the right end of its heading line over the rows'
+values, in the well's muted text: `<StatSection label='BY MODE' caption='W-L-D'>` over rows reading "3-2-0".
 
 Composing both with `@tastic/achievements`' own row computation:
 

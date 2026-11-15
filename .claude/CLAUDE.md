@@ -68,7 +68,7 @@ Re-run `npm run build && yalc push` after any change to propagate it to every li
 | File | Purpose |
 |---|---|
 | `usePopoverHost.ts` | `{openId, toggle, close}` - tracks which one popover is open within a group. One instance per independent editor (e.g. one per player's panel) so opening a popover in one group never affects another. |
-| `PopoverBody.tsx` | Low-level popover shell: position (`align`/`verticalAlign`), the connecting caret triangle. Rendered inline as an absolutely-positioned sibling of its trigger - never via Portal - so it inherits any rotation transform the trigger's zone applies. |
+| `PopoverBody.tsx` | Low-level popover shell: position (`align`/`verticalAlign`), the connecting caret triangle. Rendered inline as an absolutely-positioned sibling of its trigger - never via Portal - so it inherits any rotation transform the trigger's zone applies. With a side align the caret's base is kept past the box's rounded corner (`cornerRadius`, default 12): @tastic/profile's plain 28px picker trigger put it inside the curve, a jagged notch Jay saw in HexFleet's loadout (2026-11-15). |
 | `useAutoAlign.ts` | Measures a trigger's actual on-screen position via `measureInWindow` (resolves post-transform - rotation-safe) and picks whichever `align`/`verticalAlign` keeps a popover of a given size from overflowing a screen edge. Also returns `maxHeight`, the room available in whichever direction it picked, for the caller to cap content and scroll instead of overflowing when neither direction has enough room. |
 | `SectionedDropdown.tsx` | Popover holding any mix of single-select ("pick one", radio-style) and multi-select ("pick some", checkbox-style, optional all/clear footer) sections, divided by rules. Covers a plain single-value picker, a multi-select toggle list, or a combined menu (e.g. frequency + which types) - all the same component. Its trigger renders a `TriggerGaugeHost` ring showing every section's current state at a glance, without opening the menu. |
 | `ControlSchemePicker.tsx` | A `SectionedDropdown` opinionated for one job: picking which physical input (a keyboard layout - the raw layouts themselves live in `@tastic/input`, this repo has no opinion on which exist - or something else entirely, e.g. "keep using pointer input") drives a local seat in a couch-multiplayer game. Fixes the trigger icon/accessibility label and, the actual reason it's its own component rather than a usage snippet, bakes in the `Platform.OS === 'web' && !useIsTouchPrimaryDevice()` gate every consumer was independently re-deriving - renders `null` outside that (a physical-key scheme has no meaning on native or a touch-primary device), so it's safe to mount unconditionally inside a caller's own per-seat layout. Generic over `T`, same as `SectionedDropdown`'s own `MenuOption<T>` - a caller always supplies its own `options`. |
@@ -143,7 +143,7 @@ removed** (breaking).
 
 PuckTastic and DuelTastic each carried an identical `src/shared/lazySkia.tsx`, the web half of the host
 pair as one call; Labyrinth (`../Labyrinth`, plan sections 8 and 17) would have been a third copy, so it
-moved here (Jay approved 2026-11-12). Not released yet.
+moved here (Jay approved 2026-11-12). Released in 0.30.0.
 
 - **`lazySkia<P extends object>(load: () => Promise<{ default: ComponentType<P> }>): ComponentType<P>`**
   (`src/skia/lazySkia.tsx`): the packs' copy unchanged in behavior, a `React.lazy` over
@@ -1021,3 +1021,11 @@ the bars back for a moment and a second one goes home, back or into the shade. S
 - Why the whole play screen and not only a live round (Jay, 2026-11-14): hiding a bar changes the safe area, so
   flipping it every time a round starts or pauses would resize anything laid out from the insets (PuckTastic's rink).
 - Tests: `BaseSettingsDialog.test.tsx` shows the row on iOS and Android and hides it on the web.
+
+## Caret clear of the corner, StatSection caption (2026-11-15)
+
+From HexFleet's stats screen. Released in 0.31.0.
+
+- **`PopoverBody`'s caret** keeps its base past the box's rounded corner when the box is aligned left or right (`cornerRadius`, default 12, every fleet menu's): the caret's center is at least `cornerRadius` plus the caret ring's half-width from that edge. @tastic/profile's plain picker trigger is 28px, so its caret sat 14px in, its base reaching into the corner's curve, and the two outlines crossed in a jagged notch (Jay, in HexFleet's loadout). A centered box is wider than its trigger, so it's left alone. Tests in `PopoverBody.test.tsx`.
+- **`StatSection` takes a `caption`**: a short key at the right end of the heading line, over the rows' values, in the well's muted text (`fgMuted`) with the label's letter spacing and no bold. Without one the heading is the label alone, as before. HexFleet puts "W-L-D" over its records ("3-2-0"). Tests in `StatSection.test.tsx`.
+- Both were seen on the iOS 27 simulator in HexFleet, bundled with these two files copied into its `node_modules` (Metro reads hud's `src`), then put back.

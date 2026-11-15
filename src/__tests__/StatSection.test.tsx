@@ -29,6 +29,33 @@ describe('StatSection', () => {
     expect(rendered).toContain('child content')
   })
 
+  // A key over the values (HexFleet's records read wins-losses-draws, "3-2-0", under a "W-L-D"), muted beside the bold label
+  it('puts a caption at the right end of the heading line, muted', () => {
+    render(
+      <StatSection label='BY MODE' caption='W-L-D'>
+        <Text>child content</Text>
+      </StatSection>
+    )
+
+    const calls = (Text as jest.Mock).mock.calls.map((c) => c[0])
+    const caption = calls.find((props) => props.children === 'W-L-D')
+    expect(caption).toBeDefined()
+    expect(calls.some((props) => props.children === 'BY MODE')).toBe(true)
+    // The well's muted text, not the label's bold
+    expect(flatten(caption.style).some((e) => 'fontWeight' in e)).toBe(false)
+    expect(viewStyles().some((entries) => entries.some((e) => e.flexDirection === 'row' && e.justifyContent === 'space-between'))).toBe(true)
+  })
+
+  it('renders the heading as the label alone without a caption', () => {
+    render(
+      <StatSection label='OVERALL'>
+        <Text>child content</Text>
+      </StatSection>
+    )
+
+    expect(viewStyles().some((entries) => entries.some((e) => e.justifyContent === 'space-between'))).toBe(false)
+  })
+
   it("is a well: the theme's surface on the level-1 shadow, its label in onSurface", () => {
     render(
       <StatSection label='OVERALL'>

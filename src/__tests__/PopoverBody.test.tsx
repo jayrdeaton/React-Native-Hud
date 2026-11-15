@@ -149,6 +149,49 @@ describe('PopoverBody', () => {
     expect(carets.some((entries) => entries.some((e) => e.right !== undefined))).toBe(false)
   })
 
+  // A box aligned to one side has its caret near the box's rounded corner: a caret base reaching into the curve leaves a jagged notch
+  // where the two outlines cross (the profile picker's plain 28px text trigger, seen in HexFleet's loadout, 2026-11-15)
+  it("keeps the caret's base past the box's rounded corner for a narrow trigger aligned to a side", () => {
+    // ringSize = 7 + 2 = 9; centered at max(28/2, 12 + 9) = 21: the ring starts 21 - 9 = 12 in, where the corner ends
+    render(
+      <PopoverBody visible align='left' caretColor='#abcdef' caretBorderWidth={2} triggerSize={28}>
+        PANEL_CONTENT
+      </PopoverBody>
+    )
+    const carets = caretStyles()
+    expect(carets.some((entries) => entries.some((e) => e.left === 12))).toBe(true)
+    // The fill triangle (half footprint 7) on the same center
+    expect(carets.some((entries) => entries.some((e) => e.left === 14))).toBe(true)
+  })
+
+  it('mirrors the corner clearance for align right, and follows cornerRadius', () => {
+    render(
+      <PopoverBody visible align='right' caretColor='#abcdef' caretBorderWidth={2} triggerSize={28} cornerRadius={16}>
+        PANEL_CONTENT
+      </PopoverBody>
+    )
+    // Centered at 16 + 9 = 25: the ring's right is 25 - 9 = 16
+    expect(caretStyles().some((entries) => entries.some((e) => e.right === 16))).toBe(true)
+  })
+
+  it('leaves a trigger wide enough for the corner, and a centered box, pointing at the trigger', () => {
+    render(
+      <PopoverBody visible align='left' caretColor='#abcdef' triggerSize={44}>
+        PANEL_CONTENT
+      </PopoverBody>
+    )
+    // 44/2 - 8 = 14
+    expect(caretStyles().some((entries) => entries.some((e) => e.left === 14))).toBe(true)
+    ;(mockViewRender as jest.Mock).mockClear()
+    render(
+      <PopoverBody visible align='center' caretColor='#abcdef' triggerSize={20}>
+        PANEL_CONTENT
+      </PopoverBody>
+    )
+    // 20/2 - 8 = 2, unclamped
+    expect(caretStyles().some((entries) => entries.some((e) => e.left === 2))).toBe(true)
+  })
+
   // React Native's Yoga errata resolve an absolute child's percentage insets against the space its parent was offered, a whole multi-line
   // row in a wrapping one, so a menu in the first line opened a row too low on native: the box hangs off a zero-height strip pinned with
   // plain insets instead.
