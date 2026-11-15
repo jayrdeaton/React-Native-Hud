@@ -105,8 +105,8 @@ describe('BaseSettingsDialog', () => {
     unmount()
   })
 
-  it('shows Edge Guard on iOS when the defer props are passed, and reports the toggle', () => {
-    Platform.OS = 'ios'
+  it.each(['ios', 'android'] as const)('shows Edge Guard on %s when the defer props are passed, and reports the toggle', (os) => {
+    Platform.OS = os
     const onDeferBottomEdgeGestures = jest.fn()
     const { container, unmount } = render(<BaseSettingsDialog {...baseProps} deferBottomEdgeGestures={false} onDeferBottomEdgeGestures={onDeferBottomEdgeGestures} />)
 
@@ -117,16 +117,11 @@ describe('BaseSettingsDialog', () => {
     unmount()
   })
 
-  it('hides Edge Guard on non-iOS platforms even when the defer props are passed', () => {
-    Platform.OS = 'android'
-    const androidRender = render(<BaseSettingsDialog {...baseProps} deferBottomEdgeGestures={false} onDeferBottomEdgeGestures={jest.fn()} />)
-    expect(androidRender.container.textContent).not.toContain('Edge Guard')
-    androidRender.unmount()
-
+  it('hides Edge Guard on the web even when the defer props are passed', () => {
     Platform.OS = 'web'
-    const webRender = render(<BaseSettingsDialog {...baseProps} deferBottomEdgeGestures={false} onDeferBottomEdgeGestures={jest.fn()} />)
-    expect(webRender.container.textContent).not.toContain('Edge Guard')
-    webRender.unmount()
+    const { container, unmount } = render(<BaseSettingsDialog {...baseProps} deferBottomEdgeGestures={false} onDeferBottomEdgeGestures={jest.fn()} />)
+    expect(container.textContent).not.toContain('Edge Guard')
+    unmount()
   })
 
   it("shows Keep Awake when the app injected expo-keep-awake, and flips @rific/core's setting", () => {

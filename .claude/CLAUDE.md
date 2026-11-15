@@ -1006,3 +1006,18 @@ Jay, in Solitaire (CardTastic): a game's rules sat in `children`, below Keep Awa
 ## Music toggle in BaseSettingsDialog (2026-11-14)
 
 HexFleet got menu and battle music, and Jay wanted Music as its own setting, apart from Sound, in the shared dialog so every game gets it. `@rific/feedback-press` 0.14.0 adds the setting (`useMusicSettings`, `musicReducer`, the provider's `musicInitialValue`/`onMusicChange`) and `useMusic`, a looping track that plays only while it's on. `BaseSettingsDialog` gained `showMusic?: boolean`: a Music toggle (`music`/`music-off`, tertiary while on like every on/off row) in the toggle row between Sound and Haptics. Opt in, unlike `hideSound`/`hideHaptics`, since most games have no music; nothing changes for an app that doesn't pass it. No sound of its own when switched on (Sound's row clicks; here the music fading in is the confirmation). The `@rific/feedback-press` peer is `>=0.14.0` now (the dialog calls `useMusicSettings` whether or not the row shows), so this is a minor release that needs feedback-press 0.14.0 published first. Tests: `BaseSettingsDialog.test.tsx`, hidden by default and toggling its own setting when shown; the feedback-press mock gained `useMusicSettings`. Released in 0.30.0 (a minor) with `lazySkia` in `./skia` (2026-11-12), and the `@rific/feedback-press` dev dependency on 0.14.0. **Two to a row (0.30.1):** on HexFleet's iOS simulator (iPhone 18 Pro, 402pt) Sound, Music and Haptics in one row cut Haptics off past the dialog's edge, so `toggleRow` wraps and each toggle is `flexBasis: '45%'` with `flexGrow: 1`: two share a row as before, and a third wraps onto its own row and fills it, like the full-width rows above. Tested (each toggle's basis and grow).
+
+## Edge Guard on Android (2026-11-14)
+
+The Edge Guard row showed on iOS only, since `@tastic/edge-guard` only had iOS's half (a swizzle of
+`preferredScreenEdgesDeferringSystemGestures`). Edge-guard now has an Android half, `edgeGuardScreenOptions`:
+screen options that hide the system bars on a play screen in sticky immersive mode (react-native-screens'
+`navigationBarHidden`, which sets `BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE`), so a swipe from any edge only brings
+the bars back for a moment and a second one goes home, back or into the shade. Same caption, "Require second swipe".
+
+- **`showEdgeGuard` is `Platform.OS !== 'web'`** (was `=== 'ios'`), still only with both props passed.
+- **An app has to wire the Android half itself**, or the row does nothing there: spread
+  `edgeGuardScreenOptions(setting)` after its play screen's own options. The shell does this for its packs.
+- Why the whole play screen and not only a live round (Jay, 2026-11-14): hiding a bar changes the safe area, so
+  flipping it every time a round starts or pauses would resize anything laid out from the insets (PuckTastic's rink).
+- Tests: `BaseSettingsDialog.test.tsx` shows the row on iOS and Android and hides it on the web.

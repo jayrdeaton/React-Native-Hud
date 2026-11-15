@@ -53,8 +53,9 @@ export interface BaseSettingsDialogProps {
   lockOrientation?: boolean
   onLockOrientationChange?: (value: boolean) => void
   // Optional, and always passed as a pair - omit both entirely for a game with no full-screen edge-
-  // anchored swipe controls (nothing to guard). iOS-only regardless of whether the pair is passed:
-  // @tastic/edge-guard's own swizzle is a no-op on every other platform.
+  // anchored swipe controls (nothing to guard). Native only regardless of whether the pair is passed:
+  // a browser has no system edge gestures to guard. On Android the app also has to spread
+  // @tastic/edge-guard's edgeGuardScreenOptions over its play screen's options, or the row does nothing.
   deferBottomEdgeGestures?: boolean
   onDeferBottomEdgeGestures?: (value: boolean) => void
   // No Keep Awake props: that row reads @rific/core's Keep Awake setting itself (see showKeepAwake).
@@ -167,7 +168,7 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   if (visible && !opened) setOpened(true)
 
   const showLockOrientation = isTouchPrimary && lockOrientation !== undefined && onLockOrientationChange !== undefined
-  const showEdgeGuard = Platform.OS === 'ios' && deferBottomEdgeGestures !== undefined && onDeferBottomEdgeGestures !== undefined
+  const showEdgeGuard = Platform.OS !== 'web' && deferBottomEdgeGestures !== undefined && onDeferBottomEdgeGestures !== undefined
   // Only in an app that opted in by handing expo-keep-awake to @rific/core's KeepAwakeProvider, and
   // only where it can work: core withholds the module from a browser without the Screen Wake Lock
   // API (from @rific/core 0.4.1), so without it the setting would do nothing. On the same devices
@@ -243,12 +244,15 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
                     </TouchableRipple>
                   )}
 
-                  {/* iOS only - mirrors into UserDefaults for @tastic/edge-guard's own config plugin
-                  swizzle to read. Guards both edges - the top (Notification Center/Control Center)
-                  and the bottom (home-indicator swipe, incidentally Reachability too), per that
-                  package's own doc. Off by default: a deliberate opt-in for whoever's actually hit an
-                  accidental-swipe-near-an-edge problem mid-game and come looking for a fix, not a
-                  surprise every player gets by default. */}
+                  {/* iOS and Android. On iOS the app mirrors it into UserDefaults for
+                  @tastic/edge-guard's config plugin swizzle to read, guarding the top (Notification
+                  Center/Control Center) and the bottom (home-indicator swipe, incidentally
+                  Reachability too). On Android the app hands it to edge-guard's
+                  edgeGuardScreenOptions, which hides the system bars on the play screen in sticky
+                  immersive mode, so a swipe from any edge only brings them back for a moment. Either
+                  way it's the same "Require second swipe". Off by default: a deliberate opt-in for
+                  whoever's actually hit an accidental-swipe-near-an-edge problem mid-game and come
+                  looking for a fix, not a surprise every player gets by default. */}
                   {showEdgeGuard && (
                     <TouchableRipple onPress={() => onDeferBottomEdgeGestures!(!deferBottomEdgeGestures)} style={styles.toggleButton} accessibilityLabel={`Edge guard ${deferBottomEdgeGestures ? 'on' : 'off'}`}>
                       <View style={styles.toggleContent}>
