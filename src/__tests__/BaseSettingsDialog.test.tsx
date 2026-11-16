@@ -475,6 +475,34 @@ describe('BaseSettingsDialog', () => {
     unmount()
   })
 
+  // Jay, 2026-11-15 (HexFleet): with the iPhone on silent he took the sound for broken. iOS can't tell an app the switch is on
+  it('says on iOS that silent mode mutes whichever of Sound and Music show, and nowhere else', () => {
+    Platform.OS = 'ios'
+    const both = render(<BaseSettingsDialog {...baseProps} showMusic />)
+    expect(both.container.textContent).toContain('Silent mode mutes sound and music')
+    both.unmount()
+
+    const sound = render(<BaseSettingsDialog {...baseProps} />)
+    expect(sound.container.textContent).toContain('Silent mode mutes sound')
+    expect(sound.container.textContent).not.toContain('Silent mode mutes sound and music')
+    sound.unmount()
+
+    const music = render(<BaseSettingsDialog {...baseProps} hideSound showMusic />)
+    expect(music.container.textContent).toContain('Silent mode mutes music')
+    music.unmount()
+
+    const neither = render(<BaseSettingsDialog {...baseProps} hideSound />)
+    expect(neither.container.textContent).not.toContain('Silent mode')
+    neither.unmount()
+
+    for (const os of ['android', 'web'] as const) {
+      Platform.OS = os
+      const { container, unmount } = render(<BaseSettingsDialog {...baseProps} showMusic />)
+      expect(container.textContent).not.toContain('Silent mode')
+      unmount()
+    }
+  })
+
   it('hides Sound via hideSound, without hiding Haptics alongside it', () => {
     Platform.OS = 'ios'
     const { container, unmount } = render(<BaseSettingsDialog {...baseProps} hideSound />)

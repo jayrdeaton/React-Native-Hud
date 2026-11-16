@@ -280,6 +280,13 @@ A game with music passes `showMusic`, which adds a Music toggle beside Sound and
 follow; it's apart from Sound, so a player can keep the effects and turn the music off. Hidden unless
 asked for, since most games have no music.
 
+On iOS a line under the Sound, Music and Haptics row says that silent mode mutes Sound and Music
+("Silent mode mutes sound and music", or just the one that shows).
+`@rific/feedback-press` plays both in the ambient audio session, the convention for game sounds, so
+silent mode mutes them; a player who doesn't know that takes the sound for broken, and iOS gives apps
+no reliable way to read the switch, so the rows can't grey themselves out. Always shown on iOS while
+either row is, never on Android (its silent mode leaves media playing) or the web.
+
 ## Overlay cards (`OverlayCard`, `OverlayBackdrop`, `useOverlayCardColors`)
 
 `ConfirmDialog` and `HowToPlayDialog` draw their card and the dim behind it with these, and a game's

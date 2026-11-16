@@ -181,6 +181,8 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   // See the Blur row's own comment below for why it hides on Android and without expo-blur.
   const showBlur = showAppearance && Platform.OS !== 'android' && expoBlur !== undefined && expoBlur !== null
   const showUpdateCheck = Platform.OS !== 'web' && !hideUpdateCheck
+  // See the note's own comment below
+  const silentNote = Platform.OS !== 'ios' ? null : showSound && showMusic ? 'Silent mode mutes sound and music' : showSound ? 'Silent mode mutes sound' : showMusic ? 'Silent mode mutes music' : null
   const hasLeading = leading !== undefined && leading !== null && leading !== false
 
   // Laid out in its own turned frame rather than rotated in place. Paper's Portal mounts at the app
@@ -353,6 +355,17 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
                     </View>
                   )}
 
+                  {/* iOS's silent mode mutes Sound and Music: feedback-press plays them in the ambient audio
+                  session, the convention for game sounds. A player who doesn't know that thinks the sound
+                  is broken (Jay, HexFleet, 2026-11-15), and iOS gives apps no reliable way to read the
+                  switch, so the rows can't show it themselves; this says so under them, always, on iOS.
+                  Android's silent mode leaves media playing, and the web has none. */}
+                  {silentNote && (
+                    <Text variant='bodySmall' style={[styles.silentNote, { color: colors.onSurfaceVariant }]}>
+                      {silentNote}
+                    </Text>
+                  )}
+
                   {/* Not a toggle, but it reads like one of the rows above and belongs with them rather than
                   down in `children` (which sits below Appearance) - this is the "replay the intro"
                   entry point every game's own how-to-play flow shares. Dismisses this dialog first so
@@ -497,6 +510,11 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     letterSpacing: 2
+  },
+  // Lined up with the toggles' labels: past the 36pt icon badge (SettingIcon) and the 12pt gap
+  silentNote: {
+    marginBottom: 4,
+    paddingLeft: 48
   },
   // Used to carry marginHorizontal: -12 + paddingHorizontal: 12 (netting to the same inset as
   // APPEARANCE/SOUND & HAPTICS below, while giving the ripple/hover highlight room to breathe
