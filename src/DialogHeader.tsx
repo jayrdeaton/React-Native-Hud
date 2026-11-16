@@ -21,6 +21,9 @@ export interface DialogHeaderProps {
   // The icon and title color. Defaults to the theme's primary; ConfirmDialog passes its danger role
   // when destructive.
   color?: string
+  // The icon's own color, when it shouldn't match the title: HexFleet's Forfeit dialog draws its flag
+  // white (a surrender) under a red title (Jay, 2026-11-15). Defaults to `color`.
+  iconColor?: string
   // A short space (see useCompactDialog.ts): the icon moves beside the title, at half size, so a sheet
   // keeps its reading room.
   compact?: boolean
@@ -28,15 +31,16 @@ export interface DialogHeaderProps {
 }
 
 // The one header every dialog in the fleet opens with (Jay, 2026-10-15: "they should all have the same
-// title and maybe an icon"): a 64pt icon over a large bold title, both in the accent color, centered.
+// title and maybe an icon"): a 64pt icon over a large bold title, both in the accent color (the icon in
+// `iconColor` when given), centered.
 // ConfirmDialog, the How to Play guide, BaseSettingsDialog and every app's own result cards use it,
 // so a dialog never hand-rolls its own title again.
-export function DialogHeader({ icon, title, color, compact = false, style }: DialogHeaderProps) {
+export function DialogHeader({ icon, title, color, iconColor, compact = false, style }: DialogHeaderProps) {
   const { colors } = useAutoPaperTheme()
   const accent = color ?? colors.primary
   return (
     <View style={[compact ? styles.compact : styles.full, style]}>
-      <Icon source={icon} size={compact ? COMPACT_ICON_SIZE : ICON_SIZE} color={accent} />
+      <Icon source={icon} size={compact ? COMPACT_ICON_SIZE : ICON_SIZE} color={iconColor ?? accent} />
       <Text accessibilityRole='header' variant={compact ? 'headlineSmall' : 'headlineLarge'} style={[styles.title, compact && styles.titleCompact, { color: accent }]}>
         {title}
       </Text>

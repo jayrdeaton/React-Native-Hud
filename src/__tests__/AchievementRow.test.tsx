@@ -72,7 +72,9 @@ describe('AchievementRow', () => {
     render(<AchievementRow icon='trophy' title='First Win' description='Win a match' badgeColor='#FFD54F' unlockedLabel='Unlocked today' />)
 
     // The auto-paper mock's surface, onSurface and onSurfaceVariant.
-    expect(viewStyles().some((entries) => entries.some((e) => e.backgroundColor === '#00000f') && entries.some((e) => e.boxShadow === WELL_SHADOW))).toBe(true)
+    // The shadow on the row, the surface on its background layer (WellBackground), solid while it can't frost
+    expect(viewStyles().some((entries) => entries.some((e) => e.boxShadow === WELL_SHADOW))).toBe(true)
+    expect(viewStyles().some((entries) => entries.some((e) => e.backgroundColor === '#00000f'))).toBe(true)
     const titleProps = (Text as jest.Mock).mock.calls.find((c) => c[0].children === 'First Win')![0]
     expect([titleProps.style].flat().some((s: Record<string, unknown>) => s?.color === '#000002')).toBe(true)
     const descriptionProps = (Text as jest.Mock).mock.calls.find((c) => c[0].children === 'Win a match')![0]

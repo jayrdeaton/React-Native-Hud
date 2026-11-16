@@ -26,6 +26,9 @@ export interface ConfirmDialogProps {
   // Any react-native-paper Icon `source` name, shown in the header (DialogHeader) - defaults to a
   // plain question mark, since this component has no way to know why a caller is asking.
   icon?: string
+  // The header icon's own color (DialogHeader's `iconColor`), when it shouldn't match the title; the
+  // title and confirm button keep the accent. Defaults to the accent.
+  iconColor?: string
   // Whether the confirm button reads as destructive (the fleet's shared `danger` semantic role)
   // instead of the default primary-colored affirmative action.
   destructive?: boolean
@@ -40,7 +43,7 @@ export interface ConfirmDialogProps {
 // this renders identically on every platform, including web, where react-native-web's Alert.alert
 // is a hard no-op (confirmed: its entire implementation is `static alert() {}`) and Dialog's own
 // Portal-based positioning has its own web quirks BaseSettingsDialog already works around.
-export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLabel, onConfirm, onCancel, rotation = 0, icon = 'help-circle-outline', destructive = false }: ConfirmDialogProps) {
+export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLabel, onConfirm, onCancel, rotation = 0, icon = 'help-circle-outline', iconColor, destructive = false }: ConfirmDialogProps) {
   const { colors } = useAutoPaperTheme()
   const { fg } = useOverlayCardColors()
   const { compact, onLayout } = useCompactDialog(rotation)
@@ -77,7 +80,7 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLab
     <Portal>
       <OverlayBackdrop style={styles.overlay} onLayout={onLayout}>
         <OverlayCard style={[styles.card, toRotationStyle(rotation)]}>
-          <DialogHeader icon={icon} title={title} color={accent} compact={compact} />
+          <DialogHeader icon={icon} title={title} color={accent} iconColor={iconColor} compact={compact} />
           <Text variant='bodyLarge' style={[styles.body, { color: fg }]}>
             {message}
           </Text>

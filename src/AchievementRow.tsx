@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native'
 import { Icon, ProgressBar, Text } from 'react-native-paper'
 
+import { WellBackground } from './WellBackground'
 import { useWellColors, WELL_SHADOW } from './wellSurface'
 
 // A neutral gray for a locked badge's own background - exported so a caller computing its own
@@ -46,17 +47,18 @@ interface Props {
 // verbatim from LightCycles' own achievements.tsx, where this exact row shape backed its entire
 // "ALL ACHIEVEMENTS" list. Each row is its own well (wellSurface.ts: the theme's surface on MD3's level-1 shadow);
 // fg/fgMuted/its own background default to the well's colors, each independently overridable via the matching
-// prop for a caller with its own chrome palette. Has no opinion on what an achievement actually IS (id, unlock predicate, catalog)
+// prop for a caller with its own chrome palette, and it frosts while the player's Blur setting is on, where the dialogs do
+// (WellBackground; a sectionBg is always solid). Has no opinion on what an achievement actually IS (id, unlock predicate, catalog)
 // - that stays entirely app-local; this is purely the presentational row.
 export function AchievementRow({ icon, title, description, badgeColor, unlockedLabel, checkColor, progress, deviceMarker, fg: fgOverride, fgMuted: fgMutedOverride, sectionBg: sectionBgOverride }: Props) {
   const well = useWellColors()
   const fg = fgOverride ?? well.fg
   const fgMuted = fgMutedOverride ?? well.fgMuted
-  const sectionBg = sectionBgOverride ?? well.bg
   const unlocked = unlockedLabel !== undefined
 
   return (
-    <View style={[styles.row, { backgroundColor: sectionBg }]}>
+    <View style={styles.row}>
+      <WellBackground radius={12} color={sectionBgOverride} />
       <View style={[styles.badge, { backgroundColor: badgeColor }]}>
         <Icon source={icon} size={20} color={unlocked ? '#000000' : fgMuted} />
       </View>

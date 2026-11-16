@@ -2,6 +2,7 @@ import { ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 
+import { WellBackground } from './WellBackground'
 import { useWellColors, WELL_SHADOW } from './wellSurface'
 
 interface Props {
@@ -22,10 +23,10 @@ interface Props {
 // overridable via the matching prop for a caller with its own chrome palette. It was a faint tint until
 // 2026-10-17 (6% white in dark mode, 4% black in light). The label itself carries the section's own meaning
 // (what it's a section OF), so this component has no opinion on that beyond rendering the string it's given.
+// Frosted glass while the player's Blur setting is on, where the dialogs frost (WellBackground); a sectionBg is always solid.
 export function StatSection({ label, caption, fg: fgOverride, sectionBg: sectionBgOverride, children }: Props) {
   const well = useWellColors()
   const fg = fgOverride ?? well.fg
-  const sectionBg = sectionBgOverride ?? well.bg
   const heading = (
     <Text variant='labelMedium' style={[styles.label, { color: fg }]}>
       {label}
@@ -33,7 +34,8 @@ export function StatSection({ label, caption, fg: fgOverride, sectionBg: section
   )
 
   return (
-    <View style={[styles.section, { backgroundColor: sectionBg }]}>
+    <View style={styles.section}>
+      <WellBackground radius={12} color={sectionBgOverride} />
       {caption ? (
         <View style={styles.heading}>
           {heading}

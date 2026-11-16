@@ -116,6 +116,14 @@ describe('ConfirmDialog', () => {
     const { unmount } = render(<ConfirmDialog {...baseProps} destructive />)
 
     expect(lastHeaderProps()).toEqual(expect.objectContaining({ icon: 'help-circle-outline', title: 'Start a new game?', color: '#00000b', compact: false }))
+    expect(lastHeaderProps().iconColor).toBeUndefined()
+    unmount()
+  })
+
+  it('hands the header an icon color of its own, keeping the accent for the title', () => {
+    const { unmount } = render(<ConfirmDialog {...baseProps} icon='flag' iconColor='#ffffff' destructive />)
+
+    expect(lastHeaderProps()).toEqual(expect.objectContaining({ icon: 'flag', color: '#00000b', iconColor: '#ffffff' }))
     unmount()
   })
 

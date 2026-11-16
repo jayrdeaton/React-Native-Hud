@@ -33,6 +33,14 @@ describe('DialogHeader', () => {
     unmount()
   })
 
+  it('takes an icon color of its own, leaving the title in the accent', () => {
+    const { unmount } = render(<DialogHeader icon='flag' title='Forfeit?' color='#00000b' iconColor='#ffffff' />)
+
+    expect(lastIconProps().color).toBe('#ffffff')
+    expect([lastTitleProps().style].flat(Infinity)).toContainEqual({ color: '#00000b' })
+    unmount()
+  })
+
   it('compact: a half-size icon beside a smaller title, so a short sheet keeps its reading room', () => {
     const { unmount } = render(<DialogHeader icon='cog' title='Settings' compact />)
 

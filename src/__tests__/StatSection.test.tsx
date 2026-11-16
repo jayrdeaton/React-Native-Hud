@@ -64,7 +64,9 @@ describe('StatSection', () => {
     )
 
     // The auto-paper mock's surface and onSurface.
-    expect(viewStyles().some((entries) => entries.some((e) => e.backgroundColor === '#00000f') && entries.some((e) => e.boxShadow === WELL_SHADOW))).toBe(true)
+    // The shadow on the well, the surface on its background layer (WellBackground), solid while it can't frost
+    expect(viewStyles().some((entries) => entries.some((e) => e.boxShadow === WELL_SHADOW))).toBe(true)
+    expect(viewStyles().some((entries) => entries.some((e) => e.backgroundColor === '#00000f'))).toBe(true)
     const labelProps = (Text as jest.Mock).mock.calls.find((c) => c[0].children === 'OVERALL')![0]
     expect([labelProps.style].flat().some((s: Record<string, unknown>) => s?.color === '#000002')).toBe(true)
   })
