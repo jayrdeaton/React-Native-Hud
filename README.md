@@ -103,8 +103,9 @@ corner of the screen.
 - **`OverlayCard`** / **`OverlayBackdrop`** / **`useOverlayCardColors`** - the card and dim behind
   `ConfirmDialog` and the how-to-play guide, in the app's own theme colors and blurred when the
   player's Blur setting allows it. See Overlay cards below.
-- **`DialogHeader`** / **`useCompactDialog`** - the one header every dialog opens with (an icon over
-  a bold title in the theme's primary), and the rule for its compact form. See Overlay cards below.
+- **`DialogHeader`** / **`useCompactDialog`** / **`DialogHeaderStyleProvider`** - the one header every
+  dialog opens with (an icon over a bold title in the theme's primary), the rule for its compact form,
+  and a quiet style a game can set for all of them at once. See Overlay cards below.
 
 ## Rotation
 
@@ -326,6 +327,24 @@ function GameOverCard({ onRestart, onQuit }: { onRestart: () => void; onQuit: ()
   is compact when the space the dialog lays out in is under `COMPACT_DIALOG_HEIGHT` (528pt) along the
   card's own vertical axis, so a phone held sideways. One-button dialogs end in a single contained
   primary button (`overlayActionStyles.actionButtonSingle`), the Settings sheet's Done included.
+- **A game can make every header quiet** with `DialogHeaderStyleProvider`, set once at the app's root
+  (above auto-paper's `Provider`, so it reaches the dialogs in its portal host). `tone='quiet'` draws a
+  22pt icon beside the title, still in the accent (a destructive dialog's danger, a `ConfirmDialog`'s
+  `iconColor`), and the title in the theme's plain text color, in the game's own lettering
+  (`titleStyle`, laid over `titleLarge` bold). Color is left only in the small icon and the confirm
+  button: for a game where the big colored icon reads as too playful. Settings, every `ConfirmDialog`
+  (`UpdateDialog` included) and the how-to-play guide follow it. Without the provider, or with
+  `tone='standard'`, nothing changes. `useDialogHeaderStyle()` reads it.
+
+  ```tsx
+  import { DialogHeaderStyleProvider } from '@tastic/hud'
+
+  const DIALOG_TITLE = { fontSize: 18, fontWeight: '900', letterSpacing: 3, textTransform: 'uppercase' } as const
+
+  <DialogHeaderStyleProvider tone='quiet' titleStyle={DIALOG_TITLE}>
+    <ThemeProvider>{/* auto-paper's Provider and the rest of the app */}</ThemeProvider>
+  </DialogHeaderStyleProvider>
+  ```
 - **The secondary action is `SecondaryButton`.** Cancel, Skip, Back, a result card's Quit: outlined,
   labeled in the card's text color (`fg`) instead of Paper's default (the theme's primary), and sized
   as one of the action row's buttons. It takes no theme or seat color, so the contained primary beside
@@ -689,7 +708,7 @@ their props types:
 - Stats: `BaseStatsScreen`, `StatSection`, `StatRow`, `AchievementRow`, `LOCKED_BADGE_COLOR`,
   `AchievementCatalogSection`, `ActivityStatSection`, `useWellColors`, `WELL_SHADOW`
 - Chrome: `CornerActionButtons`, `ContentGutter`, `StaggeredWord`, `getStaggeredWordDuration`
-- Overlay cards: `OverlayCard`, `OverlayBackdrop`, `useOverlayCardColors`, `SecondaryButton`, `DialogHeader`, `useCompactDialog`, `isCompactDialogHeight`, `COMPACT_DIALOG_HEIGHT`
+- Overlay cards: `OverlayCard`, `OverlayBackdrop`, `useOverlayCardColors`, `SecondaryButton`, `DialogHeader`, `DialogHeaderStyleProvider`, `useDialogHeaderStyle`, `useCompactDialog`, `isCompactDialogHeight`, `COMPACT_DIALOG_HEIGHT`
 - Popovers (0.23.0+): `PopoverBody`, `PressAwayOverlay`, `usePopoverHost` (and its `PopoverHost` type),
   `useAutoAlign` (and its `AlignResult`, `PopoverAlign`, `PopoverRotation` and `PopoverVerticalAlign`
   types), `InlineColorPicker`, `getInlineColorPickerContentSize`
