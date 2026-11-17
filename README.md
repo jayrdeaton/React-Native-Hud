@@ -942,3 +942,7 @@ resolve module".
 | `@tastic/split-screen` | >=0.5.0, optional | main entry and `./lobby`: `useZoneClampedAlign` |
 | `@shopify/react-native-skia` | >=2.6.0, optional | `TriggerGaugeHost`'s gauge (loaded when one mounts) and `./skia` |
 | `@tastic/achievements` | >=0.2.0, optional | `AchievementCatalogSection`, `AchievementUnlockList`, type-only (`AchievementCatalogRow`, first exported in 0.2.0; `AchievementTier`); `./chrome` needs it installed only to type-check |
+
+---
+
+Made by [Infinite Token](https://www.infinitetoken.com), the team behind [Lumber](https://lumber.infinitetoken.com): end-to-end encrypted logging.
