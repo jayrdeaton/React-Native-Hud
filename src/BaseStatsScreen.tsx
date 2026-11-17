@@ -1,6 +1,5 @@
 import { FadingScrollView, useAutoPaperTheme } from '@rific/auto-paper'
 import { Button, IconButton } from '@rific/feedback-press'
-import { useRotation, type ViewRotation } from '@tastic/core'
 import { ReactNode, useState } from 'react'
 import { type Insets, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
@@ -13,14 +12,6 @@ import { ConfirmDialog } from './ConfirmDialog'
 type MD3TextVariant = 'displayLarge' | 'displayMedium' | 'displaySmall' | 'headlineLarge' | 'headlineMedium' | 'headlineSmall' | 'titleLarge' | 'titleMedium' | 'titleSmall' | 'labelLarge' | 'labelMedium' | 'labelSmall' | 'bodyLarge' | 'bodyMedium' | 'bodySmall'
 
 interface Props {
-  // Explicit override for the live physical-hold rotation (see @tastic/core's useRotation) - only
-  // affects this component's own Portal-rendered reset-confirm dialog (via ConfirmDialog's own
-  // rotation prop), which (like any Portal content) is unaffected by whichever screen's own
-  // FakeLandscapeView wraps the trigger and so has to rotate itself. Defaults to a live ambient
-  // read via useRotation() when omitted - note this does NOT make the header/scrollable content
-  // below rotate; the caller's own screen still needs its own FakeLandscapeView wrap for that
-  // (this component has no transform on its own main body).
-  rotation?: ViewRotation
   title?: string
   // 'headlineSmall' (this screen's own default, below) - was originally 'displaySmall' (the full
   // display tier's own smallest step), then 'headlineLarge', both still read as oversized for a
@@ -78,10 +69,8 @@ interface Props {
 // convention. `children` is the seam for whatever isn't shared: this component has no opinion on
 // what a "stat" is or how achievements are catalogued - see StatRow/StatSection/AchievementRow for
 // the smaller presentational pieces built to go inside it.
-export function BaseStatsScreen({ rotation: rotationOverride, title = 'Achievements', titleVariant = 'headlineSmall', onBack, backLabel = 'Back', hitSlop, insets, onReset, resetLabel = 'Reset All Stats', resetConfirmTitle = 'Reset Everything?', resetConfirmBody = 'This permanently erases all stats and achievements. This cannot be undone.', fg: fgOverride, bg: bgOverride, children }: Props) {
+export function BaseStatsScreen({ title = 'Achievements', titleVariant = 'headlineSmall', onBack, backLabel = 'Back', hitSlop, insets, onReset, resetLabel = 'Reset All Stats', resetConfirmTitle = 'Reset Everything?', resetConfirmBody = 'This permanently erases all stats and achievements. This cannot be undone.', fg: fgOverride, bg: bgOverride, children }: Props) {
   const { dark, colors } = useAutoPaperTheme()
-  const ambientRotation = useRotation()
-  const rotation = rotationOverride ?? ambientRotation
   const [confirmResetVisible, setConfirmResetVisible] = useState(false)
   const showReset = !!onReset
 
@@ -121,7 +110,6 @@ export function BaseStatsScreen({ rotation: rotationOverride, title = 'Achieveme
         cancelLabel='Cancel'
         icon='alert-outline'
         destructive
-        rotation={rotation}
         onCancel={() => setConfirmResetVisible(false)}
         onConfirm={() => {
           onReset?.()

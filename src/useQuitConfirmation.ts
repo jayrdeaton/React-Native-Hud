@@ -33,7 +33,7 @@ export interface QuitConfirmation {
 // every render (empty deps arrays), which the original plain-boolean version couldn't offer.
 //
 // Deliberately does NOT own or render a <ConfirmDialog> - title/message/icon/confirmLabel/
-// cancelLabel/rotation are all still game-specific (a score pairing, a lives/bricks count, a
+// cancelLabel are all still game-specific (a score pairing, a lives/bricks count, a
 // round-history pip row) and stay authored at each call site; this only owns the open/closed
 // state and the "should this even ask" gate. onConfirmedBack is a plain callback (every current
 // caller passes its own app's safeBack from @/utils/navigation) rather than hardcoded, so this

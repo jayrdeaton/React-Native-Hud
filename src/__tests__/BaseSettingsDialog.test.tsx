@@ -2,16 +2,24 @@ import { Dialog, useBlurModule, useThemeSettings } from '@rific/auto-paper'
 import { useExpoKeepAwake, useKeepAwakeSettings } from '@rific/core'
 import { Button, SoundContext, TouchableRipple, useHapticSettings, useMusicSettings, useSoundSettings } from '@rific/feedback-press'
 import { useUpdater } from '@rific/updater'
-import { FakeLandscapeView, useIsTouchPrimaryDevice, useRotation } from '@tastic/core'
+import { useIsTouchPrimaryDevice } from '@tastic/core'
 import { act, render } from '@testing-library/react'
 import { Children, type ReactElement } from 'react'
-import { Platform, ScrollView } from 'react-native'
+import { Platform, ScrollView, useWindowDimensions } from 'react-native'
 import { Icon } from 'react-native-paper'
 
 import { mockBackHandlerAdd } from '../__mocks__/react-native'
 import { BaseSettingsDialog } from '../BaseSettingsDialog'
 import { DialogHeader } from '../DialogHeader'
 import { overlayActionStyles } from '../overlayCard'
+import { ScreenFrame } from '../ScreenFrame'
+import { releasedLabel } from '../UpdateDialog'
+
+// The real frame, wrapped so a test can read the props it was rendered with.
+jest.mock('../ScreenFrame', () => {
+  const actual = jest.requireActual('../ScreenFrame')
+  return { ...actual, ScreenFrame: jest.fn(actual.ScreenFrame) }
+})
 
 jest.mock('../DialogHeader', () => {
   const actual = jest.requireActual('../DialogHeader')
@@ -21,9 +29,7 @@ jest.mock('../DialogHeader', () => {
 const baseProps = {
   visible: true,
   onDismiss: jest.fn(),
-  version: '1.2.3',
-  lockOrientation: false,
-  onLockOrientationChange: jest.fn()
+  version: '1.2.3'
 }
 
 // TouchableRipple is a bare stub (see rific-feedback-press mock) - it never touches
@@ -49,6 +55,10 @@ function flatStyle(style: unknown): Record<string, unknown> {
   return Object.assign({}, ...[style].flat(Infinity))
 }
 
+// The mocked window, upright, and the same phone held sideways (the OS turns the screen).
+const PORTRAIT = { width: 402, height: 874, scale: 3, fontScale: 1 }
+const LANDSCAPE = { width: 874, height: 402, scale: 3, fontScale: 1 }
+
 // What an app that opted into @rific/core's Keep Awake hands its KeepAwakeProvider.
 const mockExpoKeepAwake = { activateKeepAwakeAsync: jest.fn(() => Promise.resolve()), deactivateKeepAwake: jest.fn(() => Promise.resolve()) }
 
@@ -57,8 +67,8 @@ describe('BaseSettingsDialog', () => {
 
   afterEach(() => {
     Platform.OS = originalOS
+    ;(useWindowDimensions as jest.Mock).mockReturnValue(PORTRAIT)
     ;(useIsTouchPrimaryDevice as jest.Mock).mockReturnValue(true)
-    ;(useRotation as jest.Mock).mockReturnValue(0)
     ;(useBlurModule as jest.Mock).mockReturnValue(undefined)
     ;(useExpoKeepAwake as jest.Mock).mockReturnValue(undefined)
     ;(useKeepAwakeSettings as jest.Mock).mockReturnValue({ settings: { enabled: true }, set: jest.fn() })
@@ -67,33 +77,6 @@ describe('BaseSettingsDialog', () => {
   it('renders nothing while not visible', () => {
     const { container, unmount } = render(<BaseSettingsDialog {...baseProps} visible={false} />)
     expect(container.textContent).toBe('')
-    unmount()
-  })
-
-  it('shows Lock Orientation on a touch-primary device and reports the toggle', () => {
-    const onLockOrientationChange = jest.fn()
-    const { container, unmount } = render(<BaseSettingsDialog {...baseProps} lockOrientation={false} onLockOrientationChange={onLockOrientationChange} />)
-
-    expect(container.textContent).toContain('Lock Orientation')
-    findRippleByLabel('Lock orientation off').onPress()
-
-    expect(onLockOrientationChange).toHaveBeenCalledWith(true)
-    unmount()
-  })
-
-  it('hides Lock Orientation on a non-touch-primary device (desktop web)', () => {
-    ;(useIsTouchPrimaryDevice as jest.Mock).mockReturnValue(false)
-    const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
-
-    expect(container.textContent).not.toContain('Lock Orientation')
-    unmount()
-  })
-
-  it('omits Lock Orientation when the props are not passed at all (a portrait-only game)', () => {
-    const { visible, onDismiss, version } = baseProps
-    const { container, unmount } = render(<BaseSettingsDialog visible={visible} onDismiss={onDismiss} version={version} />)
-
-    expect(container.textContent).not.toContain('Lock Orientation')
     unmount()
   })
 
@@ -210,7 +193,7 @@ describe('BaseSettingsDialog', () => {
     const at = (needle: string) => text.indexOf(needle)
     expect(at('Settings')).toBeLessThan(at('KLONDIKE rules go here'))
     expect(at('KLONDIKE rules go here')).toBeLessThan(at('GENERAL'))
-    expect(at('GENERAL')).toBeLessThan(at('Lock Orientation'))
+    expect(at('GENERAL')).toBeLessThan(at('Sound'))
     expect(at('Sound')).toBeLessThan(at('How to Play'))
     expect(at('How to Play')).toBeLessThan(at('APPEARANCE'))
     expect(at('APPEARANCE')).toBeLessThan(at('Board settings go here'))
@@ -228,16 +211,17 @@ describe('BaseSettingsDialog', () => {
   })
 
   // Jay, 2026-10-15: every dialog opens with the same header and closes with the same single button.
-  it("opens with the fleet's dialog header, compact once the sheet is turned onto a phone's short edge", () => {
+  it("opens with the fleet's dialog header, compact on a phone held sideways", () => {
     const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
 
     expect(container.textContent).toContain('Settings')
     expect((DialogHeader as unknown as jest.Mock).mock.lastCall![0]).toMatchObject({ icon: 'cog', title: 'Settings', compact: false })
     unmount()
 
-    const { unmount: unmountTurned } = render(<BaseSettingsDialog {...baseProps} rotation={90} />)
+    ;(useWindowDimensions as jest.Mock).mockReturnValue(LANDSCAPE)
+    const { unmount: unmountSideways } = render(<BaseSettingsDialog {...baseProps} />)
     expect((DialogHeader as unknown as jest.Mock).mock.lastCall![0]).toMatchObject({ compact: true })
-    unmountTurned()
+    unmountSideways()
   })
 
   // auto-paper's Dialog alone sits 32pt in from the edges and caps at 400; every overlay card sits 24pt
@@ -248,10 +232,11 @@ describe('BaseSettingsDialog', () => {
     expect(flatStyle((Dialog as unknown as jest.Mock).mock.lastCall![0].style).width).toBe(354)
     unmount()
 
-    const { unmount: unmountTurned } = render(<BaseSettingsDialog {...baseProps} rotation={90} />)
-    // Turned: the frame is the window's 874pt height wide, so the cap applies.
+    ;(useWindowDimensions as jest.Mock).mockReturnValue(LANDSCAPE)
+    const { unmount: unmountSideways } = render(<BaseSettingsDialog {...baseProps} />)
+    // Sideways: the window is 874pt wide, so the cap applies.
     expect(flatStyle((Dialog as unknown as jest.Mock).mock.lastCall![0].style).width).toBe(360)
-    unmountTurned()
+    unmountSideways()
   })
 
   // Jay, 2026-10-15: the header scrolls away with the rows so a long sheet gets the whole card; Done
@@ -336,19 +321,19 @@ describe('BaseSettingsDialog', () => {
     webRender.unmount()
   })
 
-  // Lock Orientation and Edge Guard used to light up in secondary while Sound/Haptics (and every
-  // toggle the apps add) used tertiary, so one row read as a different accent from the rest.
+  // Edge Guard used to light up in secondary while Sound/Haptics (and every toggle the apps add) used
+  // tertiary, so one row read as a different accent from the rest.
   it('gives every on/off row the same tertiary accent while on', () => {
     Platform.OS = 'ios'
     ;(useSoundSettings as jest.Mock).mockReturnValue({ settings: { enabled: true }, set: jest.fn() })
     ;(useHapticSettings as jest.Mock).mockReturnValue({ settings: { vibrate: true }, set: jest.fn() })
     ;(useExpoKeepAwake as jest.Mock).mockReturnValue(mockExpoKeepAwake)
     ;(Icon as jest.Mock).mockClear()
-    const { unmount } = render(<BaseSettingsDialog {...baseProps} lockOrientation deferBottomEdgeGestures onDeferBottomEdgeGestures={jest.fn()} />)
+    const { unmount } = render(<BaseSettingsDialog {...baseProps} deferBottomEdgeGestures onDeferBottomEdgeGestures={jest.fn()} />)
 
     // '#000008' is the rific-auto-paper mock's tertiary (its secondary is '#000005').
     const iconColor = (source: string) => (Icon as jest.Mock).mock.calls.find(([props]) => props.source === source)?.[0].color
-    expect(['lock', 'shield-check-outline', 'eye', 'volume-high', 'vibrate'].map(iconColor)).toEqual(Array(5).fill('#000008'))
+    expect(['shield-check-outline', 'eye', 'volume-high', 'vibrate'].map(iconColor)).toEqual(Array(4).fill('#000008'))
     unmount()
   })
 
@@ -414,6 +399,8 @@ describe('BaseSettingsDialog', () => {
     })
 
     expect(container.textContent).toContain('Update Available')
+    // The same wording as UpdateDialog's prompt ("Released Jan 1 at 12:00 PM"), not a log line.
+    expect(container.textContent).toContain(releasedLabel(new Date('2026-01-01T12:00:00.000Z')))
     expect(container.textContent).toContain('Restart')
     expect(container.textContent).toContain('Later')
 
@@ -623,51 +610,34 @@ describe('BaseSettingsDialog', () => {
     unmount()
   })
 
-  describe('rotation', () => {
+  describe('frame', () => {
     function lastFrameProps() {
-      const calls = (FakeLandscapeView as unknown as jest.Mock).mock.calls
+      const calls = (ScreenFrame as unknown as jest.Mock).mock.calls
       return calls[calls.length - 1][0]
     }
 
-    function lastDialogStyle() {
-      const calls = (Dialog as unknown as jest.Mock).mock.calls
-      return calls[calls.length - 1][0].style
-    }
-
-    it('lays the sheet out in a pass-through frame turned by the live rotation when the prop is omitted', () => {
-      ;(useRotation as jest.Mock).mockReturnValue(180)
+    it('lays the sheet out in a pass-through frame with its own portal host', () => {
       const { unmount } = render(<BaseSettingsDialog {...baseProps} />)
 
-      expect(lastFrameProps()).toMatchObject({ rotation: 180, passThrough: true })
-      // The frame does the turning, so the card itself carries no transform.
-      expect(flatStyle(lastDialogStyle())).toEqual({ maxHeight: '90%', width: 354 })
-      unmount()
-    })
-
-    it('honors an explicit rotation prop over the ambient useRotation() value', () => {
-      ;(useRotation as jest.Mock).mockReturnValue(180)
-      const { unmount } = render(<BaseSettingsDialog {...baseProps} rotation={90} />)
-
-      expect(lastFrameProps()).toMatchObject({ rotation: 90, passThrough: true })
-      expect(flatStyle(lastDialogStyle())).toEqual({ maxHeight: '90%', width: 360 })
+      expect(lastFrameProps()).toMatchObject({ portalHost: true, passThrough: true })
       unmount()
     })
 
     it('mounts no frame before the first open', () => {
-      ;(FakeLandscapeView as unknown as jest.Mock).mockClear()
+      ;(ScreenFrame as unknown as jest.Mock).mockClear()
       const { unmount } = render(<BaseSettingsDialog {...baseProps} visible={false} />)
 
-      expect(FakeLandscapeView).not.toHaveBeenCalled()
+      expect(ScreenFrame).not.toHaveBeenCalled()
       unmount()
     })
 
     it('keeps the frame mounted after closing, so the close fade is not cut short', () => {
       const { rerender, unmount } = render(<BaseSettingsDialog {...baseProps} visible={false} />)
       rerender(<BaseSettingsDialog {...baseProps} visible />)
-      ;(FakeLandscapeView as unknown as jest.Mock).mockClear()
+      ;(ScreenFrame as unknown as jest.Mock).mockClear()
       rerender(<BaseSettingsDialog {...baseProps} visible={false} />)
 
-      expect(FakeLandscapeView).toHaveBeenCalled()
+      expect(ScreenFrame).toHaveBeenCalled()
       const dialogCalls = (Dialog as unknown as jest.Mock).mock.calls
       expect(dialogCalls[dialogCalls.length - 1][0].visible).toBe(false)
       unmount()

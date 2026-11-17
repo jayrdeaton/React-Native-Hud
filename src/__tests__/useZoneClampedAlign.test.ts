@@ -81,23 +81,6 @@ describe('useZoneClampedAlign', () => {
     expect(result.current.maxHeight).toBe(688)
   })
 
-  it('threads an explicit rotation through to the underlying useAutoAlign fallback (no zone)', () => {
-    // Same fixture and arithmetic as useAutoAlign.test.ts's own "picks the alignment the trigger is
-    // ACTUALLY near once rotation is accounted for" case: raw (350, 100, 20, 20) resolves to 'right'
-    // at rotation 0 but reflects near the LEFT edge once rotateRect'd through a 180° ancestor. This
-    // only exercises the `if (!zone) return auto` fallback - see this hook's own doc for why that's
-    // the one path `rotation` is currently guaranteed to affect.
-    const { result, rerender } = renderHook(({ open }) => useZoneClampedAlign(open, 100, 100, 180), {
-      initialProps: { open: false }
-    })
-
-    result.current.triggerRef.current = fakeTrigger(350, 100, 20, 20)
-    act(() => rerender({ open: true }))
-
-    expect(result.current.measured).toBe(true)
-    expect(result.current.align).toBe('left')
-  })
-
   it('flips the real-world direction back to its local label inside a rotated (p2-style) zone - the single easiest regression to miss', () => {
     // Identical geometry to the "flips toward the shared row" case above - only `rotated` changes,
     // to isolate the inversion on its own (zoneSide and rotated are independent fields on

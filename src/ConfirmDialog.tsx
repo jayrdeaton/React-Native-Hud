@@ -1,6 +1,5 @@
 import { useAutoPaperTheme } from '@rific/auto-paper'
 import { Button } from '@rific/feedback-press'
-import { toRotationStyle, type ViewRotation } from '@tastic/core'
 import { type ReactNode, useEffect, useRef } from 'react'
 import { BackHandler, StyleSheet, View } from 'react-native'
 import { Portal, Text } from 'react-native-paper'
@@ -19,10 +18,6 @@ export interface ConfirmDialogProps {
   cancelLabel?: string
   onConfirm: () => void
   onCancel?: () => void
-  // Live physical-hold rotation (see @tastic/core's getViewRotation) - same convention as
-  // BaseSettingsDialog's own rotation prop; defaults to 0 for a caller with no per-player zone to
-  // match (a portrait-only or single-player game has nothing to stay consistent with).
-  rotation?: ViewRotation
   // Any react-native-paper Icon `source` name, shown in the header (DialogHeader) - defaults to a
   // plain question mark, since this component has no way to know why a caller is asking.
   icon?: string
@@ -43,10 +38,10 @@ export interface ConfirmDialogProps {
 // this renders identically on every platform, including web, where react-native-web's Alert.alert
 // is a hard no-op (confirmed: its entire implementation is `static alert() {}`) and Dialog's own
 // Portal-based positioning has its own web quirks BaseSettingsDialog already works around.
-export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLabel, onConfirm, onCancel, rotation = 0, icon = 'help-circle-outline', iconColor, destructive = false }: ConfirmDialogProps) {
+export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLabel, onConfirm, onCancel, icon = 'help-circle-outline', iconColor, destructive = false }: ConfirmDialogProps) {
   const { colors } = useAutoPaperTheme()
   const { fg } = useOverlayCardColors()
-  const { compact, onLayout } = useCompactDialog(rotation)
+  const { compact, onLayout } = useCompactDialog()
 
   // Android's back means Cancel while the dialog is up. It's a Portal over a View, not a Modal, so
   // nothing else catches the press: it would fall through to whatever is underneath (the router, or a
@@ -79,7 +74,7 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, cancelLab
   return (
     <Portal>
       <OverlayBackdrop style={styles.overlay} onLayout={onLayout}>
-        <OverlayCard style={[styles.card, toRotationStyle(rotation)]}>
+        <OverlayCard style={styles.card}>
           <DialogHeader icon={icon} title={title} color={accent} iconColor={iconColor} compact={compact} />
           <Text variant='bodyLarge' style={[styles.body, { color: fg }]}>
             {message}

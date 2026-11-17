@@ -7,7 +7,7 @@ import { Text } from 'react-native-paper'
 import { InlineColorPicker } from './InlineColorPicker'
 import { LabeledDropdownOption } from './LabeledDropdown'
 import { ReadyButton } from './ReadyButton'
-import { AlignResult, PopoverRotation } from './useAutoAlign'
+import { AlignResult } from './useAutoAlign'
 import { PopoverHost, usePopoverHost } from './usePopoverHost'
 import { useZoneClampedAlign } from './useZoneClampedAlign'
 
@@ -59,11 +59,10 @@ export interface PlayerSetupPanelProps<C extends string = string> {
   // False leaves the Color row out of the seat button's dropdown (e.g. a CPU seat set to "None",
   // with no second player to color). Defaults to true.
   showColor?: boolean
-  // The fallback color swatch's placement and rotation, passed straight through to its
+  // The fallback color swatch's placement, passed straight through to its
   // InlineColorPicker. That swatch is only drawn on a seat with neither a profile picker nor a CPU
   // difficulty picker (see the header below); the seat button places its own dropdown.
   colorAlignOverride?: AlignResult
-  colorRotation?: PopoverRotation
   isHuman: boolean
   // Whatever sits under the seat button in pickerRow, if anything - a ControlSchemePicker, a raw
   // SectionedDropdown, or nothing at all. The five apps this component was extracted from each
@@ -126,8 +125,9 @@ export interface PlayerSetupPanelProps<C extends string = string> {
   readySurfaceColor?: string
   // A placement of the host's own for the seat button's dropdown, in place of useZoneClampedAlign:
   // called as a hook with whether the dropdown is open and the size it draws, and its result handed
-  // to the picker as `alignOverride` (for a screen turned by a fake landscape, whose button
-  // useAutoAlign would measure against the upright window). It replaces the zone clamp, so leave it
+  // to the picker as `alignOverride`. Added for a screen turned by @tastic/core's old drawn rotation,
+  // whose button useAutoAlign measured against the upright window; nothing turns that way since core
+  // 0.15, so a host may no longer need one. It replaces the zone clamp, so leave it
   // unset for a panel inside a @tastic/split-screen zone. A hook: keep the same one for the panel's
   // life, and remount the panel (a key) to change it.
   useSeatPickerAlign?: (open: boolean, contentWidth: number, contentHeight: number) => AlignResult
@@ -147,7 +147,7 @@ export interface PlayerSetupPanelProps<C extends string = string> {
 // Owns its own popover host shared by its own pickers unless a `host` is passed in to share with
 // another panel (or a shared-controls row) instead - same convention as every popover-hosting
 // component in this package.
-export function PlayerSetupPanel<C extends string = string>({ idPrefix, host, label, labelFontFamily, color, onColorChange, swatches, takenColor, allowSwapTaken, colorCaption, showColor = true, colorAlignOverride, colorRotation, isHuman, secondPicker, secondPickerId, ready, onToggleReady, dark, showReadyButton = true, profiles, selectedProfileId, takenProfileId, guestLabel, nullLabel, onProfileSelect, onManageProfiles, cpuDifficulty, cpuDifficultyOptions, onCpuDifficultyChange, humanIcon = 'face-man', cpuIcon = 'robot', previewValue, triggerStyle, readySurfaceColor, useSeatPickerAlign }: PlayerSetupPanelProps<C>) {
+export function PlayerSetupPanel<C extends string = string>({ idPrefix, host, label, labelFontFamily, color, onColorChange, swatches, takenColor, allowSwapTaken, colorCaption, showColor = true, colorAlignOverride, isHuman, secondPicker, secondPickerId, ready, onToggleReady, dark, showReadyButton = true, profiles, selectedProfileId, takenProfileId, guestLabel, nullLabel, onProfileSelect, onManageProfiles, cpuDifficulty, cpuDifficultyOptions, onCpuDifficultyChange, humanIcon = 'face-man', cpuIcon = 'robot', previewValue, triggerStyle, readySurfaceColor, useSeatPickerAlign }: PlayerSetupPanelProps<C>) {
   const ownHost = usePopoverHost()
   const popover = host ?? ownHost
   // Checking *this panel's own* ids, not just "is anything open on the host" - when `host` is
@@ -173,8 +173,7 @@ export function PlayerSetupPanel<C extends string = string>({ idPrefix, host, la
   // The seat button's dropdown is placed here rather than by the caller: inside a
   // @tastic/split-screen zone (2 Player) it has to stay in that player's half, which
   // useZoneClampedAlign does, and outside one it's useAutoAlign's own placement (or the host's own,
-  // useSeatPickerAlign). Sized from the same section and rows the picker draws. Rotation 0, the same
-  // as the profile, color and difficulty dropdowns this button replaced were all placed with.
+  // useSeatPickerAlign). Sized from the same section and rows the picker draws.
   const seatPickerId = showProfilePicker ? getProfilePopoverId(idPrefix) : getCpuDifficultyPopoverId(idPrefix)
   const seatPickerSize = showProfilePicker ? getProfilePickerContentSize(profiles!.length, !!onManageProfiles, colorSection) : getOptionPickerContentSize(cpuDifficultyOptions?.length ?? 0, colorSection)
   const useSeatAlign = useSeatPickerAlign ?? useZoneClampedAlign
@@ -199,7 +198,7 @@ export function PlayerSetupPanel<C extends string = string>({ idPrefix, host, la
           {/* The fallback swatch, for a seat with no button: a human slot shows the selected
           profile's own tag when it has one, falling back to humanIcon; a non-human slot always
           falls back to cpuIcon. */}
-          {!seatButton && <InlineColorPicker id={getColorPopoverId(idPrefix)} host={popover} value={color} onChange={onColorChange} swatches={swatches} takenValue={takenColor} allowSwapTaken={allowSwapTaken} previewValue={previewValue} alignOverride={colorAlignOverride} rotation={colorRotation} dark={dark} tag={isHuman ? selectedProfile?.tag : undefined} icon={isHuman ? humanIcon : cpuIcon} />}
+          {!seatButton && <InlineColorPicker id={getColorPopoverId(idPrefix)} host={popover} value={color} onChange={onColorChange} swatches={swatches} takenValue={takenColor} allowSwapTaken={allowSwapTaken} previewValue={previewValue} alignOverride={colorAlignOverride} dark={dark} tag={isHuman ? selectedProfile?.tag : undefined} icon={isHuman ? humanIcon : cpuIcon} />}
 
           {secondPicker}
         </View>

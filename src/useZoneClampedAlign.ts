@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { PopoverRotation, PopoverVerticalAlign, useAutoAlign } from './useAutoAlign'
+import { PopoverVerticalAlign, useAutoAlign } from './useAutoAlign'
 
 // Matches useAutoAlign's own EDGE_MARGIN convention - not exported from that file, so re-declared
 // here rather than reaching into its internals.
@@ -45,30 +45,16 @@ interface OwnBounds {
 // is all real-world (from measureInWindow, which - unlike onLayout - already resolves
 // post-transform)" - that's the exact claim useAutoAlign.ts's own doc documents as having already
 // shipped one real, unnoticed bug once (measureInWindow reports the PRE-transform frame, not
-// post-transform; see that file's own comment). This hook still doesn't apply useAutoAlign's own
-// rotateRect(...) correction to its raw measureInWindow read below (awayRoom/towardRoom are
-// computed straight from the uncorrected y/height) - that's a real, currently-unfixed gap, left
-// alone deliberately rather than guessed at: DualZoneLayout's own sharedEdgeY (see
-// React-Native-Split-Screen's DualZoneLayout.tsx, measureShared) has the identical uncorrected-
-// measureInWindow gap, since sharedRef sits under the same live-rotating outer FakeLandscapeView
-// every real caller wraps this in - and zone.rotated alone isn't sufficient to fix just this
-// hook's own half of it (it captures a trigger's own net rotation for p1/p2 specifically, which
-// happens to fully account for the outer rotation there, but sharedEdgeY's own correction needs
-// the outer rotation directly, which differs from zone.rotated for whichever seat zone.rotated is
-// currently true for). Correcting one side without the other risks making the comparison *more*
-// wrong, not less. No current caller in the fleet actually exercises this path today - every real
-// cpuDifficultyAlignOverride call site across the fleet is a confirmed no-op, never actually
-// rendering inside a live DualZoneLayout zone - so nothing currently miscalculates in practice, but
-// this needs real rotated-zone test coverage (ideally live device testing, not just a unit test
-// stubbing measureInWindow) before either hook's room-size/direction math under live device
-// rotation is trustworthy.
-//
-// `rotation` IS threaded through below, though - that part's unambiguous and low-risk on its own:
-// it only ever reaches useAutoAlign's own (rotation-aware) horizontal align decision, which is
-// exactly what a caller gets back verbatim via the `if (!zone) return auto` fallback whenever this
-// hook is used outside a zone at all (its own documented "safe to reach for even in a component
-// that might or might not end up inside one" case) - matching every sibling rotation-aware
-// component's own default of an ambient `useRotation()` read when the caller omits it.
+// post-transform; see that file's own comment). This hook's raw measureInWindow read below is
+// never corrected for p2's turned zone (awayRoom/towardRoom are computed straight from the
+// uncorrected y/height), and DualZoneLayout's own sharedEdgeY (see React-Native-Split-Screen's
+// DualZoneLayout.tsx, measureShared) reads measureInWindow the same way. Until @tastic/core 0.15
+// an outer FakeLandscapeView also turned the whole screen a quarter, which made correcting either
+// side alone risky; the OS turns the screen now, so only p2's zone (zone.rotated, 180) is turned.
+// Left alone rather than guessed at: no current caller in the fleet
+// renders a popover inside a live DualZoneLayout zone, so nothing miscalculates in practice, but
+// this needs real turned-zone test coverage (ideally on a device, not just a unit test stubbing
+// measureInWindow) before either hook's room-size/direction math there is trustworthy.
 //
 // The "away" direction's own room also has to stop at the physical safe area, not the raw window
 // edge - useAutoAlign's own windowHeight is the full device height, notch/status bar and home
@@ -76,8 +62,8 @@ interface OwnBounds {
 // one overflow (into the other zone) for another (under the status bar, or behind the home
 // indicator). The toward-shared direction doesn't need this: sharedEdgeY already sits well inside
 // the safe content area on its own.
-export function useZoneClampedAlign(open: boolean, contentWidth: number, contentHeight: number, rotation: PopoverRotation = 0): ReturnType<typeof useAutoAlign> {
-  const auto = useAutoAlign(open, contentWidth, contentHeight, rotation)
+export function useZoneClampedAlign(open: boolean, contentWidth: number, contentHeight: number): ReturnType<typeof useAutoAlign> {
+  const auto = useAutoAlign(open, contentWidth, contentHeight)
   const zone = useZoneBounds()
   const { height: windowHeight } = useWindowDimensions()
   const insets = useSafeAreaInsets()

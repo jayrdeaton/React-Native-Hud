@@ -1,7 +1,3 @@
-import React from 'react'
-
-import { useWindowDimensions, View } from './react-native'
-
 // Real @tastic/core's package.json "browser"/"react-native" export conditions point at its own
 // raw .ts source (so bundlers can inline it, worklet directive and all) rather than the compiled
 // dist - jsdom's default customExportConditions includes "browser", so plain resolution hands
@@ -23,40 +19,3 @@ export function computeContentBounds(windowWidth: number, maxContentWidth: numbe
 // narrow-width fallback) - none of which jsdom meaningfully reports, so it's stubbed to a plain
 // jest.fn() a test can override per-case instead.
 export const useIsTouchPrimaryDevice = jest.fn(() => true)
-
-// Real hook reads a live Context (device-tilt sensor state, resolved through getViewRotation) -
-// stubbed to a plain jest.fn() defaulting to "no rotation" so every existing test (none of which
-// care about rotation) is unaffected; a test asserting the ambient-default path overrides this per
-// case with mockReturnValueOnce/mockReturnValue.
-export const useRotation = jest.fn(() => 0)
-
-// Same treatment as clamp/computeContentBounds above - a pure, dependency-free one-liner, trivial
-// enough to just reimplement rather than fight the export-condition/transform mismatch.
-export function toRotationStyle(rotation: number): { transform: [{ rotate: string }] } | undefined {
-  return rotation % 360 !== 0 ? { transform: [{ rotate: `${rotation}deg` }] } : undefined
-}
-
-// Mirrors the real hook (useWindowDimensions swapped through the ambient useRotation, exact identity
-// at rotation 0 / 180) using this directory's own mocks of both, so a test drives it by overriding
-// useWindowDimensions + useRotation - or overrides this jest.fn directly to pin a footprint.
-export const useRotatedWindowDimensions = jest.fn((): { width: number; height: number } => {
-  const { width, height } = useWindowDimensions()
-  const rotation = useRotation()
-  return Math.abs(rotation) === 90 ? { width: height, height: width } : { width, height }
-})
-
-// Pure, dependency-free swaps, reimplemented for the same export-condition reason as clamp above.
-export function rotateDimensions(width: number, height: number, rotation: number): { width: number; height: number } {
-  return Math.abs(rotation) === 90 ? { width: height, height: width } : { width, height }
-}
-
-export function rotateInsets(insets: { top: number; right: number; bottom: number; left: number }, rotation: number): { top: number; right: number; bottom: number; left: number } {
-  const compass = ['top', 'right', 'bottom', 'left'] as const
-  const steps = (((rotation / 90) % 4) + 4) % 4
-  const edgeFor = (edge: (typeof compass)[number]) => insets[compass[(compass.indexOf(edge) + steps) % 4]]
-  return { top: edgeFor('top'), right: edgeFor('right'), bottom: edgeFor('bottom'), left: edgeFor('left') }
-}
-
-// The real component's layout math is core's own to test; here it is just a View carrying the props
-// a caller passed (rotation, passThrough, style), so a test reads them off the captured calls.
-export const FakeLandscapeView = jest.fn(({ children, ...props }: { children?: React.ReactNode } & Record<string, unknown>) => React.createElement(View, props, children))

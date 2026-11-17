@@ -69,7 +69,7 @@ Re-run `npm run build && yalc push` after any change to propagate it to every li
 |---|---|
 | `usePopoverHost.ts` | `{openId, toggle, close}` - tracks which one popover is open within a group. One instance per independent editor (e.g. one per player's panel) so opening a popover in one group never affects another. |
 | `PopoverBody.tsx` | Low-level popover shell: position (`align`/`verticalAlign`), the connecting caret triangle. Rendered inline as an absolutely-positioned sibling of its trigger - never via Portal - so it inherits any rotation transform the trigger's zone applies. With a side align the caret's base is kept past the box's rounded corner (`cornerRadius`, default 12): @tastic/profile's plain 28px picker trigger put it inside the curve, a jagged notch Jay saw in HexFleet's loadout (2026-11-15). |
-| `useAutoAlign.ts` | Measures a trigger's actual on-screen position via `measureInWindow` (resolves post-transform - rotation-safe) and picks whichever `align`/`verticalAlign` keeps a popover of a given size from overflowing a screen edge. Also returns `maxHeight`, the room available in whichever direction it picked, for the caller to cap content and scroll instead of overflowing when neither direction has enough room. |
+| `useAutoAlign.ts` | Measures a trigger's on-screen position via `measureInWindow` (which reports the PRE-transform frame, used as is: no `rotation` since 0.34) and picks whichever `align`/`verticalAlign` keeps a popover of a given size from overflowing a screen edge. Also returns `maxHeight`, the room available in whichever direction it picked, for the caller to cap content and scroll instead of overflowing when neither direction has enough room. |
 | `SectionedDropdown.tsx` | Popover holding any mix of single-select ("pick one", radio-style) and multi-select ("pick some", checkbox-style, optional all/clear footer) sections, divided by rules. Covers a plain single-value picker, a multi-select toggle list, or a combined menu (e.g. frequency + which types) - all the same component. Its trigger renders a `TriggerGaugeHost` ring showing every section's current state at a glance, without opening the menu. |
 | `ControlSchemePicker.tsx` | A `SectionedDropdown` opinionated for one job: picking which physical input (a keyboard layout - the raw layouts themselves live in `@tastic/input`, this repo has no opinion on which exist - or something else entirely, e.g. "keep using pointer input") drives a local seat in a couch-multiplayer game. Fixes the trigger icon/accessibility label and, the actual reason it's its own component rather than a usage snippet, bakes in the `Platform.OS === 'web' && !useIsTouchPrimaryDevice()` gate every consumer was independently re-deriving - renders `null` outside that (a physical-key scheme has no meaning on native or a touch-primary device), so it's safe to mount unconditionally inside a caller's own per-seat layout. Generic over `T`, same as `SectionedDropdown`'s own `MenuOption<T>` - a caller always supplies its own `options`. |
 | `InlineColorPicker.tsx` | Swatch-grid color popover. Auto-computes column count from screen width (4-5 columns - clamped to whichever fills a complete row of `defaultColors`' 20 swatches). Supports a "taken" color shown disabled or swappable. |
@@ -212,6 +212,8 @@ A fleet-wide drift scan found that `PlayerSetupPanel`'s existing `colorAlignOver
 Added `getInlineColorPickerContentSize(swatchCount, windowWidth, columns?): { width, height }`, exported alongside `InlineColorPicker`. Unlike `getLabeledDropdownContentHeight` (which only depends on a static option count), this one also takes `windowWidth` explicitly - the picker's own auto-column clamp depends on window width, and a caller computing this ahead of the picker's own mount has no component instance to read `useWindowDimensions()` from. `InlineColorPicker`'s own internal computation now calls this same function (removed the duplicated inline formula), so there's exactly one place this math lives. Now `0.9.1` (patch, no breaking change - this is a new export only; no app was wired to use it as part of this fix, see each app's own CLAUDE.md for that follow-up).
 
 ### `useZoneClampedAlign` rotation threading (2026-09-18)
+
+(Superseded 2026-11-17: the `rotation` parameter and `colorRotation` are gone, see the last section. Kept for the history; the measureInWindow gap below still stands for p2's turned zone.)
 
 `useZoneClampedAlign` gained a `rotation: PopoverRotation = 0` fourth parameter, threaded straight into its internal `useAutoAlign` call - low-risk, since it only ever reaches `useAutoAlign`'s own already-rotation-aware horizontal-align decision (verbatim, via the `if (!zone) return auto` fallback whenever the hook is used outside a zone). `PlayerSetupPanel` gained a matching `colorRotation?: PopoverRotation` prop, forwarded to its internal `InlineColorPicker`'s own `rotation` prop.
 
@@ -413,12 +415,12 @@ cards read as a different shade from the Settings sheet. So:
   borrows the file, so it imports only `react-native`, `react-native-paper` and `@rific/auto-paper`
   (asserted in `guideImports.test.ts`). `isCompactDialogHeight`/`COMPACT_DIALOG_HEIGHT` (528 = the
   guide's old "480 usable inside 24pt gutters") is the one compact rule.
-- **`useCompactDialog(rotation)` (src/useCompactDialog.ts)** needs `@tastic/core`, so it lives apart from
-  the header (the guide can't import it; it computes compact in `getGuideCardSize`). It measures the
-  `OverlayBackdrop` (`onLayout`, new prop), which fills whatever the dialog lays out in, and reads it
-  along the card's own axis (width for a card turned +/-90). Before the first layout it guesses: a card
-  that turns itself is at the upright root (raw window), one that doesn't is in a frame the app turned
-  by the live rotation (`useRotatedWindowDimensions`).
+- **`useCompactDialog()` (src/useCompactDialog.ts)** lives apart from the header (the guide computes
+  compact in `getGuideCardSize` instead). It measures the `OverlayBackdrop` (`onLayout`, new prop),
+  which fills whatever the dialog lays out in, and reads its height. Before the first layout it guesses
+  the window's height. (It took a `rotation` and read a card turned +/-90 along its width, and before
+  that guessed a frame turned by the live rotation through core's `useRotatedWindowDimensions`; both
+  went on 2026-11-17, and it no longer imports `@tastic/core` at all.)
 - **`ConfirmDialog`** uses the header (its own title styles are gone). **`HowToPlayDialog`** has a header
   above the pages, `title`/`icon` props defaulting to "How to Play"/`help-circle-outline` (the Settings
   row's icon): it opens unprompted on a first launch, so it says what it is first. In compact the page
@@ -441,7 +443,7 @@ cards read as a different shade from the Settings sheet. So:
   `bodySmall` subtitle (Jay's wording, 2026-10-15). One line even on a 360pt phone (216pt of room;
   measured on Solitaire's web build).
 - **Row captions are short commands with no articles, in sentence case** (Jay, 2026-10-15): "Pin current
-  layout" (Lock Orientation), "Require second swipe" (Edge Guard), "Replay quick intro" (How to Play),
+  layout" (Lock Orientation, removed 2026-11-17), "Require second swipe" (Edge Guard), "Replay quick intro" (How to Play),
   "Frost behind dialogs" (Blur). They used to mix descriptions ("Pins the current layout", "Requires a
   second swipe") with commands. Labels stay Title Case; a caption is a short line under one, so sentence
   case. Swirlio's comments and CLAUDE.md still quote Edge Guard's old caption.
@@ -637,10 +639,12 @@ peer and would never catch a regression here; it would surface as a broken Hangm
 module, `src/overlayCard.ts`, imports only `react-native` (also asserted). The guide also borrows
 `src/OverlaySurface.tsx` (2026-10-15), which may import only `react`, `react-native`, `@rific/auto-paper`
 and `./overlayCard` (asserted the same way). Because it can't import
-`@tastic/core`, rotation is `GuideRotation` (a structural copy of core's `ViewRotation`) and the card builds
-its own `rotate` transform.
+`@tastic/core`, its rotation was `GuideRotation` (a structural copy of core's `ViewRotation`) with the card
+building its own `rotate` transform; both went on 2026-11-17, and the card no longer turns.
 
-**Size the card against the SWAPPED window when it's quarter-turned (2026-09-24).** The first version took a
+**Size the card against the SWAPPED window when it's quarter-turned (2026-09-24).** (Superseded 2026-11-17: the
+OS turns the window now, so `getGuideCardSize(windowWidth, windowHeight)` sizes against it as is, up to 360
+wide, and the 520 turned width is gone. Kept for the history.) The first version took a
 pre-rotated `style` from the caller and sized the card from the raw window width. But the fleet's rotation is
 fake (the OS window stays portrait), so a sideways card's on-screen width is its layout HEIGHT, which has to
 fit the window's short edge. The Solitaire review measured about 378pt of card against a 360pt Android phone.
@@ -689,23 +693,23 @@ Gotchas worth knowing:
 ### The chrome subpath - `@tastic/hud/chrome` (2026-10-14)
 
 `src/chrome/index.ts` re-exports the fleet's shared chrome from the existing files in `src/`:
-`BaseSettingsDialog`, `ConfirmDialog`, `UpdateDialog`, `RotatedFrame`, `BaseStatsScreen`, `StatSection`,
+`BaseSettingsDialog`, `ConfirmDialog`, `UpdateDialog`, `ScreenFrame` (`RotatedFrame` until 0.34), `BaseStatsScreen`, `StatSection`,
 `StatRow`, `AchievementRow`, `LOCKED_BADGE_COLOR`, `AchievementCatalogSection`, `ActivityStatSection`,
 `CornerActionButtons`, `ContentGutter`, `StaggeredWord`, `getStaggeredWordDuration`, `OverlayCard`,
 `OverlayBackdrop`, `useOverlayCardColors`, `SecondaryButton`, `DialogHeader`, `useCompactDialog`, `isCompactDialogHeight`, `COMPACT_DIALOG_HEIGHT`, `overlayStyles`,
 `overlayActionStyles`, `MONO_FONT`, `useWellColors` and `WELL_SHADOW`, plus (since 0.23.0) the popover
 pieces `PopoverBody`, `PressAwayOverlay`, `usePopoverHost` (with its `PopoverHost` type) and `useAutoAlign`
-(with `AlignResult`, `PopoverAlign`, `PopoverRotation` and `PopoverVerticalAlign`), and `InlineColorPicker`
+(with `AlignResult`, `PopoverAlign` and `PopoverVerticalAlign`; `PopoverRotation` too until 0.34), and `InlineColorPicker`
 with `getInlineColorPickerContentSize`, all with their props types. Built like `./guide`: its own
 tsup entry (`dist/chrome/index.*`), and `react-native` and `browser` both point at the source entry.
 
 **The popover pieces are there for `@tastic/profile` (2026-10-17).** Its `ProfilePicker`, `OptionPicker`,
-`PickerMenu` and `ProfilesManager` import `PopoverBody`, `PopoverHost`, `PopoverRotation`, `useAutoAlign`,
+`PickerMenu` and `ProfilesManager` import `PopoverBody`, `PopoverHost`, `PopoverRotation` (gone in 0.34), `useAutoAlign`,
 `usePopoverHost`, `InlineColorPicker`, `getInlineColorPickerContentSize` and `ConfirmDialog` from hud. From
 the main entry that pulled Skia and `@tastic/split-screen` into any app using `ProfilePicker` or
 `ProfilesScreen`, so Hangman couldn't. `@tastic/profile` 0.16 imports them from `./chrome` instead and needs
 hud 0.23.0 or later for these. `PressAwayOverlay` (which profile doesn't import) came along as the press-away half of the same pattern.
-`useAutoAlign.ts`'s `rotateRect` stays unexported, as in the main barrel. `useZoneClampedAlign`
+`useZoneClampedAlign`
 (split-screen), `SectionedDropdown` (`TriggerGaugeHost`, so Skia) and `PlayerSetupPanel` (`@tastic/profile`)
 stay main-entry only.
 
@@ -826,7 +830,7 @@ Real `peerDependencies` from `package.json`, with their actual version floors:
   above). The newest peer here (added in the same 2026-09-18 pass as that component) and currently
   resolved via yalc (`file:.yalc/@tastic/achievements` in `devDependencies`) rather than a real
   npm-published version.
-- `@tastic/core` - `>=0.12.0`, the first release with `FakeLandscapeView`'s `rotation`/`passThrough` (`RotatedFrame`, `BaseSettingsDialog`; also `clamp`, `useIsTouchPrimaryDevice`, `useRotation`, `useRotatedWindowDimensions`)
+- `@tastic/core` - `>=0.15.0`, where the OS turns the screen and core stops drawing a turn: this package follows no turn of its own, so on core 0.14 its dialogs and popovers would stay upright on a turned screen (raised from `>=0.12.0` on 2026-11-17, see the last two sections). Used: `clamp`, `computeContentBounds`, `useIsTouchPrimaryDevice`
 
 None of these are bundled - consumers use whatever versions their app already has. This repo also
 declares each of the nine peers above as a `devDependency` (own dev/test/build, at or above the
@@ -894,7 +898,7 @@ Solitaire's player button made the fleet's seat control (Jay, 2026-10-16). Each 
 - **`nullLabel?`** goes to `ProfilePicker`'s `nullLabel`: the no-profile row in the seat button's dropdown. `guestLabel` is still the button's own text until a profile is picked (Solitaire: 'GUEST' on the button, 'Guest' in the menu).
 - **`previewValue?: (hex) => string`**: how the seat's color is drawn. The chip (`ProfilePicker`'s or `OptionPicker`'s `color`), the color section's `previewValue` (the Color row and every swatch), the fallback `InlineColorPicker`'s `previewValue`, the plain label and the `ReadyButton` show `previewValue(color)`; `color`, `takenColor` and what `onColorChange` receives stay the saved values, so the selected swatch still matches. The same contract as `InlineColorPicker`'s `previewValue`.
 - **`triggerStyle?`** goes to either seat button's `triggerStyle` (a surface behind the pill, so it reads on a busy backdrop).
-- **`useSeatPickerAlign?: (open, contentWidth, contentHeight) => AlignResult`**: a hook called in place of `useZoneClampedAlign` for the seat button's dropdown (same arguments, sized from the same section, its result handed over as `alignOverride`). For a screen turned by a fake landscape, whose button `useAutoAlign` measures against the upright window. It replaces the zone clamp, so a caller inside a split-screen zone leaves it unset. A hook picked by `??`, like the shell's `usePickerAlign`, so it must stay the same for the panel's life: a caller that swaps it remounts the panel (the shell keys seat 1's panel by layout).
+- **`useSeatPickerAlign?: (open, contentWidth, contentHeight) => AlignResult`**: a hook called in place of `useZoneClampedAlign` for the seat button's dropdown (same arguments, sized from the same section, its result handed over as `alignOverride`). For a screen turned by a fake landscape, whose button `useAutoAlign` measures against the upright window (nothing turns that way since core 0.15, and no pack sets the shell's `usePickerAlign` as of 2026-11-17, so it's a candidate for removal with the shell's). It replaces the zone clamp, so a caller inside a split-screen zone leaves it unset. A hook picked by `??`, like the shell's `usePickerAlign`, so it must stay the same for the panel's life: a caller that swaps it remounts the panel (the shell keys seat 1's panel by layout).
 - Tests: `PlayerSetupPanel.test.tsx`'s "the guest row's label", "a host's own look" and "a host's own placement" describes (8 tests: the label passed and left default, the drawn chip with the saved value on both seat buttons, the Ready button and label, no preview without one, `triggerStyle` on both, the hook sized and told when it opens with `useAutoAlign` never called, the CPU seat placed by it). Not seen on a device or the web here; the shell's loadout was checked through its own tests.
 
 ## Dependencies brought up to date for the 0.21.0 release (2026-10-17)
@@ -905,6 +909,10 @@ Dev dependencies moved to Expo SDK 58, as toaster and auto-paper did on 2026-10-
 - **`jest.config.cjs` compiles tests to plain CommonJS** (`module: 'CommonJS'`, `moduleResolution: 'node10'`, `ignoreDeprecations: '6.0'`). jest-config 0.5's ts-jest uses Node16 modules, which keep `TriggerGaugeHost`'s lazy `import('./TriggerGauge')` as a real dynamic import, and Jest can't run one without `--experimental-vm-modules`: 29 tests in three files (TriggerGaugeHost, SectionedDropdown, ControlSchemePicker) failed with "A dynamic import callback was invoked". Only the test transform changes; the package's own build and `tsc` don't.
 
 ## BaseSettingsDialog lays out in a turned frame; `RotatedFrame` (2026-10-08)
+
+(Superseded in part 2026-11-17: nothing turns, `RotatedFrame` is `ScreenFrame` without `rotation` or
+`rotatedSafeArea` (a plain View, no `FakeLandscapeView`), and Lock Orientation is gone, see the last section. The
+outer Portal, the frame's own host and the first-open mounting below still hold.)
 
 Audit F190: turned 90deg, the settings sheet ran off the phone's short edge and its top row (Lock
 Orientation, the way back out of landscape) was clipped with no way to scroll to it. It used to rotate
@@ -943,6 +951,8 @@ the close fade, How to Play opening from Settings, and above all that board touc
 unaffected while Settings is CLOSED (the pass-through frame stays mounted with the dialog).
 
 ## ContentGutter reads the rotated footprint (2026-09-19)
+
+(Superseded 2026-11-17: `ContentGutter` reads plain `useWindowDimensions()`, see the last section.)
 
 `ContentGutter` clamps against `@tastic/core`'s `useRotatedWindowDimensions()`, not raw
 `useWindowDimensions()`. Under a fake-landscape ancestor (`FakeLandscapeView`) the raw width never
@@ -1063,3 +1073,35 @@ From HexFleet: Jay found the big icon over a title in the theme color undercut a
 
 From HexFleet: Jay found the update prompt's "Released 11/17/2026 at 10:18:53 AM" read like a log line. `UpdateDialog`'s message is now `releasedLabel(date)` (in `src/UpdateDialog.tsx`, not exported from any entry, so no API change): "Released today at 10:18 AM", "Released yesterday at 4:05 PM", "Released Nov 14 at 9:30 AM", and with the year when it isn't this one ("Released Dec 30, 2025 at 9:30 AM"). The time is to the minute in the device's own locale (`toLocaleTimeString` with `hour: 'numeric', minute: '2-digit'`, so a 24-hour clock where that's the custom), the date `month: 'short'`. Days are counted between local midnights and rounded, so a release at 11 pm reads "yesterday" at 1 am and a 23- or 25-hour day at a clock change still counts as one. Every game's update prompt changes. Tested in `UpdateDialog.test.tsx` (today, yesterday across midnight, a short date, the year only when it's another, both 2026 clock changes). Not seen in an app: the prompt only shows for a real over-the-air update.
 
+Settings' own update card (the Restart/Later `ConfirmDialog` `BaseSettingsDialog` opens when Check for Updates finds one) still built the old "Released 11/17/2026 at 10:18:53 AM" string itself; found while removing rotation and fixed the same day (0.34.0): it calls `releasedLabel` too, imported from `./UpdateDialog`. `BaseSettingsDialog.test.tsx`'s manual-check test asserts the wording.
+
+
+## `rotation` defaults to 0; core's inert helpers gone (2026-11-17)
+
+`@tastic/core` 0.15 handed turning to the OS: its `useRotation()` became always 0 and `useRotatedWindowDimensions()` the plain window size, kept only until this package stopped calling them. Now it has, so core can delete them (and `useRotationAwareStatusBar`, `getViewRotation`, `getFixedZoneRotation`, `OrientationProvider`) in its next minor.
+
+- **Defaults:** `RotatedFrame`, `BaseSettingsDialog`, `BaseStatsScreen`, `SectionedDropdown` and `InlineColorPicker` take `rotation = 0` instead of falling back to `useRotation()` (`ControlSchemePicker` passes its own straight through, so it follows). `ConfirmDialog`, `UpdateDialog` and `useCompactDialog` already defaulted to 0.
+- **Window size:** `ContentGutter` reads `useWindowDimensions()`; `useCompactDialog`'s guess before the backdrop's first layout is the window (`measured ?? window`), read along the card's own axis as before.
+- **What still turns:** nothing, as of the next section (same release): every `rotation` prop went.
+- **Peer:** `@tastic/core` `>=0.15.0`. With the defaults at 0, a hud on core 0.14 (which still draws the turn) would leave its dialogs upright on a turned screen. Apps still on core `^0.14` stay on hud `^0.25` or older and never pick this up.
+- **Release order:** this hud first (a minor: 0.34.0), then core's removal. An app that bumps core to the removing minor has to take this hud with it, since hud 0.33 and older import `useRotation`.
+- **Tests:** the jest mock (`src/__mocks__/tastic-core.ts`) no longer has `useRotation`/`useRotatedWindowDimensions`. The "live rotation when omitted" cases became "0 when omitted"; ContentGutter's rotated-footprint cases became one landscape-window case.
+- **Dev dependencies** brought current in the same pass: `@tastic/core` ^0.17.0, `@rific/auto-paper` ^0.15.1, `@rific/updater` ^0.9.2, `tsup` ^9.0.0 (built as before, no config change), and `npm update` for the patches. ESLint 10 and TypeScript 7 stay out, as fleet-wide.
+
+## Rotation removed; `RotatedFrame` is `ScreenFrame` (2026-11-17)
+
+Same 0.34.0 as the section above. Nothing in hud turns any more: the OS turns the screen, and face to face is `@tastic/split-screen`'s job (`DualZoneLayout` turns player 2's half 180, and the inline popovers drawn in it turn with it).
+
+**How it was decided.** The brief was to drop only the +/-90 paths and keep 180 for face to face. Asked whether to narrow `rotation` to `0 | 180`, Jay asked whether anything still used rotation at all; nothing on core 0.15+ passes an angle to hud. Jay asked next whether face-to-face split screen was a rotation feature, since split-screen was meant to handle it. It is split-screen's: hud's `rotation` was only an opt-in for pieces that can't pick up the zone's turn (dialogs, which portal to the app root, and popover placement math), and nothing used it. Jay then said to remove it all, and picked the rename to `ScreenFrame`.
+
+**The fleet check.** A grep of every repo in `~/Developer` on core 0.15+ (CardTastic, DragonHoard, DuelTastic, HexFleet, Labyrinth, PuckTastic, Swirlio, `@tastic/shell`, `@tastic/profile`, `@tastic/split-screen`): no non-zero `rotation` or `colorRotation` reaches any hud component or hook, and no `lockOrientation`/`onLockOrientationChange` (CardTastic and PuckTastic only strip the old persisted fields in migrations). Their only 180s are DuelTastic's and PuckTastic's own seat toasters (their own `SeatFrame`), and PuckTastic's -90 court is its own transform with core's `rotateInsets`. Apps on core `^0.14` stay on hud `^0.25` or older.
+
+- **Gone:** the `rotation` prop on `SectionedDropdown`, `InlineColorPicker`, `ControlSchemePicker`, `BaseSettingsDialog`, `BaseStatsScreen`, `ConfirmDialog`, `UpdateDialog`, `GuideProvider` and `HowToPlayDialog`; `PlayerSetupPanel`'s `colorRotation`; the `rotation` argument of `useAutoAlign` (so `bounds` is its 4th argument now), `useZoneClampedAlign`, `useCompactDialog` and `getGuideCardSize`; `rotateRect`; the `PopoverRotation` and `GuideRotation` types; the guide's 520pt quarter-turned card width.
+- **`ScreenFrame` (src/ScreenFrame.tsx)** replaces `RotatedFrame`: `View > [Portal.Host] > column`, with `portalHost`, `passThrough` and `maxContentWidth` as before. No `FakeLandscapeView`, no `rotatedSafeArea` (it only re-provided the same insets at 0). `passThrough` makes the root and the column box-none, the same touch behavior `FakeLandscapeView`'s outer box-none plus inner box-none gave. No alias for the old name (Jay's no-backward-compatibility rule).
+- **`BaseSettingsDialog`** keeps `<Portal><ScreenFrame portalHost passThrough>` around the Dialog and its two ConfirmDialogs, so the sheet and the cards opened from it share one host mounted at first open. The frame existed for the turn and could probably go, but the sheet's portals weren't reworked without a device to check them on. Lock Orientation (row and props) is gone; `isTouchPrimary` gates only Keep Awake; the sheet's width uses the plain safe-area insets.
+- **`useZoneClampedAlign`** still flips above/below for `zone.rotated`: that's split-screen's turned zone, not a hud rotation. Its doc's measureInWindow gap note stays.
+- **hud's `@tastic/core` imports** are now only `clamp`, `computeContentBounds` and `useIsTouchPrimaryDevice`; the jest mock lost `toRotationStyle`, `rotateInsets`, `rotateDimensions` and `FakeLandscapeView`.
+- **Kept:** `PlayerSetupPanel`'s `useSeatPickerAlign`. It only existed for a screen turned by the drawn rotation, and no pack sets `@tastic/shell`'s `usePickerAlign` today, but removing it changes the shell's `PackDefinition` too, so that's the shell's call.
+- **Tests:** every rotation case went (Lock Orientation, `rotateRect`, the turned guide card, the pass-through `rotation` cases, `colorRotation`); `RotatedFrame.test.tsx` became `ScreenFrame.test.tsx`; `BaseSettingsDialog`'s frame tests read a wrapped `ScreenFrame` mock instead of `FakeLandscapeView`; assertions on `useAutoAlign`'s arguments lost the trailing 0. 533 tests.
+- **Core after this (not changed here, grep of the 0.15+ repos):** no hud or app imports `FakeLandscapeView`, `rotateDimensions` or `toRotationStyle` any more, and nothing outside core names `ViewRotation`. `rotateInsets` (with `ViewRotation` as its parameter type, quarter turns included) is still used by PuckTastic's courts and core's own `computeContentBounds`.
+- **Downstream when they move to hud 0.34:** `@tastic/shell` renames `RotatedFrame` to `ScreenFrame` at its 4 call sites (`RootLayout` twice, `ProfilesRoute`, `StatsScreen`) and drops `rotatedSafeArea` from them, and drops `rotation={0}` from its `BaseStatsScreen`. `@tastic/profile` drops its pickers' `rotation` prop (`ProfilePicker`, `OptionPicker`, `PickerMenu`, typed with hud's `PopoverRotation`), passes nothing as `useAutoAlign`'s 4th argument, and drops its tests that pass 90/-90.

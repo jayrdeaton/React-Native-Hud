@@ -1,7 +1,7 @@
 import { BlurView } from '@rific/auto-paper'
 import { Button } from '@rific/feedback-press'
 import { act, render } from '@testing-library/react'
-import { ScrollView } from 'react-native'
+import { ScrollView, useWindowDimensions } from 'react-native'
 import { Text } from 'react-native-paper'
 import { useReducedMotion } from 'react-native-reanimated'
 
@@ -281,29 +281,6 @@ describe('HowToPlayDialog', () => {
     unmount()
   })
 
-  it('rotates the card itself for the fake-landscape rotation, and not at all at 0', () => {
-    // Flattened: OverlayCard nests the caller's style array inside its own.
-    const cardStyle = () => [mockViewRender.mock.calls.filter(([props]) => props.accessibilityViewIsModal).pop()![0].style].flat(Infinity) as unknown[]
-
-    const upright = render(<HowToPlayDialog {...baseProps} />)
-    expect(cardStyle()).not.toContainEqual(expect.objectContaining({ transform: expect.anything() }))
-    upright.unmount()
-
-    const turned = render(<HowToPlayDialog {...baseProps} rotation={-90} />)
-    expect(cardStyle()).toContainEqual({ transform: [{ rotate: '-90deg' }] })
-    turned.unmount()
-  })
-
-  it('pages at the quarter-turned card width when held sideways', () => {
-    const { unmount } = render(<HowToPlayDialog {...baseProps} rotation={90} />)
-
-    press('Next')
-
-    // 874 (mocked window height, the sideways width) - 2 * 24 = 826, capped at 520, minus 2 * 24 padding.
-    expect(mockScrollTo).toHaveBeenLastCalledWith({ x: 472, animated: true })
-    unmount()
-  })
-
   it("draws the theme's raised, blur-aware card over the theme's backdrop, with themed text", () => {
     const { unmount } = render(<HowToPlayDialog {...baseProps} />)
 
@@ -338,9 +315,14 @@ describe('HowToPlayDialog', () => {
     expect(lastHeaderProps()).toEqual(expect.objectContaining({ icon: 'help-circle-outline', title: 'How to Play', compact: false }))
     unmount()
 
-    const { unmount: unmountTurned } = render(<HowToPlayDialog {...baseProps} rotation={90} />)
-    expect(lastHeaderProps()).toEqual(expect.objectContaining({ compact: true }))
-    unmountTurned()
+    ;(useWindowDimensions as jest.Mock).mockReturnValue({ width: 874, height: 402, scale: 3, fontScale: 1 })
+    try {
+      const { unmount: unmountSideways } = render(<HowToPlayDialog {...baseProps} />)
+      expect(lastHeaderProps()).toEqual(expect.objectContaining({ compact: true }))
+      unmountSideways()
+    } finally {
+      ;(useWindowDimensions as jest.Mock).mockReturnValue({ width: 402, height: 874, scale: 3, fontScale: 1 })
+    }
   })
 
   it('marks the card as a modal for screen readers', () => {
@@ -353,22 +335,16 @@ describe('HowToPlayDialog', () => {
 
 describe('getGuideCardSize', () => {
   it('sizes an upright card to the window, capped at 360 wide, with full art', () => {
-    expect(getGuideCardSize(402, 874, 0)).toEqual({ width: 354, pageWidth: 306, maxHeight: 826, artHeight: 132, compact: false })
-    expect(getGuideCardSize(1200, 900, 180)).toEqual({ width: 360, pageWidth: 312, maxHeight: 852, artHeight: 132, compact: false })
+    expect(getGuideCardSize(402, 874)).toEqual({ width: 354, pageWidth: 306, maxHeight: 826, artHeight: 132, compact: false })
+    expect(getGuideCardSize(1200, 900)).toEqual({ width: 360, pageWidth: 312, maxHeight: 852, artHeight: 132, compact: false })
   })
 
-  it("sizes a quarter-turned card against the SWAPPED window: its height must fit the phone's short edge", () => {
-    // A 360pt-wide Android phone held sideways: the card's layout height becomes its on-screen width.
-    const size = getGuideCardSize(360, 800, 90)
-    expect(size.maxHeight).toBe(312)
-    expect(size.width).toBe(520)
-    expect(size.artHeight).toBe(88)
-    expect(size.compact).toBe(true)
-    expect(getGuideCardSize(360, 800, -90)).toEqual(size)
+  it("fits a phone held sideways: the window's short height, compact art", () => {
+    // A 360pt-tall Android phone held sideways (the OS turns the window).
+    expect(getGuideCardSize(800, 360)).toEqual({ width: 360, pageWidth: 312, maxHeight: 312, artHeight: 88, compact: true })
   })
 
   it('never lets a card run wider than the space it has', () => {
-    expect(getGuideCardSize(320, 568, 0).width).toBe(272)
-    expect(getGuideCardSize(320, 480, 90).width).toBe(432)
+    expect(getGuideCardSize(320, 568).width).toBe(272)
   })
 })

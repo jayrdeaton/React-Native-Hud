@@ -13,7 +13,8 @@ const SRC = join(__dirname, '..')
 const ENTRY = join(SRC, 'chrome', 'index.ts')
 
 // The chrome entry's own peers. @tastic/core and @rific/updater are optional peers of the package, but
-// this entry needs them (rotation-aware dialogs, the update flow); Hangman has both. @rific/core is
+// this entry needs them (the Settings sheet's touch check and the color picker's clamp, the update flow);
+// Hangman has both. @rific/core is
 // the Settings sheet's Keep Awake setting; every app already has it (feedback-press peers on it).
 const ALLOWED = new Set(['react', 'react-native', 'react-native-paper', 'react-native-reanimated', 'react-native-safe-area-context', '@rific/auto-paper', '@rific/core', '@rific/feedback-press', '@rific/updater', '@tastic/core'])
 // Erased at build time, so allowed only as `import type`.

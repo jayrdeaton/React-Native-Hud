@@ -1,11 +1,9 @@
 import { StyleSheet, View } from 'react-native'
 import { Icon } from 'react-native-paper'
 
-// Mirrors @tastic/split-screen's own type of the same name, duplicated here rather than imported -
-// this package has never taken a dependency on @tastic/split-screen; every orientation/rotation-
-// derived value it touches (ConfirmDialog's and BaseSettingsDialog's own `rotation` props, this
-// component's orientationMode/p1OnRight below) is always a plain value the caller already resolved
-// via that package's own hook, never something this package reads itself.
+// Mirrors @tastic/core's type of the same name, duplicated here rather than imported. The
+// orientationMode/p1OnRight below are plain values the caller already resolved with
+// @tastic/core's useOrientationState, never something this component reads itself.
 export type OrientationMode = 'faceToFace' | 'sideBySide'
 
 export interface CornerStatusBadgeSeat {

@@ -14,4 +14,4 @@ export { getGuideCardSize, HowToPlayDialog, type HowToPlayDialogProps } from './
 export { type SeatDevice, SeatDevicesHint, type SeatDevicesHintProps } from './SeatDevicesHint'
 export { SeatDiagram, type SeatDiagramProps } from './SeatDiagram'
 export { type SwipeDirection, SwipeHint, type SwipeHintProps, type SwipePointer } from './SwipeHint'
-export type { GuideRotation, GuideStep } from './types'
+export type { GuideStep } from './types'

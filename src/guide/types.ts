@@ -9,8 +9,3 @@ export interface GuideStep {
   body: string
   art?: ReactNode
 }
-
-// The fleet's fake-landscape rotation (structurally @tastic/core's ViewRotation, restated here so this
-// entry point never imports @tastic/core). Pass the app's LIVE rotation (useRotation/getViewRotation):
-// the guide renders in the app-root Portal host, outside any rotated screen, so it turns itself.
-export type GuideRotation = 0 | 90 | 180 | -90

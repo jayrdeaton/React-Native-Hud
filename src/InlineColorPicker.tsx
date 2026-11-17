@@ -1,13 +1,13 @@
 import { defaultColors, getContrastColor, SeedColor } from '@rific/auto-paper'
 import { TouchableRipple } from '@rific/feedback-press'
-import { clamp, useRotation } from '@tastic/core'
+import { clamp } from '@tastic/core'
 import { type ReactNode, type RefObject } from 'react'
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { Icon, Text } from 'react-native-paper'
 
 import { MONO_FONT } from './fonts'
 import { PopoverBody } from './PopoverBody'
-import { AlignResult, PopoverRotation, useAutoAlign, type ViewInstance } from './useAutoAlign'
+import { AlignResult, useAutoAlign, type ViewInstance } from './useAutoAlign'
 import { PopoverHost } from './usePopoverHost'
 
 // Presence check, not a full-string "is this exactly one emoji" validation - this only decides a
@@ -101,10 +101,6 @@ interface Props {
   // of the zone's own boundary. Same shape LabeledDropdown's/SectionedDropdown's own alignOverride
   // takes; omit for the ordinary case (a popover with nothing but the screen edge to avoid).
   alignOverride?: AlignResult
-  // Explicit override for the rotation a @tastic/split-screen-style FakeLandscapeView (or
-  // equivalent) ancestor is currently applying - see SectionedDropdown's identical prop for the
-  // full reasoning. Defaults to a live ambient read via @tastic/core's useRotation() when omitted.
-  rotation?: PopoverRotation
   // Trigger glyph - defaults to a plain palette. Pass a distinct icon per slot (e.g. a face for a
   // human, a robot for CPU) to convey identity through the icon itself. Overridden by `tag` below
   // when present.
@@ -145,9 +141,7 @@ function SwatchDrawing({ size, children }: { size: number; children: ReactNode }
 // Renders inline rather than as a full-screen modal, scoped to its own panel - a modal color
 // picker would block the whole screen for one player while another can't touch their own panel at
 // the same time, which defeats the point of a split-screen lobby.
-export function InlineColorPicker({ id, host, value, onChange, previewValue, swatches = defaultColors, takenValue, allowSwapTaken, dark, align: forcedAlign, alignOverride, rotation: rotationOverride, icon = 'palette', tag, labelFontFamily = MONO_FONT, autoDismiss = true, columns, size = DEFAULT_SIZE, renderSwatch, bounds }: Props) {
-  const ambientRotation = useRotation()
-  const rotation = rotationOverride ?? ambientRotation
+export function InlineColorPicker({ id, host, value, onChange, previewValue, swatches = defaultColors, takenValue, allowSwapTaken, dark, align: forcedAlign, alignOverride, icon = 'palette', tag, labelFontFamily = MONO_FONT, autoDismiss = true, columns, size = DEFAULT_SIZE, renderSwatch, bounds }: Props) {
   const menuBg = dark ? '#000000' : '#FFFFFF'
   const { width: windowWidth } = useWindowDimensions()
   const { width: swatchesWidth, height: swatchesHeight } = getInlineColorPickerContentSize(swatches.length, windowWidth, columns)
@@ -155,7 +149,7 @@ export function InlineColorPicker({ id, host, value, onChange, previewValue, swa
   const open = host.openId === id
   // Always called, even when alignOverride is supplied and this result goes unused - hooks can't be
   // called conditionally. See LabeledDropdown's identical comment for the same tradeoff.
-  const auto = useAutoAlign(open, swatchesWidth, swatchesHeight, rotation, bounds)
+  const auto = useAutoAlign(open, swatchesWidth, swatchesHeight, bounds)
   const placement = alignOverride ?? auto
   const { maxHeight, measured, triggerRef, verticalAlign } = placement
   const align = forcedAlign ?? placement.align

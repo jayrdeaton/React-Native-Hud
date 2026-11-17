@@ -4,11 +4,11 @@ import { type StyleProp, StyleSheet, type TextStyle, View, type ViewStyle } from
 import { Icon, Text } from 'react-native-paper'
 
 // Below this much height every dialog uses the compact header (and the guide its smaller art). It is
-// the height of the space the dialog lays out in, counted along the CARD's own vertical axis: the
-// frame's height for an upright card, the frame's width for a card turned a quarter (see
-// useCompactDialog.ts). The how-to-play guide borrows this file, so it imports nothing heavier than
-// paper and auto-paper (see guideImports.test.ts); the hook, which needs @tastic/core, lives apart. 528 is the guide's old rule (480 of usable height inside its 24pt gutters): a
-// phone held sideways (320-430) is compact, a small phone upright (568+) and an iPad either way are not.
+// the height of the space the dialog lays out in (see useCompactDialog.ts). The how-to-play guide
+// borrows this file, so it imports nothing heavier than paper and auto-paper (see
+// guideImports.test.ts). 528 is the guide's old rule (480 of usable height inside its
+// 24pt gutters): a phone held sideways (320-430) is compact, a small phone upright (568+) and an iPad
+// either way are not.
 export const COMPACT_DIALOG_HEIGHT = 528
 
 export function isCompactDialogHeight(height: number): boolean {

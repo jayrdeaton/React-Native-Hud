@@ -5,11 +5,12 @@ dropdowns, color pickers, gauges, ready buttons, and dialogs. Every interactive 
 to one player's own zone on a shared screen, so it never blocks the rest of the screen the way a
 full-screen modal would.
 
-Depends on [`@tastic/core`](https://github.com/jayrdeaton/react-native-game-core) for live device-
-rotation tracking (see Rotation below) - every popover/dialog here reads it directly, so it stays
-legible even rotated 180° inside a [`@tastic/split-screen`](https://github.com/jayrdeaton/react-native-split-screen)
-zone (that package's own two-player layout engine is what actually owns the rotated zone; this kit
-and split-screen don't depend on each other, they just both sit on `@tastic/core`).
+Works inside a [`@tastic/split-screen`](https://github.com/jayrdeaton/react-native-split-screen) zone:
+that package's two-player layout engine turns player 2's half 180° to face them on a face-to-face
+screen, and the popovers here draw in place, so they turn with it. Both sit on
+[`@tastic/core`](https://github.com/jayrdeaton/react-native-game-core); split-screen never imports this
+kit, and this kit imports split-screen only for `useZoneClampedAlign`, an optional peer. The OS turns
+the screen itself (see Rotation below).
 
 ## Why not a modal?
 
@@ -43,16 +44,28 @@ corner of the screen.
   draws the trigger and each grid swatch in place of the flat fill (told `'trigger'` or
   `'swatch'`; null keeps a swatch flat), and `bounds` keeps the popover inside a scroll view it
   sits in (see `useAutoAlign`).
-- **`TriggerGauge`**: decorative ring of tick marks around a trigger, showing which option(s) are
-  active without opening the popover.
+- **`LabeledDropdown`**: a text-label trigger (an uppercase label and a chevron, in the style of
+  `@tastic/profile`'s `ProfilePicker`) opening a list whose selected row fills with the seat's
+  `color`, for a choice that reads as "who or what you're playing" rather than a game setting.
+  `options` are `{ value, label, icon? }`; `align` forces a horizontal alignment and `alignOverride`
+  takes a placement of your own (see Zone-aware popovers). `LABELED_DROPDOWN_POPOVER_WIDTH` (180) and
+  `getLabeledDropdownContentHeight(optionCount)` give its popover's size, for computing that placement.
+- **`TriggerGaugeHost`**: decorative ring of tick marks around a trigger, showing which option(s) are
+  active without opening the popover (`SectionedDropdown`'s trigger draws one). The gauge itself
+  (`TriggerGauge`, a Skia component) isn't exported, only its `TriggerGaugeProps` type: the host
+  loads it when it mounts, so importing `@tastic/hud` never loads Skia (see Skia on web below).
 - **`ReadyButton`**: a per-player or standalone ready toggle: an outline and mono label in the seat's
   color until ready, then filled with it. Over a backdrop (a felt) pass `surfaceColor` (the theme's
   surface) and `dark`: it is then a pill the size of `@tastic/profile`'s chip pill, its label black or
   white in the theme's font, filled with the seat's color (its label in that color's own ink) once ready.
-- **`PlayerSetupPanel`**: one panel per player slot in a local-multiplayer loadout/lobby screen: a
-  name header (a saved-profile switcher for a human seat, a CPU-difficulty `LabeledDropdown` for a
-  non-human one, or a plain label when neither applies), a color picker (`InlineColorPicker`)
-  optionally paired with a caller-rendered `secondPicker` slot, and a `ReadyButton` for human seats.
+- **`PlayerSetupPanel`**: one panel per player slot in a local-multiplayer loadout/lobby screen: one
+  seat button, an optional caller-rendered `secondPicker` slot under it, and a `ReadyButton` for human
+  seats. A human seat's button is `@tastic/profile`'s `ProfilePicker` and a non-human (CPU) seat's is
+  its `OptionPicker` (the difficulty levels), each with the seat's color behind a Color row at the top
+  of the same dropdown. A seat with neither picker wired shows a plain label and a separate
+  `InlineColorPicker` swatch instead. `colorCaption` adds a short line under the Color row while a
+  profile is selected (e.g. `'Snake only'`: the pick is kept in this game, not on the profile), and
+  `showColor={false}` leaves the Color row out (e.g. a CPU seat set to "None").
   Ported from five apps' own near-identical `PlayerSetupPanel.tsx`/`LobbyPlayerPanel.tsx`
   (AirHockey, BoxHockey, Pong, LightCycles, Snake), which had all independently converged on this
   exact skeleton. See "The secondPicker slot" below before wiring up that one prop.
@@ -63,8 +76,9 @@ corner of the screen.
   Ready button, while `color` and what `onColorChange` receives stay the saved values), `triggerStyle`
   (the seat button's trigger, e.g. a surface behind its pill), `readySurfaceColor` (the Ready button's
   pill look, `ReadyButton`'s `surfaceColor`) and `useSeatPickerAlign` (a placement
-  hook of the host's own for the seat button's dropdown, in place of `useZoneClampedAlign`, for a
-  screen turned by a fake landscape; leave it unset inside a split-screen zone, and keep the same hook
+  hook of the host's own for the seat button's dropdown, in place of `useZoneClampedAlign`; it was
+  added for a screen turned by `@tastic/core`'s old drawn rotation, which nothing does since core 0.15,
+  so a host may no longer need one. Leave it unset inside a split-screen zone, and keep the same hook
   for the panel's life).
 - **`CornerActionButtons`**: Back (top-left) + Settings (top-right) icon buttons fixed at a
   screen's rotated corners. This isn't just a loadout/lobby-screen convention - it's the right
@@ -80,6 +94,20 @@ corner of the screen.
   clipped box (older versions silently ignore it). Omit it to keep the 40pt target. Leave room for
   it: the slop reaches past each button's box, and where it overlaps another touch target,
   whichever is drawn on top gets the press.
+- **`CornerStatusBadges`** (main entry only): a quiet 30pt round badge per seat (a dark translucent
+  fill, a 16pt near-white icon), pinned 12pt in from a screen corner, holding one icon or nothing.
+  It has no opinion on what the icon means (a held power-up in LightCycles and Snake, where it came
+  from, or any other per-seat status that's one icon or none). Seat 1 always takes a bottom corner and seat 2 a top one: with `orientationMode='faceToFace'`
+  seat 1 is bottom-left and seat 2 top-right whatever `p1OnRight` says; with `'sideBySide'` both
+  badges take the right-hand corners when `p1OnRight` is true and the left-hand ones when it's false.
+  Omit `p1` or `p2` to draw no badge for that seat; pass `{}` (no `icon`) to draw it empty. It takes
+  no touches.
+
+  ```tsx
+  import { CornerStatusBadges } from '@tastic/hud'
+
+  <CornerStatusBadges orientationMode={orientationMode} p1OnRight={p1OnRight} p1={{ icon: p1Powerup?.icon }} p2={{ icon: p2Powerup?.icon }} />
+  ```
 - **`StaggeredWord`** / **`getStaggeredWordDuration`** - the letter-by-letter stagger-in animation
   every app's own hero-title screen had hand-rolled independently, identical down to the same 45ms
   stagger, 320ms per-letter duration, and back-ease overshoot. Renders one word/line at a time - a
@@ -94,12 +122,17 @@ corner of the screen.
   one piece that needs care in a split-screen layout - see below.
 - **`BaseSettingsDialog`** / **`BaseStatsScreen`** / **`ConfirmDialog`** - shared shells for the
   settings sheet, an achievements/stats screen, and a plain confirm-or-cancel dialog, each factored
-  out after being independently copied into several games. See Rotation below for how each of these
-  (plus `SectionedDropdown`/`InlineColorPicker`) handles rotating inside a `@tastic/split-screen`
-  zone. `BaseStatsScreen`'s header arrow is labeled 'Back' for screen readers (`backLabel` to change
+  out after being independently copied into several games. `BaseStatsScreen`'s header arrow is labeled 'Back' for screen readers (`backLabel` to change
   it) and takes the same opt-in `hitSlop` as `CornerActionButtons`. On Android, back while a
   `ConfirmDialog` is open calls its `onCancel` and goes no further (with no `onCancel`, it does
   nothing), so it never reaches the screen underneath.
+- **`UpdateDialog`**: a drop-in background updater. Mount it once (an app's root layout): it runs its
+  own `@rific/updater` `useUpdater()` and, when an update is found, shows a `ConfirmDialog` ("Update
+  Available", Restart or Later) instead of the updater's default `Alert`. The message says when the
+  update was released the way a person would, to the minute in the device's own locale: "Released
+  today at 10:18 AM", "Released yesterday at 4:05 PM", "Released Nov 14 at 9:30 AM", with the year only
+  when it isn't this one (0.33.2+). Props: `autoCheck` and `autoPrompt` (both default `true`, passed
+  to `useUpdater`) and `onError`.
 - **`OverlayCard`** / **`OverlayBackdrop`** / **`useOverlayCardColors`** - the card and dim behind
   `ConfirmDialog` and the how-to-play guide, in the app's own theme colors and blurred when the
   player's Blur setting allows it. See Overlay cards below.
@@ -109,63 +142,61 @@ corner of the screen.
 
 ## Rotation
 
-`SectionedDropdown`, `InlineColorPicker`, `BaseSettingsDialog`, and `BaseStatsScreen` all read the
-device's live rotation themselves, via [`@tastic/core`](https://github.com/jayrdeaton/react-native-game-core)'s
-`useRotation()` - you don't need to pass anything for a popover/dialog to read correctly no matter
-which way the phone is held, as long as your app mounts `@tastic/core`'s `OrientationProvider`
-(or `@tastic/split-screen`'s `AccelerometerOrientationProvider`, a compat alias for the same thing)
-somewhere above it.
+Nothing in this package turns. The OS turns the screen (since
+[`@tastic/core`](https://github.com/jayrdeaton/react-native-game-core) 0.15), so every component lays
+out against the window as it is, and `@tastic/split-screen`'s `DualZoneLayout` turns player 2's half
+180 for a face-to-face screen, which the popovers drawn inside it turn with. `ContentGutter` (below)
+caps against the window's own width.
 
-Each of the four also still accepts an explicit `rotation` prop, which overrides the ambient read
-when present - reach for it only when a specific instance genuinely needs to differ from the live
-app-wide rotation (e.g. a fading, lagged `panelLayout` value mid-transition, rather than the raw
-live reading - see `@tastic/split-screen`'s own `DualZoneLayout` docs for why that lag exists).
+Up to 0.33 this package followed `@tastic/core`'s drawn rotation (a portrait-locked app drawing its
+landscape layout turned 90 or -90) and could turn its own pieces. 0.34 removes all of it:
 
-This matters more than it might look: `useAutoAlign` (what `SectionedDropdown`/`InlineColorPicker`
-use to pick left/right/above/below) measures a trigger via `measureInWindow`, which reports the
-trigger's **pre-transform** layout position - confirmed against a real rotated screen, not just
-reasoned about. Inside a `FakeLandscapeView`-rotated zone (or any other ancestor rotated the same
-way - a bare CSS `transform: rotate()`, not a real OS-level orientation change), that pre-transform
-position can be nowhere near where the trigger actually is on screen, which is exactly the bug this
-rotation-awareness fixes: without it, a popover can pick an alignment for where its trigger *used to
-be* before rotating, clipping off the edge it's actually now near instead of the one it was near.
+- The `rotation` prop is gone from `SectionedDropdown`, `InlineColorPicker`, `ControlSchemePicker`,
+  `BaseSettingsDialog`, `BaseStatsScreen`, `ConfirmDialog`, `UpdateDialog`, `GuideProvider` and
+  `HowToPlayDialog`, and `colorRotation` from `PlayerSetupPanel`. Up to 0.33, `SectionedDropdown`,
+  `InlineColorPicker`, `BaseSettingsDialog` and `BaseStatsScreen` defaulted to core's `useRotation()`,
+  which core 0.15 made always 0 and core 0.18 removes, so this package needs `@tastic/core` 0.15 or
+  later.
+- `useAutoAlign(open, contentWidth, contentHeight, bounds?)` and `useZoneClampedAlign(open,
+  contentWidth, contentHeight)` lost their `rotation` argument, so `useAutoAlign`'s `bounds` is now the
+  fourth. `useCompactDialog()` and `getGuideCardSize(windowWidth, windowHeight)` lost theirs too.
+- The `PopoverRotation` and `GuideRotation` types are gone.
+- `RotatedFrame` is now `ScreenFrame` (below), without `rotation` or `rotatedSafeArea`.
+- `BaseSettingsDialog`'s Lock Orientation row and its `lockOrientation`/`onLockOrientationChange`
+  props are gone: with the OS turning the screen there's nothing for the app to pin.
+- `ContentGutter` and `useCompactDialog` read the window (`useWindowDimensions()`), where they used to
+  read core's `useRotatedWindowDimensions()`.
 
-### `BaseSettingsDialog` lays out in its own turned frame
+### `BaseSettingsDialog` lays out in its own frame
 
-The settings sheet doesn't rotate its card in place. It renders through one Paper `Portal` into a
-`RotatedFrame` (below) turned by its `rotation`, sized to the turned footprint, with rotated safe-area
-insets and its own `Portal.Host`, and the Dialog portals into that host. So at +/-90 the sheet's
-`maxHeight: '90%'` is measured against the phone's short edge and the whole list scrolls, instead of
-running off the screen with its top row (Lock Orientation) out of reach. The frame is pass-through and
-an identity frame at 0, so nothing changes in portrait. Pass `rotation={0}` when the dialog already
-sits under a `Portal.Host` inside a turned frame of your own.
+The settings sheet renders through one Paper `Portal` into a pass-through `ScreenFrame` (below) with
+its own `Portal.Host`, and the Dialog and its update and info cards portal into that host, so the
+cards opened from the sheet share one host with it. The frame is mounted at the first open and kept,
+so the sheet's close fade plays out.
 
 This needs `@rific/auto-paper` 0.12.2 or later: the Dialog's own body now renders at the portal host,
 and only 0.12.2+ mounts that host inside auto-paper's own contexts (blur, Reanimated, defaults).
 
-### `RotatedFrame`
+### `ScreenFrame`
 
-The frame itself, exported for a screen or overlay that should follow the phone as one piece:
+A frame that fills its parent, for a screen or overlay that wants its own `Portal.Host`, pass-through
+touches or a capped column:
 
 ```tsx
-import { RotatedFrame } from '@tastic/hud'
+import { ScreenFrame } from '@tastic/hud'
 
-<RotatedFrame portalHost rotatedSafeArea maxContentWidth={640}>
+<ScreenFrame portalHost maxContentWidth={640}>
   <StatsList />
-</RotatedFrame>
+</ScreenFrame>
 ```
 
-- `rotation`: the angle to turn by; defaults to the live `useRotation()`.
-- `rotatedSafeArea`: re-provide the safe-area insets remapped onto the frame's own edges, for content
-  that reads `useSafeAreaInsets()` itself. Leave it off for content that rotates insets on its own.
-- `portalHost`: mount a Paper `Portal.Host` inside the frame, so dialogs lay out and turn with it (tell
-  them `rotation={0}`). Must be static per call site: flipping it remounts the contents.
+- `portalHost`: mount a Paper `Portal.Host` inside the frame, so dialogs lay out in it. Must be static
+  per call site: flipping it remounts the contents.
 - `passThrough`: let touches fall through the frame's own boxes, for a frame laid over other content.
-- `maxContentWidth`: cap the centred content column, in the wide (landscape) footprint only.
+- `maxContentWidth`: cap the centred content column, in a landscape window only.
 
-The tree is identical at every angle, so turning the phone never remounts what's inside. Tap-driven
-content only: react-native-gesture-handler's deltas are untransformed, so never put a gesture-tracked
-board inside it.
+Up to 0.33 this was `RotatedFrame`, which also took `rotation` and `rotatedSafeArea` (insets remapped
+onto a turned frame's edges). Rename the import and drop both props.
 
 ## The press-away pattern (read this before wiring it up)
 
@@ -224,17 +255,13 @@ reach is open - not just their own.
 adapter's whole job is to bridge whatever local settings mechanism the app uses onto this package's
 fixed prop contract - it should carry no UI of its own beyond that plumbing.
 
-That local mechanism genuinely varies per app. AirHockey/BoxHockey/LightCycles thread a
-`settings`/`setSettings` pair in as props from a caller-owned `GameSettings` object (each adapter's
-own three call sites already have one in scope for other reasons). Pong reads that same shape off
-its own `useGameSettings()` hook internally instead of taking it as props. Snake - the one app in
-the fleet with real Redux Toolkit state - reads `lockOrientation`/`deferBottomEdgeGestures` via
-`useSelector` and writes them back via `dispatch(gameActions.setLockOrientation(...))` directly
-inside the adapter, with nothing threaded through props at all. `BaseSettingsDialog` doesn't care
-which of these an app uses: sound, haptics, appearance, update-checking and Keep Awake are identical
-across every app and read their own shared settings, so `lockOrientation`/`onLockOrientationChange`
-and `deferBottomEdgeGestures`/`onDeferBottomEdgeGestures` are the only settings an adapter actually
-needs to source itself, however it does that. Each pair is optional: omit one and its row doesn't show.
+That local mechanism genuinely varies per app: one threads a `settings`/`setSettings` pair in as props
+from a caller-owned settings object, another reads the same shape off its own hook, another reads and
+writes Redux state directly inside the adapter. `BaseSettingsDialog` doesn't care which of these an app
+uses: sound, haptics, appearance, update-checking and Keep Awake are identical across every app and
+read their own shared settings, so `deferBottomEdgeGestures`/`onDeferBottomEdgeGestures` is the only
+setting an adapter actually needs to source itself, however it does that. The pair is optional: omit it
+and the Edge Guard row doesn't show.
 
 The Edge Guard row ("Require second swipe") shows on iOS and Android, never on the web. The setting does
 nothing on its own: on iOS the app passes it to `@tastic/edge-guard`'s `useEdgeGestureGuard`, and on
@@ -242,8 +269,8 @@ Android it spreads `edgeGuardScreenOptions(setting)` over its play screen's opti
 only the iOS half shows a row on Android that does nothing. `@tastic/shell` wires both for its packs.
 
 The Keep Awake row reads `@rific/core`'s Keep Awake setting (`useKeepAwakeSettings()`), the same way
-the Sound row reads `@rific/feedback-press`. It shows on touch-first devices (where Lock Orientation
-shows) in any app whose `KeepAwakeProvider` was given `expo-keep-awake` (`useExpoKeepAwake()` returns
+the Sound row reads `@rific/feedback-press`. It shows on touch-first devices (`@tastic/core`'s
+`useIsTouchPrimaryDevice()`) in any app whose `KeepAwakeProvider` was given `expo-keep-awake` (`useExpoKeepAwake()` returns
 it), and is hidden otherwise. The app opts in once at its root and calls `useKeepAwake('game')` on the
 screen that should stay awake; see `@rific/core`'s README for the bridge.
 
@@ -252,22 +279,22 @@ knows what it's currently running) and `onUpdateError`, wired to a real `useToas
 one up - an adapter that leaves `onUpdateError` unset silently swallows a failed update check
 instead of surfacing it anywhere, which is a real bug this fleet actually shipped in one app before
 being caught and fixed. If your app has no toast system, route it to whatever your own
-error-surfacing convention is; just don't leave it as a no-op.
+error-surfacing convention is; just don't leave it as a no-op. When the check finds an update, the
+Restart/Later card it opens says when the update was released in the same words as `UpdateDialog`'s
+prompt ("Released today at 10:18 AM"; 0.34.0+, before which it read "Released 11/17/2026 at
+10:18:53 AM").
 
 A minimal adapter, following the shape every current one uses:
 
 ```tsx
-export function SettingsDialog({ visible, onDismiss, rotation = 0, settings, setSettings }: SettingsDialogProps) {
+export function SettingsDialog({ visible, onDismiss, settings, setSettings }: SettingsDialogProps) {
   const { error } = useToast()
 
   return (
     <BaseSettingsDialog
       visible={visible}
       onDismiss={onDismiss}
-      rotation={rotation}
       version={release.otaVersion}
-      lockOrientation={settings.lockOrientation}
-      onLockOrientationChange={(value) => setSettings({ lockOrientation: value })}
       deferBottomEdgeGestures={settings.deferBottomEdgeGestures}
       onDeferBottomEdgeGestures={(value) => setSettings({ deferBottomEdgeGestures: value })}
       onUpdateError={(message) => error('Update check failed', message)}
@@ -287,6 +314,13 @@ On iOS a line under the Sound, Music and Haptics row says that silent mode mutes
 silent mode mutes them; a player who doesn't know that takes the sound for broken, and iOS gives apps
 no reliable way to read the switch, so the rows can't grey themselves out. Always shown on iOS while
 either row is, never on Android (its silent mode leaves media playing) or the web.
+
+A game's own settings go in two slots. `children` renders between Appearance and Check for Updates
+(board options, CPU difficulty, a stats backup). `leading` (0.29.0+) renders first, above every shared
+row, for what someone opening Settings from that game is most likely there for (its rules); when it's
+given, the shared rows get a GENERAL label under it. Omit `leading` (or pass `null`) and the sheet is
+exactly as before. The shared rows that read their own state take explicit opt-outs instead:
+`hideSound`, `hideHaptics`, `hideAppearance` and `hideUpdateCheck` (all default `false`).
 
 ## Overlay cards (`OverlayCard`, `OverlayBackdrop`, `useOverlayCardColors`)
 
@@ -321,11 +355,13 @@ function GameOverCard({ onRestart, onQuit }: { onRestart: () => void; onQuit: ()
   sheet look like one family, in each game's palette and light/dark mode.
 - **Every dialog opens with `DialogHeader`.** A 64pt icon over a large bold title, both in the theme's
   primary (pass `color` for another role, as `ConfirmDialog` does with danger when `destructive`).
+  `iconColor` (0.32.0+, on `DialogHeader` and `ConfirmDialog`) colors the icon alone, when it
+  shouldn't match the title (a white surrender flag under a red Forfeit title); it defaults to `color`.
   `ConfirmDialog`, the how-to-play guide (titled "How to Play") and `BaseSettingsDialog` all use it;
   an app's own cards should too. With `compact` the icon shrinks to 32pt and sits beside a smaller
-  title. `useCompactDialog(rotation?)` decides it: put its `onLayout` on the `OverlayBackdrop`, and it
-  is compact when the space the dialog lays out in is under `COMPACT_DIALOG_HEIGHT` (528pt) along the
-  card's own vertical axis, so a phone held sideways. One-button dialogs end in a single contained
+  title. `useCompactDialog()` decides it: put its `onLayout` on the `OverlayBackdrop`, and it is
+  compact when the space the dialog lays out in is under `COMPACT_DIALOG_HEIGHT` (528pt) tall, so a
+  phone held sideways. One-button dialogs end in a single contained
   primary button (`overlayActionStyles.actionButtonSingle`), the Settings sheet's Done included.
 - **A game can make every header quiet** with `DialogHeaderStyleProvider`, set once at the app's root
   (above auto-paper's `Provider`, so it reaches the dialogs in its portal host). `tone='quiet'` draws a
@@ -334,7 +370,9 @@ function GameOverCard({ onRestart, onQuit }: { onRestart: () => void; onQuit: ()
   (`titleStyle`, laid over `titleLarge` bold). Color is left only in the small icon and the confirm
   button: for a game where the big colored icon reads as too playful. Settings, every `ConfirmDialog`
   (`UpdateDialog` included) and the how-to-play guide follow it. Without the provider, or with
-  `tone='standard'`, nothing changes. `useDialogHeaderStyle()` reads it.
+  `tone='standard'`, nothing changes. `useDialogHeaderStyle()` reads it. The provider is exported from
+  the main entry, `./chrome` and `./guide` (so an app using only the guide can make its header quiet too);
+  `useDialogHeaderStyle` from the main entry and `./chrome`.
 
   ```tsx
   import { DialogHeaderStyleProvider } from '@tastic/hud'
@@ -403,22 +441,29 @@ their own internal, zone-blind `useAutoAlign` call:
 <SectionedDropdown id='p1-arena' host={host} sections={sections} accentColor={color} mutedColor={muted} dark={dark} alignOverride={useZoneClampedAlign(open, MENU_WIDTH, contentHeight)} />
 ```
 
-`ControlSchemePicker` forwards both `alignOverride` and `rotation` straight through to the
-`SectionedDropdown` it renders internally, so the same call works there too. `PlayerSetupPanel`'s
-own internal color/CPU-difficulty pickers aren't reachable this way (they're not a `ReactNode` slot
-your own code renders - see "The secondPicker slot" below), so it exposes `colorAlignOverride` and
-`cpuDifficultyAlignOverride` props instead, forwarded straight to `InlineColorPicker`'s and
-`LabeledDropdown`'s own `alignOverride` internally. Computing `open` for either one needs that
-picker's own popover id, which `PlayerSetupPanel` derives internally from `idPrefix` - call
-`getColorPopoverId(idPrefix)`/`getCpuDifficultyPopoverId(idPrefix)` (both exported) rather than
+`ControlSchemePicker` forwards `alignOverride` straight through to the
+`SectionedDropdown` it renders internally, so the same call works there too. `PlayerSetupPanel`
+places its seat button's dropdown (the profile or CPU-difficulty picker) itself, with
+`useZoneClampedAlign` (or the host's own `useSeatPickerAlign`, see above), so there is nothing to
+wire for it. Its fallback color swatch, drawn only on a seat with neither picker, isn't a `ReactNode`
+slot your own code renders (see "The secondPicker slot" below), so the panel takes
+`colorAlignOverride` for it, forwarded straight to that `InlineColorPicker`'s `alignOverride`.
+Computing `open` for it needs the swatch's popover id, which
+`PlayerSetupPanel` derives from `idPrefix`: call `getColorPopoverId(idPrefix)` (exported, beside
+`getProfilePopoverId` and `getCpuDifficultyPopoverId` for the seat button's dropdown) rather than
 guessing or hardcoding the naming convention yourself:
 
 ```tsx
-const cpuOpen = host.openId === getCpuDifficultyPopoverId('p2')
-const cpuAlign = useZoneClampedAlign(cpuOpen, LABELED_DROPDOWN_POPOVER_WIDTH, getLabeledDropdownContentHeight(cpuDifficultyOptions.length))
+const { width: windowWidth } = useWindowDimensions()
+const colorOpen = host.openId === getColorPopoverId('p2')
+const colorSize = getInlineColorPickerContentSize(swatches.length, windowWidth)
+const colorAlign = useZoneClampedAlign(colorOpen, colorSize.width, colorSize.height)
 
-<PlayerSetupPanel idPrefix='p2' host={host} cpuDifficulty={difficulty} cpuDifficultyOptions={cpuDifficultyOptions} onCpuDifficultyChange={setDifficulty} cpuDifficultyAlignOverride={cpuAlign} /* ...the rest of your usual props */ />
+<PlayerSetupPanel idPrefix='p2' host={host} color={color} onColorChange={setColor} swatches={swatches} colorAlignOverride={colorAlign} /* ...the rest of your usual props */ />
 ```
+
+(`cpuDifficultyAlignOverride` was removed in 0.21.0, when the seat button started placing its own
+dropdown.)
 
 For any other popover-hosting component that might sit inside a split-screen zone, call
 `useZoneClampedAlign` directly in place of `useAutoAlign`.
@@ -456,7 +501,7 @@ popover is open, so that elevation never kicks in, and your popover can silently
 sibling content instead of on top of it. If your `secondPicker` never opens a popover of its own (a
 plain toggle, static content, or nothing at all), omit `secondPickerId` - there's nothing for it to
 track. And if that slotted picker's own popover lives inside a split-screen zone, see "Zone-aware
-popovers" above for how to wire `alignOverride`/`rotation` into whatever you construct there.
+popovers" above for how to wire `alignOverride` into whatever you construct there.
 
 ## Quit confirmation (`useQuitConfirmation`)
 
@@ -476,7 +521,7 @@ interface QuitConfirmation {
 
 Wire `confirmVisible`/`cancelBack` straight to `<ConfirmDialog visible={...} onCancel={...}>`, and
 `requestBack` to the back button's `onPress`. The hook deliberately doesn't own or render the
-`<ConfirmDialog>` itself - title/message/icon/labels/rotation stay authored at each call site (a
+`<ConfirmDialog>` itself - title/message/icon/labels stay authored at each call site (a
 score pairing in most apps, a round-history pip row in LightCycles), matching this package's
 established "hooks return data, JSX stays at the call site" convention (`usePopoverHost`,
 `useAutoAlign`, `useZoneClampedAlign` all do the same).
@@ -575,6 +620,24 @@ on MD3's level-1 shadow, with `onSurface`/`onSurfaceVariant` text. `useWellColor
 `WELL_SHADOW` the shadow, for an app's own cards (a menu tile) to match. Each component's `fg`/`fgMuted`/`sectionBg`
 props still override them.
 
+**Frosted wells (0.32.0+).** While the player's Blur setting is on, `StatSection` and `AchievementRow` are frosted glass
+over whatever is behind the screen, so a stats screen over a game's backdrop follows Blur the way the dialogs do. The rule
+is `useFrostedWells()`: true while Blur is on, in an app that handed `expo-blur` to auto-paper's `Provider`, and not on
+Android (the same rule as `BaseSettingsDialog`'s Blur row). Otherwise a well is the theme's surface, as before. A
+`sectionBg` is always solid. `WellBackground` is that layer, for an app's own wells (a game's battle cards): render it
+first inside a well that has no `backgroundColor` of its own, and the well keeps its own padding, shadow and layout. It
+fills the well, takes no touches, and is clipped to `radius` (default 12, the radius `StatSection` and `AchievementRow`
+use); a `color` paints that solid color instead and never frosts. Both are exported from the main entry and `./chrome`.
+
+```tsx
+import { WELL_SHADOW, WellBackground } from '@tastic/hud/chrome'
+
+<View style={{ borderRadius: 16, boxShadow: WELL_SHADOW, padding: 12 }}>
+  <WellBackground radius={16} />
+  <BattleCardContent />
+</View>
+```
+
 **Captions.** `StatSection` takes an optional `caption`, a short key at the right end of its heading line over the rows'
 values, in the well's muted text: `<StatSection label='BY MODE' caption='W-L-D'>` over rows reading "3-2-0".
 
@@ -639,13 +702,11 @@ import { createGuideSlice, GuideProvider, SeatDiagram, SwipeHint, useAutoShowGui
 const guide = createGuideSlice({ currentVersion: 1 }) // { actions.markSeen, reducer, selectVersionSeen }
 
 // 2. Once, near the root, wrapping your screens (inside PersistGate + your theme/Paper providers).
-//    `rotation` is your game's live fake-landscape rotation (useRotation / getViewRotation).
 <GuideProvider
   steps={[{ title: 'Steer Your Cycle', body: 'Swipe up, down, left or right.', art: <SwipeHint direction='up' /> }]}
   currentVersion={1}
   seenVersion={useSelector(guide.selectVersionSeen)}
   onSeen={(v) => dispatch(guide.actions.markSeen(v))}
-  rotation={rotation}
 >
   <Screens />
 </GuideProvider>
@@ -696,6 +757,13 @@ const { open } = useGuide()
   dialog and supplies only its cards (Jay, 2026-09-24: "only their content should be different"). Short bodies,
   and only say what's true in every mode ("your half" is only true in two-player).
 - **Not `onboarding`.** LightCycles and Snake already use that word for their 3-2-1-GO countdown.
+- **The card itself is `HowToPlayDialog`**, which `GuideProvider` renders for you. Render it yourself only
+  to show cards outside the provider: `visible`, `steps`, `onFinish` (the last card's button), `onSkip`
+  (Skip and Android's back button; a caller persisting "seen" treats it like `onFinish`), and the
+  header's `title` and `icon` (default `'How to Play'` and `'help-circle-outline'`).
+  `getGuideCardSize(windowWidth, windowHeight)` is the sizing it uses, exported for tests: it returns
+  `{ width, pageWidth, maxHeight, artHeight, compact }`. The card is up to 360pt wide inside a 24pt
+  gutter, with 132pt of art (88pt when `compact`).
 
 ## Fleet chrome without the heavy peers (`@tastic/hud/chrome`)
 
@@ -704,14 +772,14 @@ from a standalone entry that never touches the main barrel. It's for an app that
 `@rific/updater` but none of Skia, `@tastic/profile` or `@tastic/split-screen` (Hangman). It exports, with
 their props types:
 
-- Dialogs: `BaseSettingsDialog`, `ConfirmDialog`, `UpdateDialog`, `RotatedFrame`
+- Dialogs: `BaseSettingsDialog`, `ConfirmDialog`, `UpdateDialog`, `ScreenFrame`
 - Stats: `BaseStatsScreen`, `StatSection`, `StatRow`, `AchievementRow`, `LOCKED_BADGE_COLOR`,
-  `AchievementCatalogSection`, `ActivityStatSection`, `useWellColors`, `WELL_SHADOW`
+  `AchievementCatalogSection`, `ActivityStatSection`, `useWellColors`, `WELL_SHADOW`, `WellBackground`,
+  `useFrostedWells` (0.32.0+)
 - Chrome: `CornerActionButtons`, `ContentGutter`, `StaggeredWord`, `getStaggeredWordDuration`
 - Overlay cards: `OverlayCard`, `OverlayBackdrop`, `useOverlayCardColors`, `SecondaryButton`, `DialogHeader`, `DialogHeaderStyleProvider`, `useDialogHeaderStyle`, `useCompactDialog`, `isCompactDialogHeight`, `COMPACT_DIALOG_HEIGHT`
 - Popovers (0.23.0+): `PopoverBody`, `PressAwayOverlay`, `usePopoverHost` (and its `PopoverHost` type),
-  `useAutoAlign` (and its `AlignResult`, `PopoverAlign`, `PopoverRotation` and `PopoverVerticalAlign`
-  types), `InlineColorPicker`, `getInlineColorPickerContentSize`
+  `useAutoAlign` (and its `AlignResult`, `PopoverAlign` and `PopoverVerticalAlign` types), `InlineColorPicker`, `getInlineColorPickerContentSize`
 - Style tokens: `overlayStyles`, `overlayActionStyles`, `MONO_FONT`
 
 The popovers are here for `@tastic/profile`: from 0.16 its `ProfilePicker`, `ProfilesScreen` and the rest
@@ -835,9 +903,7 @@ app that imports `@tastic/hud` would then load Skia, including in its tests.
 
 ## Install
 
-Published to the public npm registry as `@tastic/hud`. Everything described above, including the
-self-reading rotation behavior on these four components (defaulting to `@tastic/core`'s own
-`useRotation()` rather than a plain `0`), `PlayerSetupPanel`, and `StaggeredWord`, is live on npm.
+Published to the public npm registry as `@tastic/hud`.
 
 ```bash
 npm install @tastic/hud
@@ -846,11 +912,9 @@ npm install @tastic/hud
 ## ContentGutter
 
 Caps a play area at `maxContentWidth` and splits the leftover width into two equal gutters
-(`leftGutter`/`rightGutter` decorations). The width it clamps against is `@tastic/core`'s
-`useRotatedWindowDimensions()`, so under a fake-landscape ancestor (`FakeLandscapeView`: OS window
-stays portrait, the screen is only visually rotated) it caps against the swapped, post-rotation width
-instead of the never-changing raw window width. It is an exact identity with `useWindowDimensions()`
-when no rotation applies.
+(`leftGutter`/`rightGutter` decorations). The width it clamps against is the window's own
+(`useWindowDimensions()`): the OS turns the screen, so a landscape window already reports its landscape
+width. The clamp is `@tastic/core`'s `computeContentBounds`.
 
 ## Peer dependencies
 
@@ -868,13 +932,13 @@ resolve module".
 | `react`, `react-native` | >=19.0.0, >=0.76.0 | every entry |
 | `react-native-paper` | >=5.0.0 | main entry, `./guide`, `./chrome`, `./lobby` |
 | `react-native-reanimated` | >=3.0.0 | main entry (`StaggeredWord`), `./guide`, `./chrome` (`StaggeredWord`) |
-| `@rific/auto-paper` | >=0.12.2 | main entry (`BaseSettingsDialog` needs the nested `Portal.Host` first shipped in 0.12.2; `OverlayCard` uses `BlurView` and `useBlur`, and `BaseSettingsDialog`'s Blur row uses `useBlurModule` and `useThemeSettings`, all in 0.12.2), `./guide`, `./chrome`, `./lobby` |
-| `@rific/feedback-press` | >=0.10.2 | main entry (`useSoundSettings` first shipped in 0.10.2), `./guide`, `./chrome`, `./lobby` |
+| `@rific/auto-paper` | >=0.13.0 | main entry (`BaseSettingsDialog`'s rows scroll in `FadingScrollView`, first shipped in 0.13.0; it also needs the nested `Portal.Host` first shipped in 0.12.2; `OverlayCard` uses `BlurView` and `useBlur`, and `BaseSettingsDialog`'s Blur row uses `useBlurModule` and `useThemeSettings`, all in 0.12.2), `./guide`, `./chrome`, `./lobby` |
+| `@rific/feedback-press` | >=0.14.0 | main entry (`BaseSettingsDialog`'s Music row uses `useMusicSettings`, first shipped in 0.14.0), `./guide`, `./chrome`, `./lobby` |
 | `@rific/core` | >=0.4.0 | main entry and `./chrome`: `BaseSettingsDialog`'s Keep Awake row (`useKeepAwakeSettings`, `useExpoKeepAwake`, first shipped in 0.4.0) |
-| `react-native-safe-area-context` | >=5.0.0 | main entry and `./lobby` (`useZoneClampedAlign`), `./chrome` (`RotatedFrame`, `BaseSettingsDialog`) |
-| `@tastic/core` | >=0.12.0, optional | main entry: `useRotation()` and most dialogs; `RotatedFrame` and `BaseSettingsDialog` need `FakeLandscapeView`'s `rotation`/`passThrough`, first shipped in 0.12.0; `./chrome` (the same dialogs, and `InlineColorPicker`); `./lobby` (`PlayerSetupPanel`'s color picker) |
+| `react-native-safe-area-context` | >=5.0.0 | main entry and `./lobby` (`useZoneClampedAlign`), `./chrome` (`BaseSettingsDialog`) |
+| `@tastic/core` | >=0.15.0, optional | main entry: `BaseSettingsDialog` and `ControlSchemePicker` (`useIsTouchPrimaryDevice`), `InlineColorPicker` and `TriggerGauge` (`clamp`), `ContentGutter` (`computeContentBounds`); `./chrome` (`BaseSettingsDialog`, `InlineColorPicker`, `ContentGutter`); `./lobby` (`PlayerSetupPanel`'s color picker). 0.15 is where the OS turns the screen and core stops drawing a turn: this package follows no turn of its own, so on core 0.14 its dialogs and popovers would stay upright on a turned screen |
 | `@rific/updater` | >=0.4.0, optional | main entry and `./chrome`: `BaseSettingsDialog`, `UpdateDialog` |
-| `@tastic/profile` | >=0.4.0, optional | main entry: `PlayerSetupPanel`, `AchievementUnlockList` (`ProfileChip`); `./lobby` (`PlayerSetupPanel`) |
+| `@tastic/profile` | >=0.15.0, optional | main entry: `PlayerSetupPanel` (its seat button is `ProfilePicker` or `OptionPicker`, first shipped in 0.15.0), `AchievementUnlockList` (`ProfileChip`); `./lobby` (`PlayerSetupPanel`) |
 | `@tastic/split-screen` | >=0.5.0, optional | main entry and `./lobby`: `useZoneClampedAlign` |
 | `@shopify/react-native-skia` | >=2.6.0, optional | `TriggerGaugeHost`'s gauge (loaded when one mounts) and `./skia` |
 | `@tastic/achievements` | >=0.2.0, optional | `AchievementCatalogSection`, `AchievementUnlockList`, type-only (`AchievementCatalogRow`, first exported in 0.2.0; `AchievementTier`); `./chrome` needs it installed only to type-check |

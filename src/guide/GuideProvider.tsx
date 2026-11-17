@@ -1,7 +1,7 @@
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 
 import { HowToPlayDialog } from './HowToPlayDialog'
-import type { GuideRotation, GuideStep } from './types'
+import type { GuideStep } from './types'
 
 interface GuideContextValue {
   isOpen: boolean
@@ -30,8 +30,6 @@ export interface GuideProviderProps {
   seenVersion: number
   // Called with `currentVersion` when the player finishes or skips a guide they hadn't seen yet.
   onSeen: (version: number) => void
-  // The app's live fake-landscape rotation (see GuideRotation). The card rotates and sizes itself for it.
-  rotation?: GuideRotation
   children?: ReactNode
 }
 
@@ -39,7 +37,7 @@ export interface GuideProviderProps {
 // app-level dialog" seat - so any screen can open it through useGuide() without prop-drilling, and
 // the Portal it renders sits above every route. Inside PersistGate, so `seenVersion` is already the
 // rehydrated value by the time this first renders.
-export function GuideProvider({ steps, currentVersion, seenVersion, onSeen, rotation, children }: GuideProviderProps) {
+export function GuideProvider({ steps, currentVersion, seenVersion, onSeen, children }: GuideProviderProps) {
   const [isOpen, setIsOpen] = useState(false)
   // Once per session, not once per Home mount - Home remounts every time the player backs out of a
   // match, and skipping shouldn't be something they have to do again a minute later just because the
@@ -65,7 +63,7 @@ export function GuideProvider({ steps, currentVersion, seenVersion, onSeen, rota
   return (
     <GuideContext.Provider value={value}>
       {children}
-      <HowToPlayDialog visible={isOpen} steps={steps} onFinish={close} onSkip={close} rotation={rotation} />
+      <HowToPlayDialog visible={isOpen} steps={steps} onFinish={close} onSkip={close} />
     </GuideContext.Provider>
   )
 }

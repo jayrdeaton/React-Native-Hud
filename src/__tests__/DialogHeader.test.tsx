@@ -1,4 +1,3 @@
-import { useRotation } from '@tastic/core'
 import { act, render } from '@testing-library/react'
 import { type LayoutChangeEvent, useWindowDimensions } from 'react-native'
 import { Icon, Text } from 'react-native-paper'
@@ -101,8 +100,8 @@ describe('isCompactDialogHeight', () => {
   })
 })
 
-function Probe({ rotation, onResult }: { rotation?: 0 | 90 | -90 | 180; onResult: (result: ReturnType<typeof useCompactDialog>) => void }) {
-  onResult(useCompactDialog(rotation))
+function Probe({ onResult }: { onResult: (result: ReturnType<typeof useCompactDialog>) => void }) {
+  onResult(useCompactDialog())
   return null
 }
 
@@ -111,37 +110,19 @@ function layout(width: number, height: number) {
 }
 
 describe('useCompactDialog', () => {
-  afterEach(() => {
-    ;(useRotation as jest.Mock).mockReturnValue(0)
-  })
-
-  it('before layout, an upright card guesses it sits in a frame turned by the live rotation', () => {
+  it('before layout, it guesses the window', () => {
     const onResult = jest.fn()
     const { unmount } = render(<Probe onResult={onResult} />)
     expect(onResult.mock.lastCall[0].compact).toBe(false)
     unmount()
 
-    ;(useRotation as jest.Mock).mockReturnValue(90)
-    const { unmount: unmountTurned } = render(<Probe onResult={onResult} />)
+    ;(useWindowDimensions as jest.Mock).mockReturnValueOnce({ width: 874, height: 402, scale: 3, fontScale: 1 })
+    const { unmount: unmountLandscape } = render(<Probe onResult={onResult} />)
     expect(onResult.mock.lastCall[0].compact).toBe(true)
-    unmountTurned()
+    unmountLandscape()
   })
 
-  it('before layout, a card that turns itself guesses it sits at the upright root', () => {
-    // The live rotation is ignored: a self-turned card is portaled to the root, outside any frame.
-    ;(useRotation as jest.Mock).mockReturnValue(90)
-    const onResult = jest.fn()
-    const { unmount } = render(<Probe rotation={90} onResult={onResult} />)
-    // 402 x 874 window: a quarter-turned card's height is the window's 402pt width.
-    expect(onResult.mock.lastCall[0].compact).toBe(true)
-    unmount()
-
-    const { unmount: unmountUpsideDown } = render(<Probe rotation={180} onResult={onResult} />)
-    expect(onResult.mock.lastCall[0].compact).toBe(false)
-    unmountUpsideDown()
-  })
-
-  it('once the backdrop has laid out, its measured size decides, along the card own vertical axis', () => {
+  it('once the backdrop has laid out, its measured height decides', () => {
     const onResult = jest.fn()
     const { unmount } = render(<Probe onResult={onResult} />)
 
@@ -150,11 +131,6 @@ describe('useCompactDialog', () => {
     act(() => onResult.mock.lastCall[0].onLayout(layout(402, 874)))
     expect(onResult.mock.lastCall[0].compact).toBe(false)
     unmount()
-
-    const { unmount: unmountTurned } = render(<Probe rotation={-90} onResult={onResult} />)
-    act(() => onResult.mock.lastCall[0].onLayout(layout(402, 874)))
-    expect(onResult.mock.lastCall[0].compact).toBe(true)
-    unmountTurned()
   })
 
   it('a resize after the first layout is followed', () => {

@@ -9,7 +9,7 @@ import { DialogHeader, isCompactDialogHeight } from '../DialogHeader'
 import { overlayActionStyles } from '../overlayCard'
 import { OverlayBackdrop, OverlayCard, useOverlayCardColors } from '../OverlaySurface'
 import { SecondaryButton } from '../SecondaryButton'
-import type { GuideRotation, GuideStep } from './types'
+import type { GuideStep } from './types'
 
 // The overlay's own breathing room and the card's own inner padding. Together with the card's max
 // width these fix the width of one page exactly, which the paging ScrollView below needs up front (it
@@ -17,9 +17,6 @@ import type { GuideRotation, GuideStep } from './types'
 const OVERLAY_GUTTER = 24
 const CARD_PADDING = 24
 const MAX_CARD_WIDTH = 360
-// A quarter-turned card has the phone's long edge to spread across, so it's allowed wider: shorter
-// lines mean fewer of them, which is what actually has to fit (see sizing below).
-const MAX_CARD_WIDTH_TURNED = 520
 const ART_HEIGHT = 132
 // On a short screen (isCompactDialogHeight, the rule every dialog's header follows) the illustration
 // box shrinks. Before the dialog header, that fit the whole card (padding, art, title, two lines of
@@ -28,17 +25,12 @@ const ART_HEIGHT = 132
 // is drawn at fixed sizes (Solitaire's is 72-98pt tall). The page's own gaps tighten instead (pageCompact).
 const ART_HEIGHT_COMPACT = 88
 
-// Where the card has to fit. The fleet's rotation is FAKE: the OS window stays portrait and the card
-// is only turned with a transform, so a quarter-turned card's on-screen width is its layout HEIGHT,
-// which must fit the window's short edge, and its on-screen height is its layout width. Sizing it
-// against the unswapped window (what the first version did) let a sideways card run off a small
-// phone. Exported for tests.
-export function getGuideCardSize(windowWidth: number, windowHeight: number, rotation: GuideRotation) {
-  const turned = rotation === 90 || rotation === -90
-  const availableWidth = (turned ? windowHeight : windowWidth) - OVERLAY_GUTTER * 2
-  const availableHeight = (turned ? windowWidth : windowHeight) - OVERLAY_GUTTER * 2
-  const width = Math.min(turned ? MAX_CARD_WIDTH_TURNED : MAX_CARD_WIDTH, availableWidth)
-  const compact = isCompactDialogHeight(turned ? windowWidth : windowHeight)
+// Where the card has to fit: the window, inside the overlay's gutter. Exported for tests.
+export function getGuideCardSize(windowWidth: number, windowHeight: number) {
+  const availableWidth = windowWidth - OVERLAY_GUTTER * 2
+  const availableHeight = windowHeight - OVERLAY_GUTTER * 2
+  const width = Math.min(MAX_CARD_WIDTH, availableWidth)
+  const compact = isCompactDialogHeight(windowHeight)
   return {
     width,
     pageWidth: width - CARD_PADDING * 2,
@@ -56,9 +48,6 @@ export interface HowToPlayDialogProps {
   // Skip (first card only - see the action row), and Android's hardware back button - both mean "I don't need this", so a caller persisting
   // "seen" should treat them exactly like onFinish.
   onSkip: () => void
-  // The app's live fake-landscape rotation (see GuideRotation). Portal content escapes any rotated
-  // ancestor, so the card rotates itself, and sizes itself for the turn (see getGuideCardSize).
-  rotation?: GuideRotation
   // The dialog's own header (DialogHeader), above the pages: the guide opens unprompted on a first
   // launch, so it says what it is before the first card's own title (Jay, 2026-10-15).
   title?: string
@@ -67,7 +56,7 @@ export interface HowToPlayDialogProps {
 
 type CardProps = Omit<HowToPlayDialogProps, 'visible'>
 
-function HowToPlayCard({ steps, onFinish, onSkip, rotation = 0, title = 'How to Play', icon = 'help-circle-outline' }: CardProps) {
+function HowToPlayCard({ steps, onFinish, onSkip, title = 'How to Play', icon = 'help-circle-outline' }: CardProps) {
   const { dark, colors } = useAutoPaperTheme()
   const { width: windowWidth, height: windowHeight } = useWindowDimensions()
   const reducedMotion = useReducedMotion()
@@ -85,8 +74,7 @@ function HowToPlayCard({ steps, onFinish, onSkip, rotation = 0, title = 'How to 
   }, [onSkip])
 
   const { fg, fgMuted } = useOverlayCardColors()
-  const { width: cardWidth, pageWidth, maxHeight, artHeight, compact } = getGuideCardSize(windowWidth, windowHeight, rotation)
-  const rotationStyle = rotation === 0 ? undefined : { transform: [{ rotate: `${rotation}deg` }] }
+  const { width: cardWidth, pageWidth, maxHeight, artHeight, compact } = getGuideCardSize(windowWidth, windowHeight)
   const isFirst = index === 0
   const isLast = index === steps.length - 1
   const isOnly = steps.length === 1
@@ -131,7 +119,7 @@ function HowToPlayCard({ steps, onFinish, onSkip, rotation = 0, title = 'How to 
   return (
     <Portal>
       <OverlayBackdrop style={styles.overlay}>
-        <OverlayCard accessibilityViewIsModal style={[styles.card, { width: cardWidth, maxHeight }, rotationStyle]}>
+        <OverlayCard accessibilityViewIsModal style={[styles.card, { width: cardWidth, maxHeight }]}>
           <DialogHeader icon={icon} title={title} compact={compact} />
           {/* The pager shrinks (flexShrink) when the card hits maxHeight, and each page is its own
             vertical ScrollView, so a page that still doesn't fit (a long translation, large text)

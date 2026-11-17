@@ -346,21 +346,21 @@ describe('PlayerSetupPanel', () => {
       const { hostBoxRef } = renderPanel({ profiles: [ADA], onProfileSelect: jest.fn(), onManageProfiles: jest.fn(), colorCaption: 'Snake only', selectedProfileId: 'a' })
 
       expect(getProfilePickerContentSize).toHaveBeenLastCalledWith(1, true, profilePickerProps().colorSection)
-      expect(useAutoAlign).toHaveBeenLastCalledWith(false, 220, 301, 0)
+      expect(useAutoAlign).toHaveBeenLastCalledWith(false, 220, 301)
       expect(profilePickerProps().alignOverride).toEqual(expect.objectContaining({ measured: expect.any(Boolean), triggerRef: expect.anything() }))
 
       act(() => hostBoxRef.current!.toggle(getProfilePopoverId('p1')))
-      expect(useAutoAlign).toHaveBeenLastCalledWith(true, 220, 301, 0)
+      expect(useAutoAlign).toHaveBeenLastCalledWith(true, 220, 301)
     })
 
     it("places the CPU seat button's dropdown from its own size", () => {
       const { hostBoxRef } = renderPanel(cpuSeat)
 
       expect(getOptionPickerContentSize).toHaveBeenLastCalledWith(DIFFICULTY_OPTIONS.length, optionPickerProps().colorSection)
-      expect(useAutoAlign).toHaveBeenLastCalledWith(false, 220, 202, 0)
+      expect(useAutoAlign).toHaveBeenLastCalledWith(false, 220, 202)
 
       act(() => hostBoxRef.current!.toggle(getCpuDifficultyPopoverId('p1')))
-      expect(useAutoAlign).toHaveBeenLastCalledWith(true, 220, 202, 0)
+      expect(useAutoAlign).toHaveBeenLastCalledWith(true, 220, 202)
       expect(optionPickerProps().alignOverride).toBeDefined()
     })
 
@@ -372,15 +372,6 @@ describe('PlayerSetupPanel', () => {
       // InlineColorPicker's own internal placement logic, which is that component's own test's job.
       expect(mockViewRender).toHaveBeenCalled()
       expect(useAutoAlign).toHaveBeenCalled()
-    })
-
-    it('forwards colorRotation to the fallback InlineColorPicker, overriding its default ambient useRotation() read', () => {
-      renderPanel({ colorRotation: 180 })
-
-      // InlineColorPicker's own useAutoAlign call takes rotation as its 4th argument - see that
-      // component's own test file for the identical assertion shape.
-      const calls = (useAutoAlign as jest.Mock).mock.calls
-      expect(calls[calls.length - 1][3]).toBe(180)
     })
   })
 

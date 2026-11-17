@@ -8,9 +8,8 @@ interface Props {
   // (BaseSettingsDialog, SectionedDropdown, etc.), just resolved by the caller since this component
   // never reads theme state itself.
   fg: string
-  // Safe-area insets already remapped onto the screen's real visual edges (see
-  // @tastic/split-screen's rotateInsets) - this component just adds the fixed 8px margin on top,
-  // it doesn't know anything about physical device orientation itself.
+  // The screen's safe-area insets, as the caller has them - this component just adds the fixed 8px
+  // margin on top, it doesn't know anything about physical device orientation itself.
   insets: { top: number; left: number; right: number }
   // Overrides the top-left button's icon (a react-native-paper/MaterialCommunityIcons name) and its
   // accessibility label - default 'arrow-left'/'Back'. Not every screen's top-left control is

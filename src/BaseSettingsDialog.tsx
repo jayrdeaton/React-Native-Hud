@@ -2,7 +2,7 @@ import { AutoAppearancePicker, Dialog, FadingScrollView, useAutoPaperTheme, useB
 import { useExpoKeepAwake, useKeepAwakeSettings } from '@rific/core'
 import { Button, SoundContext, TouchableRipple, useHapticSettings, useMusicSettings, useSoundSettings, useVibration } from '@rific/feedback-press'
 import { useUpdater } from '@rific/updater'
-import { rotateInsets, useIsTouchPrimaryDevice, useRotation, type ViewRotation } from '@tastic/core'
+import { useIsTouchPrimaryDevice } from '@tastic/core'
 import { ReactNode, useContext, useState } from 'react'
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { Icon, Portal, Text } from 'react-native-paper'
@@ -11,7 +11,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ConfirmDialog } from './ConfirmDialog'
 import { DialogHeader, isCompactDialogHeight } from './DialogHeader'
 import { overlayActionStyles, overlayStyles } from './overlayCard'
-import { RotatedFrame } from './RotatedFrame'
+import { ScreenFrame } from './ScreenFrame'
+import { releasedLabel } from './UpdateDialog'
 import { useUpdateConfirmBridge } from './useUpdateConfirmBridge'
 
 interface SettingIconProps {
@@ -23,8 +24,8 @@ interface SettingIconProps {
 // Small colored badge per row (icon tinted on its own MD3 container color) - echoes the
 // primary/secondary/tertiary triad that's already each consuming app's own identity, so the
 // settings list picks up that same palette instead of introducing new colors of its own. Every
-// on/off row (Lock Orientation, Edge Guard, Sound, Music, Haptics) is tertiary while on, and an app adding
-// its own toggle rows should match; secondary is for the always-on action row (How to Play).
+// on/off row (Edge Guard, Keep Awake, Sound, Music, Haptics, Blur) is tertiary while on, and an app
+// adding its own toggle rows should match; secondary is for the always-on action row (How to Play).
 function SettingIcon({ source, color, containerColor }: SettingIconProps) {
   return (
     <View style={[styles.iconBadge, { backgroundColor: containerColor }]}>
@@ -36,22 +37,12 @@ function SettingIcon({ source, color, containerColor }: SettingIconProps) {
 export interface BaseSettingsDialogProps {
   visible: boolean
   onDismiss: () => void
-  // Explicit override for the live physical-hold rotation (see @tastic/core's useRotation). This is
-  // a centered, app-wide modal with no per-player zone to match (unlike an in-game round-over
-  // dialog), so it lays itself out in its own frame turned by this angle (see the return below).
-  // Defaults to a live ambient read via useRotation() when omitted. Pass 0 when the dialog already
-  // renders under a Portal.Host inside a turned frame of the caller's own (Solitaire's screens).
-  rotation?: ViewRotation
   // Each app's own OTA version (e.g. release.otaVersion) - not something this package can read
   // itself, since every consuming app tracks its own release.ts independently. Accepts a number too
   // since that's what release.otaVersion actually is in most apps (a bare incrementing counter, not
   // a formatted string) - this just interpolates it into the VERSION label same as the original
   // inline JSX did.
   version: string | number
-  // Optional, and always passed as a pair - omit both entirely for a game that's portrait-only (or
-  // otherwise has no orientation-based reflow at all), where there's nothing to lock against.
-  lockOrientation?: boolean
-  onLockOrientationChange?: (value: boolean) => void
   // Optional, and always passed as a pair - omit both entirely for a game with no full-screen edge-
   // anchored swipe controls (nothing to guard). Native only regardless of whether the pair is passed:
   // a browser has no system edge gestures to guard. On Android the app also has to spread
@@ -61,7 +52,7 @@ export interface BaseSettingsDialogProps {
   // No Keep Awake props: that row reads @rific/core's Keep Awake setting itself (see showKeepAwake).
   // Explicit opt-outs for the rows that pull their own state straight from @rific/feedback-press,
   // @rific/auto-paper, and @rific/updater's own shared contexts/hooks rather than from anything the
-  // caller passes in - unlike Lock Orientation/Edge Guard above, there's no "value" to omit for
+  // caller passes in - unlike Edge Guard above, there's no "value" to omit for
   // these, so hiding one takes its own explicit flag instead. All default to shown, matching every
   // app's existing behavior before this prop existed.
   hideSound?: boolean
@@ -96,34 +87,28 @@ export interface BaseSettingsDialogProps {
   leading?: ReactNode
 }
 
-// The settings shell every @tastic game shares - orientation lock, the optional edge-guard and
-// keep-awake toggles, sound/haptics, appearance, and update checking - extracted after the same six rows were
+// The settings shell every @tastic game shares - the optional edge-guard and keep-awake toggles,
+// sound/haptics, appearance, and update checking - extracted after the same six rows were
 // independently copied into LightCycles, AirHockey, BoxHockey, Pong, and Snake and then needed
 // hand-editing in every one of them, twice, for what were meant to be identical fixes. `children`
 // is the seam for whatever isn't shared: a game with its own board/difficulty settings (or a stats
 // backup flow, or anything else genuinely specific to it) renders those below Appearance, not by
 // forking this component.
-export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverride, version, lockOrientation, onLockOrientationChange, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, showMusic = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, onShowHowToPlay, children, leading }: BaseSettingsDialogProps) {
+export function BaseSettingsDialog({ visible, onDismiss, version, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, showMusic = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, onShowHowToPlay, children, leading }: BaseSettingsDialogProps) {
   const { colors } = useAutoPaperTheme()
-  const ambientRotation = useRotation()
-  const rotation = rotationOverride ?? ambientRotation
-  // The sheet lays out in a RotatedFrame turned by `rotation` (below), so its height is the window's
-  // width when turned a quarter: the same compact rule as every other dialog's header.
+  // The sheet lays out in a frame the window's size (below): the same compact rule as every other
+  // dialog's header.
   const window = useWindowDimensions()
-  const turned = rotation === 90 || rotation === -90
-  const compactHeader = isCompactDialogHeight(turned ? window.width : window.height)
+  const compactHeader = isCompactDialogHeight(window.height)
   // The overlay cards' width (ConfirmDialog, the guide, every app's result card): 24pt from the
   // frame's edges, never under a notch, capped at their 360 (overlayStyles.card). auto-paper's Dialog
   // would give the sheet a 32pt margin and a 400 cap, 16pt narrower than a card on a phone, which
   // showed when Settings and a confirm opened one after the other. The card is centered, so the
   // Dialog's own 32pt padding is simply overhung.
-  const insets = rotateInsets(useSafeAreaInsets(), rotation)
-  const sheetWidth = Math.min(overlayStyles.card.maxWidth, (turned ? window.height : window.width) - 2 * Math.max(insets.left, insets.right, SHEET_GUTTER))
-  // Also gates the Lock Orientation and Keep Awake rows below (alongside their own conditions) - true
-  // unconditionally on native (see the hook's own doc), so this only actually excludes a
-  // desktop/laptop browser, where a mouse-driven window has no physical orientation to lock
-  // against; a resize there would just make the setting silently stop reflowing the layout instead
-  // of actually locking anything.
+  const insets = useSafeAreaInsets()
+  const sheetWidth = Math.min(overlayStyles.card.maxWidth, window.width - 2 * Math.max(insets.left, insets.right, SHEET_GUTTER))
+  // Gates the Keep Awake row below (alongside its own condition) - true unconditionally on native
+  // (see the hook's own doc), so this only actually excludes a desktop/laptop browser.
   const isTouchPrimary = useIsTouchPrimaryDevice()
   const { settings: hapticSettings, set: setHapticSettings } = useHapticSettings()
   const { settings: soundSettings, set: setSoundSettings } = useSoundSettings()
@@ -167,13 +152,12 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   const [opened, setOpened] = useState(visible)
   if (visible && !opened) setOpened(true)
 
-  const showLockOrientation = isTouchPrimary && lockOrientation !== undefined && onLockOrientationChange !== undefined
   const showEdgeGuard = Platform.OS !== 'web' && deferBottomEdgeGestures !== undefined && onDeferBottomEdgeGestures !== undefined
   // Only in an app that opted in by handing expo-keep-awake to @rific/core's KeepAwakeProvider, and
   // only where it can work: core withholds the module from a browser without the Screen Wake Lock
-  // API (from @rific/core 0.4.1), so without it the setting would do nothing. On the same devices
-  // as Lock Orientation, since a desktop/laptop browser stays awake on its own while someone plays
-  // with its keyboard or mouse.
+  // API (from @rific/core 0.4.1), so without it the setting would do nothing. Only on touch-first
+  // devices, since a desktop/laptop browser stays awake on its own while someone plays with its
+  // keyboard or mouse.
   const showKeepAwake = isTouchPrimary && expoKeepAwake !== undefined
   const showHaptics = Platform.OS !== 'web' && !hideHaptics
   const showSound = !hideSound
@@ -185,20 +169,16 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
   const silentNote = Platform.OS !== 'ios' ? null : showSound && showMusic ? 'Silent mode mutes sound and music' : showSound ? 'Silent mode mutes sound' : showMusic ? 'Silent mode mutes music' : null
   const hasLeading = leading !== undefined && leading !== null && leading !== false
 
-  // Laid out in its own turned frame rather than rotated in place. Paper's Portal mounts at the app
-  // root, full screen and portrait-shaped, so a sheet that only rotated its card kept resolving its
-  // maxHeight against the PORTRAIT height: turned 90deg it ran past the ~402pt short edge, and the top
-  // row (Lock Orientation, the one you need to get back out of landscape) was clipped with no way to
-  // scroll to it. So the whole output goes through one Portal to the root, into a RotatedFrame sized
-  // to the turned footprint, with rotated safe-area insets and its own Portal.Host. The Dialog and the
-  // two ConfirmDialogs below portal into THAT host, so they lay out against the turned window with no
-  // transform of their own (hence rotation={0} on the ConfirmDialogs). The frame is pass-through at
-  // every level and stays mounted once the sheet has opened, which keeps the Dialog's close fade; at
-  // rotation 0 it is an identity frame.
+  // The whole output goes through one Portal to the root, into a pass-through ScreenFrame with its own
+  // Portal.Host, and the Dialog and the two ConfirmDialogs below portal into THAT host, so the sheet
+  // and the cards opened from it share one host mounted at first open. (The frame used to turn the
+  // sheet for a drawn rotation; nothing turns since @tastic/core 0.15, and it was kept as it was
+  // rather than reworking the sheet's portals untested on a device.) It stays mounted once the sheet
+  // has opened, which keeps the Dialog's close fade.
   if (!opened) return null
   return (
     <Portal>
-      <RotatedFrame rotation={rotation} rotatedSafeArea portalHost passThrough>
+      <ScreenFrame portalHost passThrough>
         <Dialog visible={visible} onDismiss={onDismiss} style={[styles.dialog, { width: sheetWidth }]}>
           {/* react-native-paper's Dialog.ScrollArea has a fixed 24px marginBottom baked in (meant to
             reserve room for a Dialog.Actions row below it) - overridden to 0: the Done row below
@@ -225,27 +205,6 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
                       GENERAL
                     </Text>
                   )}
-                  {/* Omitted entirely for a portrait-only game (no lockOrientation/onLockOrientationChange
-                  passed at all - nothing to lock), and hidden (not just disabled) on a desktop/laptop
-                  browser even when they are - see isTouchPrimary's own doc above. Still shown on
-                  native and on a touch-capable mobile browser, where a rotated window really does
-                  reflect a rotated device. */}
-                  {showLockOrientation && (
-                    <TouchableRipple onPress={() => onLockOrientationChange!(!lockOrientation)} style={styles.toggleButton} accessibilityLabel={`Lock orientation ${lockOrientation ? 'on' : 'off'}`}>
-                      <View style={styles.toggleContent}>
-                        <SettingIcon source={lockOrientation ? 'lock' : 'lock-open-variant-outline'} color={lockOrientation ? colors.tertiary : colors.onSurfaceVariant} containerColor={lockOrientation ? colors.tertiaryContainer : colors.surfaceVariant} />
-                        <View style={styles.flexShrink}>
-                          <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
-                            Lock Orientation
-                          </Text>
-                          <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
-                            Pin current layout
-                          </Text>
-                        </View>
-                      </View>
-                    </TouchableRipple>
-                  )}
-
                   {/* iOS and Android. On iOS the app mirrors it into UserDefaults for
                   @tastic/edge-guard's config plugin swizzle to read, guarding the top (Notification
                   Center/Control Center) and the bottom (home-indicator swipe, incidentally
@@ -289,7 +248,7 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
                   )}
 
                   {/* Side by side, not stacked - neither needs a full row's width (single-line label,
-                  no description under it the way Lock Orientation has), so sharing one row reads
+                  no description under it the way Edge Guard has), so sharing one row reads
                   just as clearly and takes half the vertical space. toggleRow carries the same
                   edge-alignment negative margin toggleButton normally carries itself; the buttons
                   inside it use toggleButtonInRow (flex: 1) instead so the two don't double up on it.
@@ -452,11 +411,11 @@ export function BaseSettingsDialog({ visible, onDismiss, rotation: rotationOverr
             </Button>
           </View>
         </Dialog>
-        <ConfirmDialog visible={!!updateManifest} title='Update Available' message={updateManifestDate ? `Released ${updateManifestDate.toLocaleDateString()} at ${updateManifestDate.toLocaleTimeString()}` : ''} confirmLabel='Restart' cancelLabel='Later' icon='update' rotation={0} onConfirm={() => respondToUpdateConfirm(true)} onCancel={() => respondToUpdateConfirm(false)} />
+        <ConfirmDialog visible={!!updateManifest} title='Update Available' message={updateManifestDate ? releasedLabel(updateManifestDate) : ''} confirmLabel='Restart' cancelLabel='Later' icon='update' onConfirm={() => respondToUpdateConfirm(true)} onCancel={() => respondToUpdateConfirm(false)} />
         {/* onCancel with no cancelLabel adds no button: it's only so Android back dismisses the
             message the way OK does (ConfirmDialog consumes back either way). */}
-        <ConfirmDialog visible={!!infoMessage} title={infoMessage?.title ?? ''} message={infoMessage?.message ?? ''} confirmLabel='OK' icon='information-outline' rotation={0} onConfirm={() => setInfoMessage(null)} onCancel={() => setInfoMessage(null)} />
-      </RotatedFrame>
+        <ConfirmDialog visible={!!infoMessage} title={infoMessage?.title ?? ''} message={infoMessage?.message ?? ''} confirmLabel='OK' icon='information-outline' onConfirm={() => setInfoMessage(null)} onCancel={() => setInfoMessage(null)} />
+      </ScreenFrame>
     </Portal>
   )
 }
