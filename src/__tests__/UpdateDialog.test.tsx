@@ -2,7 +2,7 @@ import { Button } from '@rific/feedback-press'
 import { useUpdater } from '@rific/updater'
 import { act, render } from '@testing-library/react'
 
-import { UpdateDialog } from '../UpdateDialog'
+import { releasedLabel, UpdateDialog } from '../UpdateDialog'
 
 const manifest = { createdAt: '2026-01-01T12:00:00.000Z' }
 
@@ -76,5 +76,36 @@ describe('UpdateDialog', () => {
 
     await expect(pending).resolves.toBe(true)
     unmount()
+  })
+})
+
+describe('releasedLabel', () => {
+  // Local times, so the calendar-day counting doesn't depend on the machine's time zone
+  const now = new Date(2026, 10, 17, 10, 30)
+  const time = (d: Date) => d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+
+  it('says today or yesterday, by the calendar, with the time to the minute', () => {
+    const today = new Date(2026, 10, 17, 10, 18, 53)
+    expect(releasedLabel(today, now)).toBe(`Released today at ${time(today)}`)
+    expect(releasedLabel(today, now)).not.toMatch(/:53/)
+    const lateLastNight = new Date(2026, 10, 16, 23, 5)
+    expect(releasedLabel(lateLastNight, new Date(2026, 10, 17, 1, 0))).toBe(`Released yesterday at ${time(lateLastNight)}`)
+  })
+
+  it('gives a short date before that, and the year only when it is not this one', () => {
+    const lastWeek = new Date(2026, 10, 10, 9, 30)
+    expect(releasedLabel(lastWeek, now)).toBe(`Released ${lastWeek.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} at ${time(lastWeek)}`)
+    const lastYear = new Date(2025, 11, 30, 9, 30)
+    expect(releasedLabel(lastYear, now)).toContain('2025')
+    expect(releasedLabel(lastWeek, now)).not.toContain('2026')
+  })
+
+  it('counts a day across a daylight-saving change as one', () => {
+    // The days the clocks change in North America in 2026 (March 8 and November 1), whose midnights are 23 and 25 hours apart where
+    // they change; still yesterday (in a time zone without the change, a plain day)
+    const springForward = new Date(2026, 2, 8, 12, 0)
+    expect(releasedLabel(springForward, new Date(2026, 2, 9, 12, 0))).toMatch(/^Released yesterday at /)
+    const fallBack = new Date(2026, 10, 1, 12, 0)
+    expect(releasedLabel(fallBack, new Date(2026, 10, 2, 12, 0))).toMatch(/^Released yesterday at /)
   })
 })
