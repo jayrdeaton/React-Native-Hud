@@ -3,7 +3,7 @@ import { act, render } from '@testing-library/react'
 import { type LayoutChangeEvent, useWindowDimensions } from 'react-native'
 import { Icon, Text } from 'react-native-paper'
 
-import { COMPACT_DIALOG_HEIGHT, DialogHeader, isCompactDialogHeight } from '../DialogHeader'
+import { COMPACT_DIALOG_HEIGHT, DialogHeader, DialogHeaderStyleProvider, isCompactDialogHeight } from '../DialogHeader'
 import { useCompactDialog } from '../useCompactDialog'
 
 function lastIconProps() {
@@ -46,6 +46,49 @@ describe('DialogHeader', () => {
 
     expect(lastIconProps().size).toBe(32)
     expect(lastTitleProps().variant).toBe('headlineSmall')
+    unmount()
+  })
+
+  it("quiet: a small icon in the accent beside a plain title in the game's own lettering", () => {
+    const lettering = { fontWeight: '900' as const, letterSpacing: 3, textTransform: 'uppercase' as const }
+    const { container, unmount } = render(
+      <DialogHeaderStyleProvider tone='quiet' titleStyle={lettering}>
+        <DialogHeader icon='trash-can-outline' title='Delete Battle?' color='#00000b' />
+      </DialogHeaderStyleProvider>
+    )
+
+    expect(container.textContent).toBe('Delete Battle?')
+    expect(lastIconProps()).toMatchObject({ source: 'trash-can-outline', size: 22, color: '#00000b' })
+    expect(lastTitleProps()).toMatchObject({ variant: 'titleLarge', accessibilityRole: 'header' })
+    const style = [lastTitleProps().style].flat(Infinity)
+    expect(style).toContainEqual({ color: '#000002' }) // colors.onSurface, not the accent
+    expect(style).not.toContainEqual({ color: '#00000b' })
+    expect(style).toContainEqual(lettering)
+    unmount()
+  })
+
+  it('quiet: keeps an icon color of its own, and looks the same compact', () => {
+    const { unmount } = render(
+      <DialogHeaderStyleProvider tone='quiet'>
+        <DialogHeader icon='flag' title='Forfeit?' color='#00000b' iconColor='#ffffff' compact />
+      </DialogHeaderStyleProvider>
+    )
+
+    expect(lastIconProps()).toMatchObject({ size: 22, color: '#ffffff' })
+    expect(lastTitleProps().variant).toBe('titleLarge')
+    unmount()
+  })
+
+  it('standard under the provider looks as it always has, ignoring the lettering', () => {
+    const lettering = { letterSpacing: 9 }
+    const { unmount } = render(
+      <DialogHeaderStyleProvider tone='standard' titleStyle={lettering}>
+        <DialogHeader icon='cog' title='Settings' />
+      </DialogHeaderStyleProvider>
+    )
+
+    expect(lastIconProps().size).toBe(64)
+    expect([lastTitleProps().style].flat(Infinity)).not.toContainEqual(lettering)
     unmount()
   })
 })

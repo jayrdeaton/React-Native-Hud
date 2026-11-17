@@ -408,7 +408,8 @@ cards read as a different shade from the Settings sheet. So:
   by hud itself) and its 20pt radius: it takes the Dialog's `(isV3 ? 7 : 1) * roundness` (28 at MD3's
   default) from the theme. `overlayStyles.card` padding went 32 -> 24, the sheet's own inset.
 - **`DialogHeader` (src/DialogHeader.tsx)** is the one header: icon 64 over `headlineLarge` bold, both in
-  `color ?? primary`, centered; `compact` puts a 32pt icon beside a `headlineSmall` title. The guide
+  `color ?? primary`, centered; `compact` puts a 32pt icon beside a `headlineSmall` title. A game can
+  make every header quiet with `DialogHeaderStyleProvider` (see Quiet dialog headers, 2026-11-17). The guide
   borrows the file, so it imports only `react-native`, `react-native-paper` and `@rific/auto-paper`
   (asserted in `guideImports.test.ts`). `isCompactDialogHeight`/`COMPACT_DIALOG_HEIGHT` (528 = the
   guide's old "480 usable inside 24pt gutters") is the one compact rule.
@@ -1047,3 +1048,14 @@ From HexFleet: Jay found its stats screen's wells ignored the Blur setting while
 - **`useFrostedWells()`** is BaseSettingsDialog's Blur-row rule: the player's Blur setting on (`useBlur()`), an app that handed expo-blur to auto-paper's Provider (`useBlurModule()`), and not Android, where `BlurView` needs a blur target these wells don't have.
 - `StatSection` and `AchievementRow` draw their wells on it (so `AchievementCatalogSection` and `ActivityStatSection` follow); both are exported for an app's own wells (HexFleet's battle cards). The shadow stays on the well itself and is drawn outside it, so a frosted well isn't darkened by it.
 - **Every game's stats screen changes on iOS** wherever the app hands auto-paper expo-blur and Blur is on (its default): over BaseStatsScreen's plain black or white the frost reads as a slightly different shade of the surface, and over a backdrop (HexFleet's nebula) as glass. Tested in `WellBackground.test.tsx` (frosted, Blur off, no expo-blur, Android, a caller's color) and the updated StatSection and AchievementRow tests. Unreleased with the dialog icon color above (`npm run release:minor` makes both 0.32.0).
+
+## Quiet dialog headers (2026-11-17)
+
+From HexFleet: Jay found the big icon over a title in the theme color undercut a serious game, and picked a per-game style over a fleet-wide restyle (the big colored icon suits the arcade games) or a settings screen of HexFleet's own (the dialog keeps a battle in view, and BaseSettingsDialog's rows carry fleet logic a copy would drift from).
+
+- **`DialogHeaderStyleProvider`** (`src/DialogHeader.tsx`, exported from the main entry, `./chrome` and `./guide`), with **`useDialogHeaderStyle()`** and the `DialogHeaderStyle`/`DialogHeaderTone` types: a game wraps its app in it once, above auto-paper's Provider so it reaches the dialogs in the portal host. `tone='standard'` (the default, and what every header is without the provider) is unchanged. `tone='quiet'` draws a 22pt icon beside the title, compact or not, the icon still in the accent (a destructive dialog's danger red, a ConfirmDialog's `iconColor`), and the title in `colors.onSurface` at `titleLarge` bold, under the provider's `titleStyle` (a game's own lettering). So color is left only in the small icon and the confirm button.
+- **Everything that opens with DialogHeader follows:** BaseSettingsDialog, every ConfirmDialog (so `UpdateDialog`), the How to Play guide. Under Metro every entry resolves to the same `src/DialogHeader.tsx` (the `react-native` export condition), so one context serves them all; a consumer of the built CJS bundles could get a separate copy per entry.
+- `DialogHeader.tsx` now imports `react` (for the context), so the guide's import-boundary test allows it.
+- **HexFleet** uses `tone='quiet'` with its wordmark's lettering at 18 (heaviest weight, capitals, spaced a sixth of the size), which fits its longest title ("Delete Online Data?") on one line on a 402pt phone; 20 wrapped it. Seen there in a browser: Settings (a small cog in the player's color beside a white SETTINGS) and Forfeit (the white flag beside a white FORFEIT?, red only on the Forfeit button). Tested in `DialogHeader.test.tsx` (quiet with lettering, a destructive accent kept on the icon only, `iconColor` and compact, standard ignoring the lettering).
+- **Unreleased** (yalc-linked into HexFleet): `npm run release:minor` makes it 0.33.0, a minor since it's additive.
+

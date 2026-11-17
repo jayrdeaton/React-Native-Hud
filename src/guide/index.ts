@@ -8,6 +8,8 @@
 export { type DirectionKeyLabels, type DirectionKeysAxis, DirectionKeysHint, type DirectionKeysHintProps } from './DirectionKeysHint'
 export { GuideProvider, type GuideProviderProps, useAutoShowGuide, useGuide } from './GuideProvider'
 export { createGuideSlice, createReturningPlayerMigrate, type GuideAction, type GuidePersistedState, type GuideSlice, type GuideSliceOptions, type GuideState, type GuideStorageReader } from './guideSlice'
+// The header's tone, so an app using only the guide can make its header quiet too
+export { type DialogHeaderStyle, DialogHeaderStyleProvider, type DialogHeaderTone } from '../DialogHeader'
 export { getGuideCardSize, HowToPlayDialog, type HowToPlayDialogProps } from './HowToPlayDialog'
 export { type SeatDevice, SeatDevicesHint, type SeatDevicesHintProps } from './SeatDevicesHint'
 export { SeatDiagram, type SeatDiagramProps } from './SeatDiagram'

@@ -49,7 +49,7 @@ describe('@tastic/hud/guide import boundary', () => {
   it('the shared dialog header it borrows imports only guide-safe modules', () => {
     const dialogHeader = join(__dirname, '..', 'DialogHeader.tsx')
     for (const specifier of specifiersOf(dialogHeader)) {
-      expect(['react-native', 'react-native-paper', '@rific/auto-paper']).toContain(specifier)
+      expect(['react', 'react-native', 'react-native-paper', '@rific/auto-paper']).toContain(specifier)
     }
   })
 
