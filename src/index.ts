@@ -13,6 +13,7 @@ export { COMPACT_DIALOG_HEIGHT, DialogHeader, type DialogHeaderProps, type Dialo
 export { MONO_FONT } from './fonts'
 export { getInlineColorPickerContentSize, InlineColorPicker, type InlineColorPickerSwatchPlace, type InlineColorPickerSwatchRenderer } from './InlineColorPicker'
 export { getLabeledDropdownContentHeight, LABELED_DROPDOWN_POPOVER_WIDTH, LabeledDropdown, type LabeledDropdownOption } from './LabeledDropdown'
+export { type Lettering, LetteringProvider, useLettering } from './Lettering'
 export { loadSkiaWeb } from './loadSkiaWeb'
 export { locateSkiaWebFile } from './locateSkiaWebFile'
 export { overlayActionStyles, overlayStyles } from './overlayCard'

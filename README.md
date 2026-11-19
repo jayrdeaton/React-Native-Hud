@@ -122,7 +122,7 @@ corner of the screen.
   one piece that needs care in a split-screen layout - see below.
 - **`BaseSettingsDialog`** / **`BaseStatsScreen`** / **`ConfirmDialog`** - shared shells for the
   settings sheet, an achievements/stats screen, and a plain confirm-or-cancel dialog, each factored
-  out after being independently copied into several games. `BaseStatsScreen`'s header arrow is labeled 'Back' for screen readers (`backLabel` to change
+  out after being independently copied into several games. `BaseStatsScreen`'s title takes a game's own lettering (`titleStyle`, over `titleVariant`). `BaseStatsScreen`'s header arrow is labeled 'Back' for screen readers (`backLabel` to change
   it) and takes the same opt-in `hitSlop` as `CornerActionButtons`. On Android, back while a
   `ConfirmDialog` is open calls its `onCancel` and goes no further (with no `onCancel`, it does
   nothing), so it never reaches the screen underneath.
@@ -369,8 +369,9 @@ function GameOverCard({ onRestart, onQuit }: { onRestart: () => void; onQuit: ()
   `iconColor`), and the title in the theme's plain text color, in the game's own lettering
   (`titleStyle`, laid over `titleLarge` bold). Color is left only in the small icon and the confirm
   button: for a game where the big colored icon reads as too playful. Settings, every `ConfirmDialog`
-  (`UpdateDialog` included) and the how-to-play guide follow it. Without the provider, or with
-  `tone='standard'`, nothing changes. `useDialogHeaderStyle()` reads it. The provider is exported from
+  (`UpdateDialog` included) and the how-to-play guide follow it. With `tone='standard'` the header keeps
+  its big icon and accent-colored headline, and `titleStyle` only letters the title (a pack's title
+  font, AlphaTastic's); the accent always wins over a color in it. Without the provider nothing changes. `useDialogHeaderStyle()` reads it. The provider is exported from
   the main entry, `./chrome` and `./guide` (so an app using only the guide can make its header quiet too);
   `useDialogHeaderStyle` from the main entry and `./chrome`.
 
@@ -383,6 +384,12 @@ function GameOverCard({ onRestart, onQuit }: { onRestart: () => void; onQuit: ()
     <ThemeProvider>{/* auto-paper's Provider and the rest of the app */}</ThemeProvider>
   </DialogHeaderStyleProvider>
   ```
+- **A game can letter the fleet's titles and labels** with `LetteringProvider` (`title`, `label`), set
+  once at the app's root (`@tastic/shell` mounts it from a pack's `titleStyle` and `labelStyle`).
+  `title` is laid over `BaseStatsScreen`'s title; `label` over the small capital headings
+  (`StatSection`'s label and caption, `AchievementCatalogSection`'s, the Settings sheet's sections) and
+  `@tastic/profile`'s picker pills. Without it nothing changes; `useLettering()` reads it. Exported from
+  the main entry and `./chrome`. Dialog titles take `DialogHeaderStyleProvider`'s `titleStyle`.
 - **The secondary action is `SecondaryButton`.** Cancel, Skip, Back, a result card's Quit: outlined,
   labeled in the card's text color (`fg`) instead of Paper's default (the theme's primary), and sized
   as one of the action row's buttons. It takes no theme or seat color, so the contained primary beside

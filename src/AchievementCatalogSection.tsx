@@ -6,6 +6,7 @@ import { Text } from 'react-native-paper'
 
 import { AchievementRow, LOCKED_BADGE_COLOR } from './AchievementRow'
 import { MONO_FONT } from './fonts'
+import { useLettering } from './Lettering'
 
 // AchievementCatalogRow now comes straight from @tastic/achievements' own getAchievementCatalogRows
 // (added in the same 2026-09-18 achievements-scaffolding pass this component belongs to) - no
@@ -46,11 +47,12 @@ interface Props {
 export function AchievementCatalogSection({ rows, label = 'ALL ACHIEVEMENTS', fg, fgMuted: fgMutedOverride, sectionBg }: Props) {
   const { dark } = useAutoPaperTheme()
   const fgMuted = fgMutedOverride ?? (dark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)')
+  const { label: lettering } = useLettering()
   const tierAccent = (tierColor: string) => (dark ? tierColor : getBlendedColor('#000000', tierColor, 0.5))
 
   return (
     <Fragment>
-      <Text variant='labelMedium' style={[styles.label, { color: fgMuted, fontFamily: MONO_FONT }]}>
+      <Text variant='labelMedium' style={[styles.label, { color: fgMuted, fontFamily: MONO_FONT }, lettering]}>
         {label}
       </Text>
       {rows.map((row) => (

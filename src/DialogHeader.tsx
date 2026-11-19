@@ -25,8 +25,8 @@ export type DialogHeaderTone = 'standard' | 'quiet'
 
 export interface DialogHeaderStyle {
   tone: DialogHeaderTone
-  // The title's lettering in the quiet tone, over its default (`titleLarge`, bold): a game's own title type (font, weight, size,
-  // letter spacing, case). The standard tone ignores it
+  // The title's lettering, a game's own title type (font, weight, size, letter spacing, case): in the quiet tone over its default
+  // (`titleLarge`, bold), and in the standard tone over its headline, which keeps its accent color (a pack's title font, AlphaTastic's)
   titleStyle?: StyleProp<TextStyle>
 }
 
@@ -64,7 +64,8 @@ export interface DialogHeaderProps {
 // `iconColor` when given), centered.
 // ConfirmDialog, the How to Play guide, BaseSettingsDialog and every app's own result cards use it,
 // so a dialog never hand-rolls its own title again.
-// In the quiet tone (DialogHeaderStyleProvider) it's a small icon beside a plain title instead, compact or not.
+// In the quiet tone (DialogHeaderStyleProvider) it's a small icon beside a plain title instead, compact or not. Either tone's title
+// takes the provider's lettering (`titleStyle`).
 export function DialogHeader({ icon, title, color, iconColor, compact = false, style }: DialogHeaderProps) {
   const { colors } = useAutoPaperTheme()
   const { tone, titleStyle } = useDialogHeaderStyle()
@@ -81,7 +82,7 @@ export function DialogHeader({ icon, title, color, iconColor, compact = false, s
   return (
     <View style={[compact ? styles.compact : styles.full, style]}>
       <Icon source={icon} size={compact ? COMPACT_ICON_SIZE : ICON_SIZE} color={iconColor ?? accent} />
-      <Text accessibilityRole='header' variant={compact ? 'headlineSmall' : 'headlineLarge'} style={[styles.title, compact && styles.titleCompact, { color: accent }]}>
+      <Text accessibilityRole='header' variant={compact ? 'headlineSmall' : 'headlineLarge'} style={[styles.title, compact && styles.titleCompact, titleStyle, { color: accent }]}>
         {title}
       </Text>
     </View>

@@ -78,16 +78,18 @@ describe('DialogHeader', () => {
     unmount()
   })
 
-  it('standard under the provider looks as it always has, ignoring the lettering', () => {
-    const lettering = { letterSpacing: 9 }
+  // A pack's title font (AlphaTastic's) on the fleet's big header: the lettering, with the accent kept.
+  it('standard under the provider keeps its icon and accent, in the lettering', () => {
+    const lettering = { fontFamily: 'AlphaSketch', color: '#123456' }
     const { unmount } = render(
       <DialogHeaderStyleProvider tone='standard' titleStyle={lettering}>
-        <DialogHeader icon='cog' title='Settings' />
+        <DialogHeader icon='cog' title='Settings' color='#ff0000' />
       </DialogHeaderStyleProvider>
     )
 
     expect(lastIconProps().size).toBe(64)
-    expect([lastTitleProps().style].flat(Infinity)).not.toContainEqual(lettering)
+    const style = Object.assign({}, ...[lastTitleProps().style].flat(Infinity).filter(Boolean))
+    expect(style).toMatchObject({ fontFamily: 'AlphaSketch', color: '#ff0000' })
     unmount()
   })
 })

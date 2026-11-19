@@ -2,6 +2,7 @@ import { ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 
+import { useLettering } from './Lettering'
 import { WellBackground } from './WellBackground'
 import { useWellColors, WELL_SHADOW } from './wellSurface'
 
@@ -27,8 +28,9 @@ interface Props {
 export function StatSection({ label, caption, fg: fgOverride, sectionBg: sectionBgOverride, children }: Props) {
   const well = useWellColors()
   const fg = fgOverride ?? well.fg
+  const { label: lettering } = useLettering()
   const heading = (
-    <Text variant='labelMedium' style={[styles.label, { color: fg }]}>
+    <Text variant='labelMedium' style={[styles.label, { color: fg }, lettering]}>
       {label}
     </Text>
   )
@@ -39,7 +41,7 @@ export function StatSection({ label, caption, fg: fgOverride, sectionBg: section
       {caption ? (
         <View style={styles.heading}>
           {heading}
-          <Text variant='labelMedium' style={[styles.caption, { color: well.fgMuted }]}>
+          <Text variant='labelMedium' style={[styles.caption, { color: well.fgMuted }, lettering]}>
             {caption}
           </Text>
         </View>

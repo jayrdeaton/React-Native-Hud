@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ConfirmDialog } from './ConfirmDialog'
 import { DialogHeader, isCompactDialogHeight } from './DialogHeader'
+import { useLettering } from './Lettering'
 import { overlayActionStyles, overlayStyles } from './overlayCard'
 import { ScreenFrame } from './ScreenFrame'
 import { releasedLabel } from './UpdateDialog'
@@ -96,6 +97,7 @@ export interface BaseSettingsDialogProps {
 // forking this component.
 export function BaseSettingsDialog({ visible, onDismiss, version, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, showMusic = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, onShowHowToPlay, children, leading }: BaseSettingsDialogProps) {
   const { colors } = useAutoPaperTheme()
+  const { label: lettering } = useLettering()
   // The sheet lays out in a frame the window's size (below): the same compact rule as every other
   // dialog's header.
   const window = useWindowDimensions()
@@ -201,7 +203,7 @@ export function BaseSettingsDialog({ visible, onDismiss, version, deferBottomEdg
                   {/* Unlabeled while it opens the sheet (each row's own label says what it is); labeled
                   once an app's leading sections sit above it, like every other section after a gap. */}
                   {hasLeading && (
-                    <Text variant='labelMedium' style={[styles.sectionLabel, styles.toggleGroupLabel, { color: colors.onSurfaceVariant }]}>
+                    <Text variant='labelMedium' style={[styles.sectionLabel, styles.toggleGroupLabel, { color: colors.onSurfaceVariant }, lettering]}>
                       GENERAL
                     </Text>
                   )}
@@ -355,7 +357,7 @@ export function BaseSettingsDialog({ visible, onDismiss, version, deferBottomEdg
 
                 {showAppearance && (
                   <View style={styles.section}>
-                    <Text variant='labelMedium' style={[styles.sectionLabel, { color: colors.onSurfaceVariant }]}>
+                    <Text variant='labelMedium' style={[styles.sectionLabel, { color: colors.onSurfaceVariant }, lettering]}>
                       APPEARANCE
                     </Text>
                     <AutoAppearancePicker showLabels={false} />
@@ -393,7 +395,7 @@ export function BaseSettingsDialog({ visible, onDismiss, version, deferBottomEdg
                 for EAS/OTA updates at all. */}
                 {showUpdateCheck && (
                   <View style={styles.section}>
-                    <Text variant='labelMedium' style={[styles.sectionLabel, { color: colors.onSurfaceVariant }]}>
+                    <Text variant='labelMedium' style={[styles.sectionLabel, { color: colors.onSurfaceVariant }, lettering]}>
                       VERSION {version}
                       {updateReady ? ' · UPDATE READY' : ''}
                     </Text>

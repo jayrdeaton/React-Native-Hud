@@ -7,6 +7,7 @@ import { mockBackHandlerAdd, mockViewRender } from '../__mocks__/react-native'
 import { BaseStatsScreen } from '../BaseStatsScreen'
 
 const INSETS = { top: 0, left: 0, bottom: 0, right: 0 }
+const LETTERING = { fontFamily: 'AlphaSketch' }
 
 // See StatRow.test.tsx's own header comment for why this inspects the Text mock directly rather
 // than screen.getByText - this package's own View/Text mocks leave no per-Text DOM boundary once
@@ -63,6 +64,17 @@ describe('BaseStatsScreen', () => {
 
     expect(renderedTexts()).toContain('Stats')
     expect(renderedTexts()).not.toContain('Achievements')
+  })
+
+  it("letters its title in a game's own title style", () => {
+    render(
+      <BaseStatsScreen title='Stats' titleStyle={LETTERING} onBack={jest.fn()} insets={INSETS}>
+        <Text>content</Text>
+      </BaseStatsScreen>
+    )
+
+    const title = (Text as jest.Mock).mock.calls.map((c) => c[0]).find((props) => props.children === 'Stats')
+    expect(flatten(title.style)).toContainEqual({ fontFamily: 'AlphaSketch' })
   })
 
   it('invokes onBack exactly once when the back button fires', () => {

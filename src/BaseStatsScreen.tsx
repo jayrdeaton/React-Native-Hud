@@ -1,10 +1,11 @@
 import { FadingScrollView, useAutoPaperTheme } from '@rific/auto-paper'
 import { Button, IconButton } from '@rific/feedback-press'
 import { ReactNode, useState } from 'react'
-import { type Insets, StyleSheet, View } from 'react-native'
+import { type Insets, type StyleProp, StyleSheet, type TextStyle, View } from 'react-native'
 import { Text } from 'react-native-paper'
 
 import { ConfirmDialog } from './ConfirmDialog'
+import { useLettering } from './Lettering'
 
 // react-native-paper's own MD3 Text variant names - mirrored locally rather than importing its
 // internal VariantProp/MD3TypescaleKey (not exported from the package's public entry point) just
@@ -20,6 +21,8 @@ interface Props {
   // towering over it. Any react-native-paper MD3 Text variant, not just the headline tier, for a
   // caller that wants something else entirely.
   titleVariant?: MD3TextVariant
+  // The title's lettering over its variant (a game's own title font), as DialogHeaderStyleProvider's titleStyle is for dialogs.
+  titleStyle?: StyleProp<TextStyle>
   onBack: () => void
   // The header arrow's accessibility label, default 'Back' (same name and default as
   // CornerActionButtons' own backLabel). Without one, VoiceOver and TalkBack announce only "button".
@@ -69,8 +72,9 @@ interface Props {
 // convention. `children` is the seam for whatever isn't shared: this component has no opinion on
 // what a "stat" is or how achievements are catalogued - see StatRow/StatSection/AchievementRow for
 // the smaller presentational pieces built to go inside it.
-export function BaseStatsScreen({ title = 'Achievements', titleVariant = 'headlineSmall', onBack, backLabel = 'Back', hitSlop, insets, onReset, resetLabel = 'Reset All Stats', resetConfirmTitle = 'Reset Everything?', resetConfirmBody = 'This permanently erases all stats and achievements. This cannot be undone.', fg: fgOverride, bg: bgOverride, children }: Props) {
+export function BaseStatsScreen({ title = 'Achievements', titleVariant = 'headlineSmall', titleStyle, onBack, backLabel = 'Back', hitSlop, insets, onReset, resetLabel = 'Reset All Stats', resetConfirmTitle = 'Reset Everything?', resetConfirmBody = 'This permanently erases all stats and achievements. This cannot be undone.', fg: fgOverride, bg: bgOverride, children }: Props) {
   const { dark, colors } = useAutoPaperTheme()
+  const { title: lettering } = useLettering()
   const [confirmResetVisible, setConfirmResetVisible] = useState(false)
   const showReset = !!onReset
 
@@ -85,7 +89,7 @@ export function BaseStatsScreen({ title = 'Achievements', titleVariant = 'headli
     <View style={[styles.container, { backgroundColor: bg }]}>
       <View style={[styles.header, { paddingTop: 8 + insets.top, paddingLeft: 8 + insets.left }]}>
         <IconButton icon='arrow-left' iconColor={fg} size={24} hitSlop={hitSlop} onPress={onBack} accessibilityLabel={backLabel} />
-        <Text variant={titleVariant} style={[styles.title, { color: fg }]}>
+        <Text variant={titleVariant} style={[styles.title, { color: fg }, lettering, titleStyle]}>
           {title}
         </Text>
       </View>
