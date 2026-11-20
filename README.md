@@ -322,6 +322,12 @@ given, the shared rows get a GENERAL label under it. Omit `leading` (or pass `nu
 exactly as before. The shared rows that read their own state take explicit opt-outs instead:
 `hideSound`, `hideHaptics`, `hideAppearance` and `hideUpdateCheck` (all default `false`).
 
+A game with player profiles passes `onShowProfiles` (0.36.0+), which adds a Profiles row ("Add or edit
+players") under How to Play, so the roster is one tap from every cog instead of only behind a seat
+picker's Manage row. Like `onShowHowToPlay`, it's called after Settings closes, and it's wired to the
+game's own navigation (`router.push('/profiles')` in the fleet). Leave it off over a match in play, as
+with How to Play.
+
 ## Overlay cards (`OverlayCard`, `OverlayBackdrop`, `useOverlayCardColors`)
 
 `ConfirmDialog` and `HowToPlayDialog` draw their card and the dim behind it with these, and a game's

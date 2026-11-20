@@ -288,6 +288,29 @@ describe('BaseSettingsDialog', () => {
     unmount()
   })
 
+  it('omits the Profiles row when onShowProfiles is not passed', () => {
+    const { container, unmount } = render(<BaseSettingsDialog {...baseProps} />)
+
+    expect(container.textContent).not.toContain('Profiles')
+    unmount()
+  })
+
+  it('shows a Profiles row after How to Play that dismisses Settings first and then calls onShowProfiles', () => {
+    const calls: string[] = []
+    const onDismiss = jest.fn(() => calls.push('dismiss'))
+    const onShowProfiles = jest.fn(() => calls.push('profiles'))
+    const { container, unmount } = render(<BaseSettingsDialog {...baseProps} onDismiss={onDismiss} onShowHowToPlay={jest.fn()} onShowProfiles={onShowProfiles} />)
+
+    const text = container.textContent ?? ''
+    expect(text.indexOf('How to Play')).toBeLessThan(text.indexOf('Profiles'))
+    expect(text.indexOf('Profiles')).toBeLessThan(text.indexOf('APPEARANCE'))
+    findRippleByLabel('Profiles').onPress()
+
+    // The screen opens once Settings is gone, as How to Play's guide does
+    expect(calls).toEqual(['dismiss', 'profiles'])
+    unmount()
+  })
+
   it('toggles Sound and fires the selection sound only when turning it on', () => {
     const set = jest.fn()
     ;(useSoundSettings as jest.Mock).mockReturnValue({ settings: { enabled: false }, set })

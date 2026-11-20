@@ -76,6 +76,12 @@ export interface BaseSettingsDialogProps {
   // would be disruptive - e.g. over a live match). Called AFTER this dialog's own onDismiss, so the
   // two overlays never stack: wire it straight to @tastic/hud/guide's `useGuide().open`.
   onShowHowToPlay?: () => void
+  // Opens the game's Profiles screen (@tastic/profile's roster), so it's one tap from every screen
+  // with a cog rather than only behind a seat picker's Manage row (Jay, 2026-11-20). Omit it to hide
+  // the row: a game with no profiles, or over a match in play, as with How to Play. Called AFTER this
+  // dialog's own onDismiss, like onShowHowToPlay: wire it to the game's own navigation, which this
+  // package can't know (expo-router's `router.push('/profiles')` in the fleet).
+  onShowProfiles?: () => void
   // App-specific extra settings sections (board options, CPU difficulty, stats backup, ...),
   // rendered between Appearance and Check for Updates - this component only owns the settings
   // every game shares, never anything about how a particular game plays.
@@ -95,7 +101,7 @@ export interface BaseSettingsDialogProps {
 // is the seam for whatever isn't shared: a game with its own board/difficulty settings (or a stats
 // backup flow, or anything else genuinely specific to it) renders those below Appearance, not by
 // forking this component.
-export function BaseSettingsDialog({ visible, onDismiss, version, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, showMusic = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, onShowHowToPlay, children, leading }: BaseSettingsDialogProps) {
+export function BaseSettingsDialog({ visible, onDismiss, version, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, showMusic = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, onShowHowToPlay, onShowProfiles, children, leading }: BaseSettingsDialogProps) {
   const { colors } = useAutoPaperTheme()
   const { label: lettering } = useLettering()
   // The sheet lays out in a frame the window's size (below): the same compact rule as every other
@@ -348,6 +354,33 @@ export function BaseSettingsDialog({ visible, onDismiss, version, deferBottomEdg
                           </Text>
                           <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
                             Replay quick intro
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableRipple>
+                  )}
+
+                  {/* The Profiles screen, one tap from any cog (Jay, 2026-11-20): who plays is chosen on a
+                  seat, but adding, renaming and retagging people shouldn't need a trip through a setup
+                  screen to find. A navigation row like How to Play, so it sits with it, and it closes
+                  this dialog before the screen opens. */}
+                  {onShowProfiles && (
+                    <TouchableRipple
+                      onPress={() => {
+                        onDismiss()
+                        onShowProfiles()
+                      }}
+                      style={styles.toggleButton}
+                      accessibilityLabel='Profiles'
+                    >
+                      <View style={styles.toggleContent}>
+                        <SettingIcon source='account-multiple-outline' color={colors.secondary} containerColor={colors.secondaryContainer} />
+                        <View style={styles.flexShrink}>
+                          <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
+                            Profiles
+                          </Text>
+                          <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
+                            Add or edit players
                           </Text>
                         </View>
                       </View>
