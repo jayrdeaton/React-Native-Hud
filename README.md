@@ -326,7 +326,9 @@ A game with player profiles passes `onShowProfiles` (0.36.0+), which adds a Prof
 players") under How to Play, so the roster is one tap from every cog instead of only behind a seat
 picker's Manage row. Like `onShowHowToPlay`, it's called after Settings closes, and it's wired to the
 game's own navigation (`router.push('/profiles')` in the fleet). Leave it off over a match in play, as
-with How to Play.
+with How to Play. `profilesRow` (`ProfilesRowLook`: `label`, `caption`, `icon`, 0.37.0+) changes what
+the row says, for a game whose row opens one profile rather than the roster: `@tastic/shell` passes
+"Profile" over seat 1's name, opening its Edit Profile screen.
 
 ## Overlay cards (`OverlayCard`, `OverlayBackdrop`, `useOverlayCardColors`)
 

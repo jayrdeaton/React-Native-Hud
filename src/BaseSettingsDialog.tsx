@@ -35,6 +35,15 @@ function SettingIcon({ source, color, containerColor }: SettingIconProps) {
   )
 }
 
+// What the Profiles row says (BaseSettingsDialogProps.profilesRow): a label over a caption, and its icon
+export interface ProfilesRowLook {
+  label: string
+  caption: string
+  icon?: string
+}
+
+const DEFAULT_PROFILES_ROW: ProfilesRowLook = { label: 'Profiles', caption: 'Add or edit players', icon: 'account-multiple-outline' }
+
 export interface BaseSettingsDialogProps {
   visible: boolean
   onDismiss: () => void
@@ -82,6 +91,10 @@ export interface BaseSettingsDialogProps {
   // dialog's own onDismiss, like onShowHowToPlay: wire it to the game's own navigation, which this
   // package can't know (expo-router's `router.push('/profiles')` in the fleet).
   onShowProfiles?: () => void
+  // What the Profiles row says, for a game whose row opens one profile rather than the roster (@tastic/shell's: the profile in seat 1,
+  // "Profile" over its name, opening its Edit Profile screen, Jay 2026-11-20). Defaults to Profiles, "Add or edit players", and a
+  // group of people
+  profilesRow?: ProfilesRowLook
   // App-specific extra settings sections (board options, CPU difficulty, stats backup, ...),
   // rendered between Appearance and Check for Updates - this component only owns the settings
   // every game shares, never anything about how a particular game plays.
@@ -101,7 +114,7 @@ export interface BaseSettingsDialogProps {
 // is the seam for whatever isn't shared: a game with its own board/difficulty settings (or a stats
 // backup flow, or anything else genuinely specific to it) renders those below Appearance, not by
 // forking this component.
-export function BaseSettingsDialog({ visible, onDismiss, version, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, showMusic = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, onShowHowToPlay, onShowProfiles, children, leading }: BaseSettingsDialogProps) {
+export function BaseSettingsDialog({ visible, onDismiss, version, deferBottomEdgeGestures, onDeferBottomEdgeGestures, hideSound = false, hideHaptics = false, showMusic = false, hideAppearance = false, hideUpdateCheck = false, onUpdateError, onShowHowToPlay, onShowProfiles, profilesRow = DEFAULT_PROFILES_ROW, children, leading }: BaseSettingsDialogProps) {
   const { colors } = useAutoPaperTheme()
   const { label: lettering } = useLettering()
   // The sheet lays out in a frame the window's size (below): the same compact rule as every other
@@ -371,16 +384,16 @@ export function BaseSettingsDialog({ visible, onDismiss, version, deferBottomEdg
                         onShowProfiles()
                       }}
                       style={styles.toggleButton}
-                      accessibilityLabel='Profiles'
+                      accessibilityLabel={`${profilesRow.label}, ${profilesRow.caption}`}
                     >
                       <View style={styles.toggleContent}>
-                        <SettingIcon source='account-multiple-outline' color={colors.secondary} containerColor={colors.secondaryContainer} />
+                        <SettingIcon source={profilesRow.icon ?? DEFAULT_PROFILES_ROW.icon!} color={colors.secondary} containerColor={colors.secondaryContainer} />
                         <View style={styles.flexShrink}>
                           <Text variant='bodyLarge' style={{ color: colors.onSurface }}>
-                            Profiles
+                            {profilesRow.label}
                           </Text>
                           <Text variant='bodySmall' numberOfLines={1} style={{ color: colors.onSurfaceVariant }}>
-                            Add or edit players
+                            {profilesRow.caption}
                           </Text>
                         </View>
                       </View>

@@ -304,10 +304,21 @@ describe('BaseSettingsDialog', () => {
     const text = container.textContent ?? ''
     expect(text.indexOf('How to Play')).toBeLessThan(text.indexOf('Profiles'))
     expect(text.indexOf('Profiles')).toBeLessThan(text.indexOf('APPEARANCE'))
-    findRippleByLabel('Profiles').onPress()
+    findRippleByLabel('Profiles, Add or edit players').onPress()
 
     // The screen opens once Settings is gone, as How to Play's guide does
     expect(calls).toEqual(['dismiss', 'profiles'])
+    unmount()
+  })
+
+  it('says whose profile the row opens when a game hands it a look of its own', () => {
+    const onShowProfiles = jest.fn()
+    const { container, unmount } = render(<BaseSettingsDialog {...baseProps} onShowProfiles={onShowProfiles} profilesRow={{ label: 'Profile', caption: 'Jay', icon: 'account-outline' }} />)
+
+    expect(container.textContent).toContain('ProfileJay')
+    expect(container.textContent).not.toContain('Add or edit players')
+    findRippleByLabel('Profile, Jay').onPress()
+    expect(onShowProfiles).toHaveBeenCalled()
     unmount()
   })
 
