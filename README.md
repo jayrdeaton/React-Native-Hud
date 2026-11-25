@@ -35,6 +35,14 @@ corner of the screen.
   types alike).
 - **`SectionedDropdown`**: a popover holding any mix of single-select ("pick one", radio-style) and
   multi-select ("pick some", checkbox-style, optional all/clear footer) sections, divided by rules.
+  The open menu is headed by its `title` (0.39.0+): small bold capitals in the rows' muted color and
+  font, with a game's label lettering (`LetteringProvider`'s `label`) laid over them. It defaults to
+  `accessibilityLabel`, the name every trigger already gives its setting, so every menu is titled with
+  no change; pass a `title` of its own, or `null` for none. A section can carry a `title` too, a
+  heading in the same style under the divider above it, for one the menu's title doesn't name. The trigger shows the selected option's
+  icon when the menu is one single-select section; `staticIcon` keeps `icon` there instead, for a
+  setting whose options' icons another trigger in the row shares (Air Hockey's puck size and paddle
+  size). `ControlSchemePicker` takes `title` too ('Control scheme' unless given).
 - **`InlineColorPicker`**: swatch-grid color popover, columns auto-clamped to 4 or 5 (the default
   `swatches` list is exactly 20 colors, so that's the only range that fills every row completely),
   with an optional "taken" color (shown disabled, or swappable). The trigger itself is a `size`-

@@ -27,6 +27,8 @@ export interface ControlSchemePickerProps<T extends string | number> {
   // useZoneClampedAlign's result for this picker's own popover placement.
   alignOverride?: AlignResult
   labelFontFamily?: string
+  // The open menu's heading (SectionedDropdown's `title`): 'Control scheme' unless given, null for none.
+  title?: string | null
 }
 
 // A single-select SectionedDropdown, opinionated for exactly one job: letting a local seat pick
@@ -50,9 +52,9 @@ export interface ControlSchemePickerProps<T extends string | number> {
 // no keys of their own (a "keep using pointer input" option, say) are purely a per-app label - so a
 // caller always supplies its own `options` (and typically its own `T`) rather than this component
 // importing `@tastic/input` and choosing a set for every consumer.
-export function ControlSchemePicker<T extends string | number>({ id, host, value, onChange, options, takenValue, accentColor, mutedColor, onAccentColor, dark, align, alignOverride, labelFontFamily }: ControlSchemePickerProps<T>) {
+export function ControlSchemePicker<T extends string | number>({ id, host, value, onChange, options, takenValue, accentColor, mutedColor, onAccentColor, dark, align, alignOverride, labelFontFamily, title }: ControlSchemePickerProps<T>) {
   const isTouchPrimary = useIsTouchPrimaryDevice()
   if (Platform.OS !== 'web' || isTouchPrimary) return null
 
-  return <SectionedDropdown id={id} host={host} icon='keyboard-outline' accessibilityLabel='Control scheme' sections={[{ kind: 'single', id: 'controls', options, value, onChange, takenValue }]} accentColor={accentColor} mutedColor={mutedColor} onAccentColor={onAccentColor} dark={dark} align={align} alignOverride={alignOverride} labelFontFamily={labelFontFamily} />
+  return <SectionedDropdown id={id} host={host} icon='keyboard-outline' accessibilityLabel='Control scheme' sections={[{ kind: 'single', id: 'controls', options, value, onChange, takenValue }]} accentColor={accentColor} mutedColor={mutedColor} onAccentColor={onAccentColor} dark={dark} align={align} alignOverride={alignOverride} labelFontFamily={labelFontFamily} title={title} />
 }

@@ -1,9 +1,10 @@
 import { getBlendedColor, getColorRoles } from '@rific/auto-paper'
 import { IconButton, TouchableRipple } from '@rific/feedback-press'
-import { ScrollView, StyleSheet, TextStyle, View } from 'react-native'
+import { ScrollView, type StyleProp, StyleSheet, TextStyle, View } from 'react-native'
 import { Icon, Text } from 'react-native-paper'
 
 import { MONO_FONT } from './fonts'
+import { useLettering } from './Lettering'
 import type { MenuOption } from './menuOption'
 import { PopoverBody } from './PopoverBody'
 import TriggerGaugeHost from './TriggerGaugeHost'
@@ -33,6 +34,8 @@ const MENU_ITEM_HEIGHT = 40
 const MENU_ITEM_HEIGHT_WITH_DESCRIPTION = 58
 const MENU_DIVIDER_HEIGHT = 9
 const MENU_VERTICAL_PADDING = 12
+// The title's line (labelMedium) and its padding, for the same estimate.
+const MENU_TITLE_HEIGHT = 26
 
 // In a module of its own (menuOption.ts) so `@tastic/hud/lobby` can export the type without
 // reaching this file, which imports TriggerGaugeHost and so Skia.
@@ -52,6 +55,9 @@ export interface SingleSelectSection<T extends string | number> {
   // renders disabled and dimmed, unselectable. Same "shown, not removed" treatment as
   // InlineColorPicker's own takenValue, for the same reason.
   takenValue?: T
+  // A heading over this section's rows, in the menu title's style, for a section the menu's own title
+  // doesn't name (Box Hockey's Match rules: TIP-OFF over its tip-offs, under the divider). Optional.
+  title?: string
 }
 
 // Any number of these can be true at once - checkbox-style. Tapping a row toggles just that one and
@@ -66,6 +72,8 @@ export interface MultiSelectSection<T extends string | number> {
   // Renders an alternating All/Clear bulk-toggle button beneath this section's rows - label reflects
   // what tapping it would do next (every option already selected -> "Clear"; anything else -> "All").
   allClear?: boolean
+  // A heading over this section's rows, as SingleSelectSection's. Optional.
+  title?: string
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -75,9 +83,21 @@ interface Props {
   id: string
   host: PopoverHost
   // Static fallback trigger icon - used whenever there isn't a single unambiguous "selected option"
-  // to show instead (see the trigger-icon logic below).
+  // to show instead (see the trigger-icon logic below), and always with `staticIcon`.
   icon: string
   accessibilityLabel: string
+  // The heading at the top of the open menu, naming what it picks (Jay, 2026-11-25: a row of round
+  // triggers says nothing once one is open, least of all two size pickers whose options share the
+  // same icons). Small bold capitals in the rows' muted color and font, with the game's label
+  // lettering (LetteringProvider's `label`) laid over them, like StatSection's headings. Defaults to
+  // `accessibilityLabel`, which every trigger already names its setting with; `null` leaves it off.
+  // A section can have a heading of its own too (its `title`), drawn under the divider above it.
+  title?: string | null
+  // Keeps `icon` on the trigger even where a single single-select section would show its selected
+  // option's icon instead. For a setting whose options' icons another trigger in the row also uses
+  // (Air Hockey's puck size and paddle size, both small/medium/large circles), so the closed trigger
+  // still says which setting it is. The gauge ring keeps showing the value.
+  staticIcon?: boolean
   sections: MenuSection[]
   accentColor: string
   mutedColor: string
@@ -116,7 +136,7 @@ interface Props {
 // powerups are enabled, say) is just this with one 'multi' section (optionally with allClear); a
 // combined menu (e.g. spawn frequency + which types, in one menu) is just two sections in the same
 // array.
-export function SectionedDropdown({ id, host, icon, accessibilityLabel, sections, accentColor, mutedColor, onAccentColor, dark, align: forcedAlign, alignOverride, autoDismiss = true, labelFontFamily = MONO_FONT, allClearLabels = { all: 'All', clear: 'Clear' } }: Props) {
+export function SectionedDropdown({ id, host, icon, accessibilityLabel, title = accessibilityLabel, staticIcon = false, sections, accentColor, mutedColor, onAccentColor, dark, align: forcedAlign, alignOverride, autoDismiss = true, labelFontFamily = MONO_FONT, allClearLabels = { all: 'All', clear: 'Clear' } }: Props) {
   const menuBg = dark ? '#000000' : '#FFFFFF'
   // mutedColor is translucent (fine for the icon/text tints below, each a single paint), but the
   // caret is deliberately drawn overlapping the box's own top border (PopoverBody's CARET_DIP,
@@ -134,13 +154,16 @@ export function SectionedDropdown({ id, host, icon, accessibilityLabel, sections
   const open = host.openId === id
   // Estimated, not measured - see MENU_ITEM_HEIGHT's own comment. Every row, plus a divider between
   // sections, plus a footer row for whichever multi-select sections show one.
+  const { label: lettering } = useLettering()
   const estimatedHeight =
     MENU_VERTICAL_PADDING +
+    (title ? MENU_TITLE_HEIGHT : 0) +
     sections.reduce((sum, section, sectionIndex) => {
       const rows = section.options.reduce((rowSum, option) => rowSum + (option.description ? MENU_ITEM_HEIGHT_WITH_DESCRIPTION : MENU_ITEM_HEIGHT), 0)
       const footer = section.kind === 'multi' && section.allClear ? MENU_ITEM_HEIGHT : 0
       const divider = sectionIndex > 0 ? MENU_DIVIDER_HEIGHT : 0
-      return sum + rows + footer + divider
+      const heading = section.title ? MENU_TITLE_HEIGHT : 0
+      return sum + heading + rows + footer + divider
     }, 0)
   // Always called, even when alignOverride is supplied and this result goes unused - hooks can't be
   // called conditionally. See LabeledDropdown's identical comment for the same tradeoff.
@@ -154,8 +177,8 @@ export function SectionedDropdown({ id, host, icon, accessibilityLabel, sections
   // unambiguous "the" value to show, so it falls back to the static icon instead.
   const onlySection = sections.length === 1 ? sections[0] : null
   const selectedOption = onlySection?.kind === 'single' ? onlySection.options.find((o) => o.value === onlySection.value) : undefined
-  const triggerIcon = selectedOption?.icon ?? icon
-  const triggerIconSize = selectedOption?.iconSize ?? 22
+  const triggerIcon = staticIcon ? icon : (selectedOption?.icon ?? icon)
+  const triggerIconSize = staticIcon ? 22 : (selectedOption?.iconSize ?? 22)
   const hasMultiSection = sections.some((s) => s.kind === 'multi')
   const anyMultiSelected = sections.some((s) => s.kind === 'multi' && s.value.length > 0)
   // A single-select trigger always has exactly one active value, so there's no "off" state for its
@@ -209,12 +232,14 @@ export function SectionedDropdown({ id, host, icon, accessibilityLabel, sections
         direction has enough room, this is what keeps the menu from just running off the screen
         edge instead of flipping only made it run off a *smaller* amount. */}
         <ScrollView style={[styles.menu, menuStyle]} contentContainerStyle={styles.menuContent} showsVerticalScrollIndicator={false}>
+          {title ? <MenuTitle title={title} color={mutedColor} fontFamily={labelFontFamily} lettering={lettering} /> : null}
           {sections.map((section, sectionIndex) => (
             <View key={section.id}>
               {/* Every section after the first gets a rule above it - the divider belongs to the
               boundary between sections, not to either section itself, so it's keyed off position
               rather than each section carrying its own "divider below me" flag. */}
               {sectionIndex > 0 && <View style={[styles.divider, dividerStyle]} />}
+              {section.title ? <MenuTitle title={section.title} color={mutedColor} fontFamily={labelFontFamily} lettering={lettering} /> : null}
 
               {section.kind === 'single' ? (
                 <SingleSection
@@ -236,6 +261,15 @@ export function SectionedDropdown({ id, host, icon, accessibilityLabel, sections
         </ScrollView>
       </PopoverBody>
     </View>
+  )
+}
+
+// The menu's title, and a section's: small bold capitals in the rows' muted color and font, the game's label lettering over them.
+function MenuTitle({ title, color, fontFamily, lettering }: { title: string; color: string; fontFamily: string; lettering?: StyleProp<TextStyle> }) {
+  return (
+    <Text variant='labelMedium' accessibilityRole='header' style={[styles.title, { color, fontFamily }, lettering]}>
+      {title}
+    </Text>
   )
 }
 
@@ -367,7 +401,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8
   },
+  // Shrinks to the menu it's in: the menu settles at its 200 minimum, narrower than an icon, the gap and
+  // a full 150 of text, so a long description ran through the row's right padding to the border (seen
+  // 2026-11-25 in PuckTastic: Face-Off's "Race the tap on every score").
   itemLabelColumn: {
+    flexShrink: 1,
     maxWidth: MENU_ITEM_LABEL_MAX_WIDTH
   },
   itemLabelFlex: {
@@ -400,6 +438,16 @@ const styles = StyleSheet.create({
   menuContent: {
     gap: 4,
     padding: 6
+  },
+  // In line with the rows' icons (the rows' own 12pt of padding), uppercased by style so a screen
+  // reader still reads the title as written.
+  title: {
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    paddingBottom: 2,
+    paddingHorizontal: 12,
+    paddingTop: 6,
+    textTransform: 'uppercase'
   },
   // Fixed hit-area regardless of the current option's iconSize, so a small-vs-large trigger icon
   // doesn't shift this picker's position within its row.

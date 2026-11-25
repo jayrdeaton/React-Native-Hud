@@ -2,8 +2,11 @@ import { getColorRoles } from '@rific/auto-paper'
 import { IconButton, TouchableRipple } from '@rific/feedback-press'
 import { act, render } from '@testing-library/react'
 import { ReactNode, useEffect } from 'react'
+import { Text } from 'react-native-paper'
 
 import { mockMeasureInWindow } from '../__mocks__/react-native'
+import { MONO_FONT } from '../fonts'
+import { LetteringProvider } from '../Lettering'
 import { MenuSection, MultiSelectSection, SectionedDropdown, SingleSelectSection } from '../SectionedDropdown'
 import { PopoverHost, usePopoverHost } from '../usePopoverHost'
 
@@ -322,6 +325,79 @@ describe('SectionedDropdown', () => {
 
       expect(triggerProps().icon).toBe('cog')
     })
+
+    it('keeps the static icon on the trigger with staticIcon, though one single section has a selected icon', async () => {
+      const section = makeSingle({
+        options: [
+          { value: 'a', label: 'Alpha', icon: 'star', iconSize: 30 },
+          { value: 'b', label: 'Bravo', icon: 'heart' }
+        ],
+        value: 'a'
+      })
+      await renderDropdown([section], { icon: 'cog', staticIcon: true })
+
+      expect(triggerProps()).toEqual(expect.objectContaining({ icon: 'cog', size: 22 }))
+    })
+  })
+
+  // Jay, 2026-11-25: an open menu named nothing, least of all Air Hockey's two size pickers, whose options share their icons
+  describe('the title', () => {
+    // The paper Text mock's calls, for the header row (accessibilityRole 'header') rendered most recently
+    function titleProps() {
+      const calls = (Text as unknown as jest.Mock).mock.calls
+      for (let i = calls.length - 1; i >= 0; i--) {
+        if (calls[i][0]?.accessibilityRole === 'header') return calls[i][0]
+      }
+      return null
+    }
+
+    beforeEach(() => (Text as unknown as jest.Mock).mockClear())
+
+    it('names the menu with its accessibilityLabel by default, only while open', async () => {
+      await renderDropdown([makeSingle()], { accessibilityLabel: 'Puck size' })
+      expect(titleProps()).toBeNull()
+
+      await open('Puck size')
+
+      expect(titleProps()).toEqual(expect.objectContaining({ children: 'Puck size', variant: 'labelMedium' }))
+      // Capitals by style, so a screen reader reads it as written, in the rows' muted color and font
+      expect(StyleSheetFlatten(titleProps()!.style)).toEqual(expect.objectContaining({ textTransform: 'uppercase', fontWeight: 'bold', color: '#888888', fontFamily: MONO_FONT }))
+    })
+
+    it('takes its own title, or none', async () => {
+      await renderDropdown([makeSingle()], { title: 'Paddle size' })
+      await open()
+      expect(titleProps()?.children).toBe('Paddle size')
+    })
+
+    it('leaves the title off with null', async () => {
+      await renderDropdown([makeSingle()], { title: null })
+      await open()
+      expect(titleProps()).toBeNull()
+      expect(bodyText()).not.toContain(TRIGGER_LABEL)
+    })
+
+    it('heads a section with a title of its own, and no other', async () => {
+      await renderDropdown([makeSingle(), makeMulti({ title: 'Toggles' })])
+      await open()
+
+      const headers = (Text as unknown as jest.Mock).mock.calls.filter(([props]) => props?.accessibilityRole === 'header').map(([props]) => props.children)
+      expect(new Set(headers)).toEqual(new Set([TRIGGER_LABEL, 'Toggles']))
+    })
+
+    it("lays the game's label lettering over it", async () => {
+      const hostBoxRef: HostBox = { current: null }
+      const lettering = { fontFamily: 'AlphaSketchBold', fontSize: 14 }
+      render(
+        <LetteringProvider label={lettering}>
+          <Harness hostBoxRef={hostBoxRef} sections={[makeSingle()]} />
+        </LetteringProvider>
+      )
+      await settle()
+      await open()
+
+      expect(StyleSheetFlatten(titleProps()!.style)).toEqual(expect.objectContaining({ fontFamily: 'AlphaSketchBold', fontSize: 14, textTransform: 'uppercase' }))
+    })
   })
 
   it('derives onAccentColor via getColorRoles(accentColor, menuBg) when not supplied', async () => {
@@ -366,3 +442,10 @@ describe('SectionedDropdown', () => {
     expect(bodyText()).toContain('Alpha')
   })
 })
+
+// A style array flattened by hand, last wins (the react-native mock's StyleSheet has no flatten)
+function StyleSheetFlatten(style: unknown): Record<string, unknown> {
+  if (!style) return {}
+  if (Array.isArray(style)) return Object.assign({}, ...style.map(StyleSheetFlatten))
+  return style as Record<string, unknown>
+}
