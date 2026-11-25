@@ -146,6 +146,18 @@ describe('PlayerSetupPanel', () => {
       expect(onCpuDifficultyChange).toHaveBeenCalledWith('hard')
     })
 
+    // Jay, 2026-11-25: each seat button names its seat (the shell's PLAYER, PLAYER 1, PLAYER 2)
+    it('hands its caption to whichever picker the seat draws, and none when it has none', () => {
+      renderPanel({ profiles: [ADA], onProfileSelect: jest.fn(), caption: 'Player' })
+      expect(profilePickerProps().caption).toBe('Player')
+
+      renderPanel({ ...cpuSeat, caption: 'Opponent' })
+      expect(optionPickerProps().caption).toBe('Opponent')
+
+      renderPanel({ profiles: [ADA], onProfileSelect: jest.fn() })
+      expect(profilePickerProps().caption).toBeUndefined()
+    })
+
     it("defaults the CPU seat's chip icon to 'robot'", () => {
       renderPanel(cpuSeat)
       expect(optionPickerProps().icon).toBe('robot')

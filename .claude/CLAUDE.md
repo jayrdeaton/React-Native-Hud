@@ -1142,7 +1142,7 @@ Two more lettering fixes from the same PuckTastic pass, in the same unreleased c
 - **Seen in PuckTastic** with the whole change packed and installed there (`npm install --no-save`), where its `npm run verify` passed (61 suites, 797 tests): on its web build at 402x874 the Achievements tab's ALL ACHIEVEMENTS is in Roboto (Paper's web font) like the Stats tab's OVERALL and GOALS (the heading stays weight 500, OVERALL is bold), and Air Hockey's card titles are monospace. No console errors. Put back after with `npm install`. AlphaTastic's lettered READY? was not seen.
 - **Release:** a minor (0.38.0) for all three 2026-11-25 sections together, since `./guide` gains exports (`LetteringProvider`, `useLettering`, `Lettering`).
 
-## Option menus name themselves, and staticIcon (2026-11-25, unreleased)
+## Option menus name themselves, and staticIcon (2026-11-25, released in 0.39.0)
 
 Jay, in PuckTastic's Air Hockey loadout: an open option menu said nothing about what it picks, least of all the puck size and paddle size menus, whose triggers and rows show the same small/medium/large circles.
 
@@ -1151,3 +1151,9 @@ Jay, in PuckTastic's Air Hockey loadout: an open option menu said nothing about 
 - **Rows fit the menu:** the menu settles at its 200 minimum width, narrower than a row's icon, gap and full 150 of text, so a long description (Face-Off's "Race the tap on every score") ran through the row's right padding to the border. The label column shrinks now (`flexShrink: 1`), wrapping a little sooner.
 - **`staticIcon`:** keeps `icon` on the trigger (at 22) where one single-select section would show its selected option's icon, for a setting whose options' icons another trigger in the row also uses. The gauge ring still shows the value.
 - Tests: `SectionedDropdown.test.tsx`' "the title" (the label by default and only while open, its style, its own title, `null`, the label lettering over it) and the trigger icon's `staticIcon` case.
+
+## A seat button's caption (2026-11-25, unreleased)
+
+Jay, on PuckTastic's loadout: the seat buttons should say what they are, like the stats screen's PLAYER and GAME pills.
+
+`PlayerSetupPanel`'s `caption` (0.40.0) is the seat's name over its button (the shell's PLAYER, PLAYER 1, PLAYER 2), handed to `ProfilePicker` (its `caption`, `@tastic/profile` 0.29.0) or the CPU's `OptionPicker`. Needs profile 0.29.0 to type-check, so the dev dependency and the peer floor move to it. Test: `PlayerSetupPanel.test.tsx`' "hands its caption to whichever picker the seat draws".

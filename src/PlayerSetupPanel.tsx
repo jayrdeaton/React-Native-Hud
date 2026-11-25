@@ -91,6 +91,10 @@ export interface PlayerSetupPanelProps<C extends string = string> {
   // What the seat button shows before any profile's selected - this seat's own 'P1'/'P2' (see
   // ProfilePicker's own doc for why it's never "Player"). Required whenever profiles is provided,
   // since the trigger always needs some idle text.
+  // A small line over the seat button's label naming the seat (@tastic/profile's picker `caption`, 0.29.0+ for
+  // ProfilePicker): the shell's PLAYER, PLAYER 1 and PLAYER 2 (Jay, 2026-11-25). Passed to whichever picker the seat
+  // draws, ProfilePicker or the CPU's OptionPicker. Omit for none.
+  caption?: string
   guestLabel?: string
   // The no-profile row's label in the seat button's dropdown (ProfilePicker's `nullLabel`), e.g.
   // 'Guest' for a seat whose button reads 'GUEST' (guestLabel) until a profile is picked. Unset is
@@ -147,7 +151,7 @@ export interface PlayerSetupPanelProps<C extends string = string> {
 // Owns its own popover host shared by its own pickers unless a `host` is passed in to share with
 // another panel (or a shared-controls row) instead - same convention as every popover-hosting
 // component in this package.
-export function PlayerSetupPanel<C extends string = string>({ idPrefix, host, label, labelFontFamily, color, onColorChange, swatches, takenColor, allowSwapTaken, colorCaption, showColor = true, colorAlignOverride, isHuman, secondPicker, secondPickerId, ready, onToggleReady, dark, showReadyButton = true, profiles, selectedProfileId, takenProfileId, guestLabel, nullLabel, onProfileSelect, onManageProfiles, cpuDifficulty, cpuDifficultyOptions, onCpuDifficultyChange, humanIcon = 'face-man', cpuIcon = 'robot', previewValue, triggerStyle, readySurfaceColor, useSeatPickerAlign }: PlayerSetupPanelProps<C>) {
+export function PlayerSetupPanel<C extends string = string>({ idPrefix, host, label, labelFontFamily, color, onColorChange, swatches, takenColor, allowSwapTaken, colorCaption, showColor = true, colorAlignOverride, isHuman, secondPicker, secondPickerId, ready, onToggleReady, dark, showReadyButton = true, profiles, selectedProfileId, takenProfileId, guestLabel, caption, nullLabel, onProfileSelect, onManageProfiles, cpuDifficulty, cpuDifficultyOptions, onCpuDifficultyChange, humanIcon = 'face-man', cpuIcon = 'robot', previewValue, triggerStyle, readySurfaceColor, useSeatPickerAlign }: PlayerSetupPanelProps<C>) {
   const ownHost = usePopoverHost()
   const popover = host ?? ownHost
   // Checking *this panel's own* ids, not just "is anything open on the host" - when `host` is
@@ -182,9 +186,9 @@ export function PlayerSetupPanel<C extends string = string>({ idPrefix, host, la
   return (
     <View style={[styles.panel, ownPopoverOpen && styles.panelOpen]}>
       {showProfilePicker ? (
-        <ProfilePicker idPrefix={idPrefix} host={popover} profiles={profiles!} selectedId={selectedProfileId ?? null} takenId={takenProfileId} color={drawn} dark={dark} guestLabel={guestLabel ?? 'GUEST'} nullLabel={nullLabel} onSelect={(profile: Profile | null) => onProfileSelect?.(profile)} onManage={onManageProfiles} colorSection={colorSection} alignOverride={seatPickerAlign} triggerStyle={triggerStyle} />
+        <ProfilePicker idPrefix={idPrefix} host={popover} profiles={profiles!} selectedId={selectedProfileId ?? null} takenId={takenProfileId} color={drawn} dark={dark} guestLabel={guestLabel ?? 'GUEST'} caption={caption} nullLabel={nullLabel} onSelect={(profile: Profile | null) => onProfileSelect?.(profile)} onManage={onManageProfiles} colorSection={colorSection} alignOverride={seatPickerAlign} triggerStyle={triggerStyle} />
       ) : showCpuDifficulty ? (
-        <OptionPicker id={getCpuDifficultyPopoverId(idPrefix)} host={popover} options={cpuDifficultyOptions!} value={cpuDifficulty!} onChange={onCpuDifficultyChange!} color={drawn} dark={dark} icon={cpuIcon} colorSection={colorSection} alignOverride={seatPickerAlign} triggerStyle={triggerStyle} />
+        <OptionPicker id={getCpuDifficultyPopoverId(idPrefix)} host={popover} caption={caption} options={cpuDifficultyOptions!} value={cpuDifficulty!} onChange={onCpuDifficultyChange!} color={drawn} dark={dark} icon={cpuIcon} colorSection={colorSection} alignOverride={seatPickerAlign} triggerStyle={triggerStyle} />
       ) : (
         label && (
           <Text variant='labelSmall' style={{ color: drawn, fontFamily: labelFontFamily }}>

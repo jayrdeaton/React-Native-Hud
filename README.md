@@ -76,7 +76,9 @@ corner of the screen.
   of the same dropdown. A seat with neither picker wired shows a plain label and a separate
   `InlineColorPicker` swatch instead. `colorCaption` adds a short line under the Color row while a
   profile is selected (e.g. `'Snake only'`: the pick is kept in this game, not on the profile), and
-  `showColor={false}` leaves the Color row out (e.g. a CPU seat set to "None").
+  `showColor={false}` leaves the Color row out (e.g. a CPU seat set to "None"). `caption` (0.40.0+,
+  with `@tastic/profile` 0.29.0+) is a small line over the seat button's label naming the seat
+  ("Player", "Player 2"), handed to whichever picker the seat draws.
   Ported from five apps' own near-identical `PlayerSetupPanel.tsx`/`LobbyPlayerPanel.tsx`
   (AirHockey, BoxHockey, Pong, LightCycles, Snake), which had all independently converged on this
   exact skeleton. See "The secondPicker slot" below before wiring up that one prop.
