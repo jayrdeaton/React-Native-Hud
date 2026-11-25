@@ -9,6 +9,7 @@ import { mockBackHandlerAdd, mockBackHandlerRemove, mockScrollTo, mockViewRender
 import { DialogHeader } from '../DialogHeader'
 import { getGuideCardSize, HowToPlayDialog } from '../guide/HowToPlayDialog'
 import type { GuideStep } from '../guide/types'
+import { LetteringProvider } from '../Lettering'
 import { overlayStyles } from '../overlayCard'
 
 // The real header, wrapped so a test can read the props it was rendered with.
@@ -320,6 +321,69 @@ describe('HowToPlayDialog', () => {
       const { unmount: unmountSideways } = render(<HowToPlayDialog {...baseProps} />)
       expect(lastHeaderProps()).toEqual(expect.objectContaining({ compact: true }))
       unmountSideways()
+    } finally {
+      ;(useWindowDimensions as jest.Mock).mockReturnValue({ width: 402, height: 874, scale: 3, fontScale: 1 })
+    }
+  })
+
+  // A pack's title lettering (the shell mounts LetteringProvider from PackDefinition.titleStyle): each card's
+  // title in the same face as the dialog's header, AlphaTastic's capitals and spacing included.
+  describe("each card's title in the game's title lettering", () => {
+    const LETTERING = { fontFamily: 'AlphaSketch', fontWeight: 'normal', textTransform: 'uppercase', letterSpacing: 1, color: '#123456' } as const
+
+    // A Text's style as it lays out: every entry merged in order, later ones winning.
+    function styleOf(text: string) {
+      const calls = (Text as jest.Mock).mock.calls.filter(([props]) => props.children === text)
+      const flat = [calls[calls.length - 1][0].style].flat(Infinity).filter(Boolean) as Record<string, unknown>[]
+      return Object.assign({}, ...flat) as Record<string, unknown>
+    }
+
+    it('letters every card title over its own type, and nothing else on the card', () => {
+      const { unmount } = render(
+        <LetteringProvider title={LETTERING}>
+          <HowToPlayDialog {...baseProps} />
+        </LetteringProvider>
+      )
+
+      for (const step of steps) {
+        // The lettering's font, weight, case and spacing win over headlineSmall bold; the card's text color wins over its color.
+        expect(styleOf(step.title)).toEqual({ fontFamily: 'AlphaSketch', fontWeight: 'normal', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', color: '#000002' }) // colors.onSurface
+        expect(styleOf(step.body)).not.toHaveProperty('fontFamily')
+      }
+      unmount()
+    })
+
+    it('changes nothing without the provider', () => {
+      const { unmount } = render(<HowToPlayDialog {...baseProps} />)
+
+      expect(styleOf(steps[0].title)).toEqual({ fontWeight: 'bold', textAlign: 'center', color: '#000002' })
+      unmount()
+    })
+  })
+
+  // Jay, 2026-11-25: on a short screen a page fits exactly with a one-line title, so a wider title font's second line
+  // scrolled the body below the fold. The title steps down to 20 there, lettered or not.
+  it('draws the card titles smaller on a phone held sideways', () => {
+    const titleStyle = (text: string) => {
+      const calls = (Text as jest.Mock).mock.calls.filter(([props]) => props.children === text)
+      return Object.assign({}, ...([calls[calls.length - 1][0].style].flat(Infinity).filter(Boolean) as object[])) as Record<string, unknown>
+    }
+
+    const upright = render(<HowToPlayDialog {...baseProps} />)
+    expect(titleStyle(steps[0].title)).not.toHaveProperty('fontSize')
+    upright.unmount()
+
+    ;(useWindowDimensions as jest.Mock).mockReturnValue({ width: 874, height: 402, scale: 3, fontScale: 1 })
+    try {
+      const sideways = render(
+        <LetteringProvider title={{ fontFamily: 'Menlo' }}>
+          <HowToPlayDialog {...baseProps} />
+        </LetteringProvider>
+      )
+      for (const step of steps) {
+        expect(titleStyle(step.title)).toEqual({ fontWeight: 'bold', textAlign: 'center', fontSize: 20, lineHeight: 26, fontFamily: 'Menlo', color: '#000002' })
+      }
+      sideways.unmount()
     } finally {
       ;(useWindowDimensions as jest.Mock).mockReturnValue({ width: 402, height: 874, scale: 3, fontScale: 1 })
     }

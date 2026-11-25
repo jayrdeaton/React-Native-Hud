@@ -4,6 +4,7 @@ import { StyleProp, StyleSheet, TextStyle, ViewStyle } from 'react-native'
 import { Text } from 'react-native-paper'
 
 import { MONO_FONT } from './fonts'
+import { useLettering } from './Lettering'
 
 interface Props {
   color: string
@@ -15,7 +16,8 @@ interface Props {
   // unmounting.
   style?: StyleProp<ViewStyle>
   // Defaults to the system monospace font - pass your own game's registered font to match its UI.
-  // The pill look (`surfaceColor`) keeps the theme's own font unless this is passed.
+  // The pill look (`surfaceColor`) keeps the theme's own font unless this is passed. A game's label
+  // lettering (LetteringProvider's `label`) is laid over either default, and this, when passed, over the lettering.
   labelFontFamily?: string
   // For a loadout drawn over a pack's backdrop (Solitaire on its felt), where the outline and label
   // in the seat's color read dim: Ready is then a pill on this color (the theme's surface), the size
@@ -36,24 +38,29 @@ const PILL_HEIGHT = 44
 // not one tucked under each slot.
 export function ReadyButton({ color, ready, onToggleReady, style, labelFontFamily, surfaceColor, dark = false }: Props) {
   const label = ready ? 'READY ✓' : 'READY?'
+  // A game's label lettering (AlphaTastic's sketch capitals, 2026-11-25) over each look's own type, as on the seat
+  // buttons beside it (@tastic/profile's pills). An explicit labelFontFamily still wins over its font, and the label's
+  // color (the seat's, or the fill's own ink) over any color in it.
+  const { label: lettering } = useLettering()
+  const fontOverride = labelFontFamily ? { fontFamily: labelFontFamily } : null
 
   if (surfaceColor) {
     const pillStyle = [styles.pill, { backgroundColor: ready ? color : surfaceColor }, style]
     const pillLabelColor = ready ? getTintTextColor(color, color, 1) : dark ? '#FFFFFF' : '#000000'
     return (
       <TouchableRipple onPress={onToggleReady} borderless style={pillStyle} accessibilityRole='button' accessibilityLabel={label}>
-        <Text style={[styles.pillLabel, { color: pillLabelColor }, labelFontFamily ? { fontFamily: labelFontFamily } : null]}>{label}</Text>
+        <Text style={[styles.pillLabel, lettering, fontOverride, { color: pillLabelColor }]}>{label}</Text>
       </TouchableRipple>
     )
   }
 
   const readyButtonStyle = [styles.readyButton, { borderColor: color }, ready && { backgroundColor: color }, style]
-  const labelTextStyle: TextStyle = { fontFamily: labelFontFamily ?? MONO_FONT, fontWeight: 'bold' }
+  const labelTextStyle: TextStyle = { fontFamily: MONO_FONT, fontWeight: 'bold' }
   const labelColorStyle = { color: ready ? '#000000' : color }
 
   return (
     <TouchableRipple onPress={onToggleReady} borderless style={readyButtonStyle}>
-      <Text variant='labelLarge' style={[labelTextStyle, labelColorStyle]}>
+      <Text variant='labelLarge' style={[labelTextStyle, lettering, fontOverride, labelColorStyle]}>
         {label}
       </Text>
     </TouchableRipple>

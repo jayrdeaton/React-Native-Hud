@@ -6,6 +6,7 @@ import { Icon, ProgressBar, Text } from 'react-native-paper'
 import { mockViewRender } from '../__mocks__/react-native'
 import { AchievementCatalogSection } from '../AchievementCatalogSection'
 import { LOCKED_BADGE_COLOR } from '../AchievementRow'
+import { LetteringProvider } from '../Lettering'
 
 // See AchievementRow.test.tsx's own header comment for why this inspects the Text mock directly
 // rather than screen.getByText.
@@ -106,6 +107,29 @@ describe('AchievementCatalogSection', () => {
     expect([headingProps.style].flat().some((s: Record<string, unknown>) => s?.color === '#222222')).toBe(true)
     const titleProps = (Text as jest.Mock).mock.calls.find((c) => c[0].children === 'Ten Wins')![0]
     expect([titleProps.style].flat().some((s: Record<string, unknown>) => s?.color === '#111111')).toBe(true)
+  })
+
+  // Jay, 2026-11-25: in a pack with no label lettering ALL ACHIEVEMENTS was monospace beside the Stats tab's
+  // OVERALL in the theme's font. It follows StatSection's headings now: the theme's font, then the lettering.
+  describe("the heading's font, as StatSection's headings", () => {
+    const heading = () => Object.assign({}, ...[(Text as jest.Mock).mock.calls.find((c) => c[0].children === 'ALL ACHIEVEMENTS')![0].style].flat(Infinity).filter(Boolean)) as Record<string, unknown>
+
+    it("is the theme's own without a lettering", () => {
+      render(<AchievementCatalogSection rows={[lockedRow]} />)
+
+      expect(heading()).not.toHaveProperty('fontFamily')
+      expect(heading()).toMatchObject({ letterSpacing: 2 })
+    })
+
+    it("is the game's label lettering under a provider", () => {
+      render(
+        <LetteringProvider label={{ fontFamily: 'AlphaSketchBold', fontSize: 14 }}>
+          <AchievementCatalogSection rows={[lockedRow]} />
+        </LetteringProvider>
+      )
+
+      expect(heading()).toMatchObject({ fontFamily: 'AlphaSketchBold', fontSize: 14 })
+    })
   })
 
   it('exposes LOCKED_BADGE_COLOR consistently with AchievementRow (sanity check on the shared import)', () => {

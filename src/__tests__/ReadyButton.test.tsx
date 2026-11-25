@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { Text } from 'react-native-paper'
 
 import { MONO_FONT } from '../fonts'
+import { LetteringProvider } from '../Lettering'
 import { ReadyButton } from '../ReadyButton'
 
 const flatten = (style: unknown): Record<string, unknown>[] =>
@@ -112,6 +113,42 @@ describe('ReadyButton', () => {
       rippleProps().onPress()
       expect(onToggleReady).toHaveBeenCalledTimes(1)
       expect(flatten(rippleProps().style).at(-1)).toEqual(hidden)
+    })
+  })
+
+  // A game's label lettering (AlphaTastic's labelStyle, 2026-11-25): READY? was the one label beside the seat buttons
+  // that never took it.
+  describe("a game's label lettering", () => {
+    const LABEL = { fontFamily: 'AlphaSketchBold', fontWeight: 'normal', textTransform: 'uppercase', fontSize: 14, lineHeight: 20, letterSpacing: 0, color: '#123456' } as const
+    const labelStyle = () => Object.assign({}, ...flatten((Text as jest.Mock).mock.calls.at(-1)![0].style)) as Record<string, unknown>
+    const lettered = (button: React.ReactElement) => render(<LetteringProvider label={LABEL}>{button}</LetteringProvider>)
+
+    it('letters the outline look over its monospace bold, in the seat color', () => {
+      lettered(<ReadyButton color='#ff0000' ready={false} onToggleReady={jest.fn()} />)
+
+      expect(labelStyle()).toEqual({ fontFamily: 'AlphaSketchBold', fontWeight: 'normal', textTransform: 'uppercase', fontSize: 14, lineHeight: 20, letterSpacing: 0, color: '#ff0000' })
+    })
+
+    it("letters the pill look over its 13pt bold, in the label's own color", () => {
+      lettered(<ReadyButton color='#9d2d53' ready={false} onToggleReady={jest.fn()} surfaceColor='#fffbff' />)
+
+      expect(labelStyle()).toEqual({ fontFamily: 'AlphaSketchBold', fontWeight: 'normal', textTransform: 'uppercase', fontSize: 14, lineHeight: 20, letterSpacing: 0, color: '#000000' })
+    })
+
+    it('still takes an explicit labelFontFamily over the lettering, in both looks', () => {
+      lettered(<ReadyButton color='#ff0000' ready={false} onToggleReady={jest.fn()} labelFontFamily='Courier' />)
+      expect(labelStyle()).toMatchObject({ fontFamily: 'Courier', textTransform: 'uppercase', fontSize: 14 })
+
+      lettered(<ReadyButton color='#ff0000' ready={false} onToggleReady={jest.fn()} labelFontFamily='Courier' surfaceColor='#fffbff' />)
+      expect(labelStyle()).toMatchObject({ fontFamily: 'Courier', textTransform: 'uppercase', fontSize: 14 })
+    })
+
+    it('changes nothing without the provider: monospace bold outlined, the theme font on the pill', () => {
+      render(<ReadyButton color='#ff0000' ready={false} onToggleReady={jest.fn()} />)
+      expect(labelStyle()).toEqual({ fontFamily: MONO_FONT, fontWeight: 'bold', color: '#ff0000' })
+
+      render(<ReadyButton color='#9d2d53' ready={false} onToggleReady={jest.fn()} surfaceColor='#fffbff' />)
+      expect(labelStyle()).toEqual({ fontSize: 13, fontWeight: '700', letterSpacing: 1, color: '#000000' })
     })
   })
 })

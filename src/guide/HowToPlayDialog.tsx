@@ -6,6 +6,7 @@ import { Portal, Text } from 'react-native-paper'
 import { useReducedMotion } from 'react-native-reanimated'
 
 import { DialogHeader, isCompactDialogHeight } from '../DialogHeader'
+import { useLettering } from '../Lettering'
 import { overlayActionStyles } from '../overlayCard'
 import { OverlayBackdrop, OverlayCard, useOverlayCardColors } from '../OverlaySurface'
 import { SecondaryButton } from '../SecondaryButton'
@@ -74,6 +75,9 @@ function HowToPlayCard({ steps, onFinish, onSkip, title = 'How to Play', icon = 
   }, [onSkip])
 
   const { fg, fgMuted } = useOverlayCardColors()
+  // A game's title lettering (LetteringProvider's `title`), so each card's title reads in the same face as the dialog's own header
+  // (DialogHeaderStyleProvider's titleStyle) instead of Paper's.
+  const { title: lettering } = useLettering()
   const { width: cardWidth, pageWidth, maxHeight, artHeight, compact } = getGuideCardSize(windowWidth, windowHeight)
   const isFirst = index === 0
   const isLast = index === steps.length - 1
@@ -128,7 +132,10 @@ function HowToPlayCard({ steps, onFinish, onSkip, title = 'How to Play', icon = 
             {steps.map((step, i) => (
               <ScrollView key={i} nestedScrollEnabled showsVerticalScrollIndicator={false} style={{ width: pageWidth }} contentContainerStyle={[styles.page, compact && styles.pageCompact]}>
                 {step.art !== undefined && <View style={[styles.art, { height: artHeight, backgroundColor: artBackground }]}>{step.art}</View>}
-                <Text variant='headlineSmall' style={[styles.title, { color: fg }]}>
+                {/* The lettering over the title's own type (its font, weight, case, spacing win over headlineSmall bold), and the
+                card's text color over the lettering, as the header's accent wins over a color in its titleStyle. Smaller on a
+                short screen (titleCompact). */}
+                <Text variant='headlineSmall' style={[styles.title, compact && styles.titleCompact, lettering, { color: fg }]}>
                   {step.title}
                 </Text>
                 <Text variant='bodyMedium' style={[styles.body, { color: fg }]}>
@@ -225,5 +232,13 @@ const styles = StyleSheet.create({
   title: {
     fontWeight: 'bold',
     textAlign: 'center'
+  },
+  // On a short screen the title steps down from headlineSmall's 24 (the compact header's own size) to 20, so a long
+  // one stays on one line: a page there fits exactly with a one-line title, and a second line scrolled the body below
+  // the fold. At 20 every PuckTastic and DuelTastic title fits a 312pt page in its pack's title font, "Two Players, One
+  // Computer" included (measured 2026-11-25; at 22 four still wrapped). The line is 26, which also gives the page 6pt.
+  titleCompact: {
+    fontSize: 20,
+    lineHeight: 26
   }
 })

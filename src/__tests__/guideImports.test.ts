@@ -12,7 +12,7 @@ const GUIDE_DIR = join(__dirname, '..', 'guide')
 // Everything a file under src/guide/ is allowed to pull in: this entry point's own peers, and hud's own
 // dependency-light shared card styles.
 const ALLOWED = new Set(['react', 'react-native', 'react-native-paper', 'react-native-reanimated', '@rific/auto-paper', '@rific/feedback-press'])
-const ALLOWED_RELATIVE = new Set(['../DialogHeader', '../overlayCard', '../OverlaySurface', '../SecondaryButton'])
+const ALLOWED_RELATIVE = new Set(['../DialogHeader', '../Lettering', '../overlayCard', '../OverlaySurface', '../SecondaryButton'])
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? sourceFiles(join(dir, entry.name)) : /\.tsx?$/.test(entry.name) ? [join(dir, entry.name)] : []))
@@ -57,6 +57,14 @@ describe('@tastic/hud/guide import boundary', () => {
     const secondaryButton = join(__dirname, '..', 'SecondaryButton.tsx')
     for (const specifier of specifiersOf(secondaryButton)) {
       expect(['@rific/feedback-press', './overlayCard', './OverlaySurface']).toContain(specifier)
+    }
+  })
+
+  // A game's title lettering (2026-11-25), which each card's title takes.
+  it('the shared lettering context it borrows imports only guide-safe modules', () => {
+    const lettering = join(__dirname, '..', 'Lettering.tsx')
+    for (const specifier of specifiersOf(lettering)) {
+      expect(['react', 'react-native']).toContain(specifier)
     }
   })
 

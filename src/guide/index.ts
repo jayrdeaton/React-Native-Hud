@@ -10,6 +10,8 @@ export { GuideProvider, type GuideProviderProps, useAutoShowGuide, useGuide } fr
 export { createGuideSlice, createReturningPlayerMigrate, type GuideAction, type GuidePersistedState, type GuideSlice, type GuideSliceOptions, type GuideState, type GuideStorageReader } from './guideSlice'
 // The header's tone, so an app using only the guide can make its header quiet too
 export { type DialogHeaderStyle, DialogHeaderStyleProvider, type DialogHeaderTone } from '../DialogHeader'
+// A game's title lettering, so an app using only the guide can letter each card's title too
+export { type Lettering, LetteringProvider, useLettering } from '../Lettering'
 export { getGuideCardSize, HowToPlayDialog, type HowToPlayDialogProps } from './HowToPlayDialog'
 export { type SeatDevice, SeatDevicesHint, type SeatDevicesHintProps } from './SeatDevicesHint'
 export { SeatDiagram, type SeatDiagramProps } from './SeatDiagram'

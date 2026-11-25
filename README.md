@@ -58,6 +58,9 @@ corner of the screen.
   color until ready, then filled with it. Over a backdrop (a felt) pass `surfaceColor` (the theme's
   surface) and `dark`: it is then a pill the size of `@tastic/profile`'s chip pill, its label black or
   white in the theme's font, filled with the seat's color (its label in that color's own ink) once ready.
+  Under `LetteringProvider` either look's label takes the game's `label` lettering (its font, weight,
+  size, case and spacing), like the seat buttons beside it; an explicit `labelFontFamily` still wins
+  over the lettering's font, and the label keeps its own color.
 - **`PlayerSetupPanel`**: one panel per player slot in a local-multiplayer loadout/lobby screen: one
   seat button, an optional caller-rendered `secondPicker` slot under it, and a `ReadyButton` for human
   seats. A human seat's button is `@tastic/profile`'s `ProfilePicker` and a non-human (CPU) seat's is
@@ -394,10 +397,11 @@ function GameOverCard({ onRestart, onQuit }: { onRestart: () => void; onQuit: ()
   ```
 - **A game can letter the fleet's titles and labels** with `LetteringProvider` (`title`, `label`), set
   once at the app's root (`@tastic/shell` mounts it from a pack's `titleStyle` and `labelStyle`).
-  `title` is laid over `BaseStatsScreen`'s title; `label` over the small capital headings
-  (`StatSection`'s label and caption, `AchievementCatalogSection`'s, the Settings sheet's sections) and
-  `@tastic/profile`'s picker pills. Without it nothing changes; `useLettering()` reads it. Exported from
-  the main entry and `./chrome`. Dialog titles take `DialogHeaderStyleProvider`'s `titleStyle`.
+  `title` is laid over `BaseStatsScreen`'s title and each how-to-play card's title (the card keeps its own
+  text color); `label` over the small capital headings
+  (`StatSection`'s label and caption, `AchievementCatalogSection`'s, the Settings sheet's sections),
+  `ReadyButton`'s READY? and `@tastic/profile`'s picker pills. Without it nothing changes; `useLettering()` reads it. Exported from
+  the main entry, `./chrome` and `./guide`. Dialog titles take `DialogHeaderStyleProvider`'s `titleStyle`.
 - **The secondary action is `SecondaryButton`.** Cancel, Skip, Back, a result card's Quit: outlined,
   labeled in the card's text color (`fg`) instead of Paper's default (the theme's primary), and sized
   as one of the action row's buttons. It takes no theme or seat color, so the contained primary beside
@@ -597,7 +601,8 @@ existing `AchievementRow` (hud, presentational, fully-precomputed props) / achie
 (pure data) boundary.
 
 **`AchievementCatalogSection`** - an "ALL ACHIEVEMENTS" heading plus one `<AchievementRow>` per
-row. Returns a `Fragment`, not a `View`: every call site renders the heading and rows as flat
+row. The heading is in the theme's font, then the game's label lettering, like `StatSection`'s (0.37.0
+and earlier drew it in monospace). Returns a `Fragment`, not a `View`: every call site renders the heading and rows as flat
 siblings inside `BaseStatsScreen`'s own gap-spaced `ScrollView` content, and a wrapping container
 here would double up that spacing. Resolves each row's locked-vs-unlocked `badgeColor` itself
 (`row.tierColor` once `row.unlockedAt` is set, else the locked color) rather than upstream, since
@@ -766,6 +771,15 @@ const { open } = useGuide()
   seat-colored halves) and `SeatDevicesHint` (its desktop counterpart: a keyboard and/or mouse, each in
   the color of the seat using it). All take their colors from the theme's primary/secondary by default. Give every
   card an illustration: the pager sizes all pages to the tallest, so a card without one leaves a gap.
+- **Card titles take the game's title lettering.** Under `LetteringProvider` (`@tastic/shell` mounts it from a
+  pack's `titleStyle`), each card's title is drawn in its `title` over the card's own `headlineSmall` bold, so
+  it reads in the same face as the dialog's header (`DialogHeaderStyleProvider`'s `titleStyle`). The
+  lettering's font, weight, case and spacing win; the card's text color always stays. A wider face wraps
+  more titles to two lines on a phone held upright, and the card grows to fit. Without the provider the
+  titles are as before.
+- **Card titles are smaller on a short screen.** When `compact`, each card's title is 20pt on a 26pt line
+  (24 on 32 otherwise, the compact header's own size), lettered or not, so a long one stays on one line
+  where a second line would scroll the body out of view.
 - **Fleet copy conventions.** Title Case titles ("Last One Riding Wins"), one-word buttons. The action
   row is ConfirmDialog's (`overlayActionStyles`): outlined Skip (first card only) or Back on the left,
   contained Next on the right, `Ready` on the last card. None of that is configurable: every game gets the identical
@@ -778,7 +792,7 @@ const { open } = useGuide()
   header's `title` and `icon` (default `'How to Play'` and `'help-circle-outline'`).
   `getGuideCardSize(windowWidth, windowHeight)` is the sizing it uses, exported for tests: it returns
   `{ width, pageWidth, maxHeight, artHeight, compact }`. The card is up to 360pt wide inside a 24pt
-  gutter, with 132pt of art (88pt when `compact`).
+  gutter, with 132pt of art (88pt and a 20pt card title when `compact`).
 
 ## Fleet chrome without the heavy peers (`@tastic/hud/chrome`)
 

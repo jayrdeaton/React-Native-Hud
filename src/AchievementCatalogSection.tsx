@@ -5,7 +5,6 @@ import { StyleSheet } from 'react-native'
 import { Text } from 'react-native-paper'
 
 import { AchievementRow, LOCKED_BADGE_COLOR } from './AchievementRow'
-import { MONO_FONT } from './fonts'
 import { useLettering } from './Lettering'
 
 // AchievementCatalogRow now comes straight from @tastic/achievements' own getAchievementCatalogRows
@@ -52,7 +51,9 @@ export function AchievementCatalogSection({ rows, label = 'ALL ACHIEVEMENTS', fg
 
   return (
     <Fragment>
-      <Text variant='labelMedium' style={[styles.label, { color: fgMuted, fontFamily: MONO_FONT }, lettering]}>
+      {/* The theme's font, then the game's label lettering, as StatSection's headings: it was MONO_FONT until 2026-11-25,
+      so a pack with no labelStyle drew ALL ACHIEVEMENTS in monospace beside OVERALL in the theme's font. */}
+      <Text variant='labelMedium' style={[styles.label, { color: fgMuted }, lettering]}>
         {label}
       </Text>
       {rows.map((row) => (
